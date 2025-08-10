@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+
+# Environnements virtuels
+venv/
+.env
+.env.*
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Docker
+db_data/
+*.pid
+
+# Build React
+frontend/dist/
+frontend/build/
+
+# Secrets
+*.pem
+*.key
+secrets.json
+
+# VSCode / IDE
+.vscode/
+.idea/
