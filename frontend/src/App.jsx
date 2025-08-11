@@ -8,6 +8,7 @@ import CategoryManager from './components/CategoryManager'
 import CategoryGuide from './components/CategoryGuide'
 import { setToken, initToken } from './api'
 import { ensureKeyPair } from './utils/crypto'
+import KeyBackup from './components/KeyBackup'
 
 export default function App() {
   const [authed, setAuthed] = useState(false)
@@ -44,6 +45,7 @@ export default function App() {
       <Route path="/edit/:id" element={<Private><PasswordEdit /></Private>} />
       <Route path="/categories" element={<Private><CategoryManager /></Private>} />
       <Route path="/category-guide" element={<Private><CategoryGuide /></Private>} />
+      <Route path="/key-backup" element={<Private><KeyBackup /></Private>} />
 
       {/* Divers */}
       <Route path="*" element={<Navigate to="/" />} />

@@ -77,3 +77,123 @@ function base64ToArrayBuffer(b64){
   for (let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i)
   return bytes.buffer
 }
+
+// ==== Helpers binaires / base64 =========================================
+function strToU8(str){ return new TextEncoder().encode(str) }
+function u8ToStr(u8){ return new TextDecoder().decode(u8) }
+function b64enc(u8){ return btoa(String.fromCharCode(...u8)) }
+function b64dec(b64){
+  const bin = atob(b64); const u8 = new Uint8Array(bin.length)
+  for (let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i)
+  return u8
+}
+
+// ==== Accès au keypair existant =========================================
+// On suppose que ton projet a déjà ensureKeyPair(), getKeyPair() ou équiv.
+// Adapte ces 3 fonctions aux noms réels si besoin.
+let __cached = { privateKey: null, publicKey: null }
+
+export async function getKeyPair(){
+  if (__cached.privateKey && __cached.publicKey) return __cached
+  // Essaie de recharger via ensureKeyPair() si dispo
+  if (typeof ensureKeyPair === 'function') {
+    await ensureKeyPair()
+    if (__cached.privateKey && __cached.publicKey) return __cached
+  }
+  // Sinon, si tu as déjà une implémentation interne, remplace ce bloc par la tienne
+  throw new Error("Keypair non initialisé. Appelle ensureKeyPair() au démarrage et/ou adapte getKeyPair().")
+}
+
+// Si ailleurs dans ton code tu crées le keypair, appelle setKeyPair(priv,pub) après création
+export function setKeyPair(privateKey, publicKey){
+  __cached.privateKey = privateKey
+  __cached.publicKey = publicKey
+}
+
+// ==== Export PEM de la clé publique (utile pour vérifs éventuelles) =====
+export async function getPublicKeyPem(){
+  const { publicKey } = await getKeyPair()
+  const spki = await crypto.subtle.exportKey('spki', publicKey)
+  const b64 = b64enc(new Uint8Array(spki))
+  const body = b64.match(/.{1,64}/g).join('\n')
+  return `-----BEGIN PUBLIC KEY-----\n${body}\n-----END PUBLIC KEY-----\n`
+}
+
+// ==== KDF (PBKDF2) + AES-GCM pour chiffrer la clé privée exportée =======
+async function deriveAesKey(passphrase, salt, iterations=200000){
+  const keyMat = await crypto.subtle.importKey(
+    'raw', strToU8(passphrase), 'PBKDF2', false, ['deriveKey']
+  )
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', hash:'SHA-256', salt, iterations },
+    keyMat,
+    { name:'AES-GCM', length:256 },
+    false,
+    ['encrypt','decrypt']
+  )
+}
+
+// ==== EXPORT : clé privée -> PKCS8 -> AES-GCM(passphrase) = bundle JSON ==
+export async function exportKeyBundle(passphrase){
+  if (!passphrase) throw new Error('Passphrase requise')
+  const { privateKey, publicKey } = await getKeyPair()
+
+  // exporte PKCS8 de la clé privée
+  const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', privateKey))
+
+  // génère salt & iv
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const aes = await deriveAesKey(passphrase, salt)
+  const data = new Uint8Array(await crypto.subtle.encrypt({ name:'AES-GCM', iv }, aes, pkcs8))
+
+  // exporte aussi la publique (SPKI) pour vérification/convenance
+  const spki = new Uint8Array(await crypto.subtle.exportKey('spki', publicKey))
+
+  return {
+    format: 'zk-keybundle-v1',
+    kdf: { name:'PBKDF2', hash:'SHA-256', iterations:200000, salt: b64enc(salt) },
+    enc: { name:'AES-GCM', iv: b64enc(iv) },
+    data: b64enc(data),     // PKCS8 chiffré
+    pub:  b64enc(spki),     // SPKI (non sensible)
+    createdAt: new Date().toISOString()
+  }
+}
+
+// ==== IMPORT : bundle JSON -> déchiffrer -> importKey(pkcs8) -> setKeyPair
+export async function importKeyBundle(bundle, passphrase){
+  if (!bundle || bundle.format !== 'zk-keybundle-v1') throw new Error('Format invalide')
+  const salt = b64dec(bundle.kdf?.salt || '')
+  const iv   = b64dec(bundle.enc?.iv || '')
+  const aes  = await deriveAesKey(passphrase, salt, bundle.kdf?.iterations || 200000)
+  const data = b64dec(bundle.data)
+
+  let pkcs8
+  try {
+    pkcs8 = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, aes, data)
+  } catch {
+    throw new Error('Passphrase incorrecte ou fichier corrompu')
+  }
+
+  // importe la privée (RSA-OAEP SHA-256, usage déchiffrement)
+  const privateKey = await crypto.subtle.importKey(
+    'pkcs8', pkcs8, { name:'RSA-OAEP', hash:'SHA-256' }, true, ['decrypt']
+  )
+
+  // (re)importe la publique si fournie, sinon dérive-la depuis ton stockage
+  let publicKey = null
+  if (bundle.pub) {
+    const spki = b64dec(bundle.pub)
+    publicKey = await crypto.subtle.importKey(
+      'spki', spki, { name:'RSA-OAEP', hash:'SHA-256' }, true, ['encrypt']
+    )
+  } else {
+    // si non fournie, tu peux envisager d'exporter la publique depuis la privée
+    // (non possible directement avec WebCrypto). Dans notre app, on inclut 'pub'.
+    throw new Error('Bundle incomplet: clé publique manquante.')
+  }
+
+  // remplace la paire active
+  setKeyPair(privateKey, publicKey)
+  return true
+}
