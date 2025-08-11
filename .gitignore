@@ -32,3 +32,4 @@ secrets.json
 # VSCode / IDE
 .vscode/
 .idea/
+tools/

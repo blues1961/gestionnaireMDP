@@ -14,37 +14,54 @@ export default function PasswordList(){
   const [err, setErr] = useState(null)
   const [revealItem, setRevealItem] = useState(null)
 
+  // Charger mots de passe + index déchiffré (pour recherche locale)
   useEffect(() => {
-    api.passwords.list().then(async (items) => {
-      setList(items)
-      const index = {}
-      for (const it of items) {
-        try {
-          const p = await decryptPayload(it.ciphertext)
-          index[it.id] = {
-            login: (p.login || '').toLowerCase(),
-            password: p.password || '',
-            notes: (p.notes || '').toLowerCase()
-          }
-        } catch {}
-      }
-      setPlainIndex(index)
-    }).catch(e => setErr(String(e)))
+    api.passwords.list()
+      .then(async (items) => {
+        setList(items || [])
+        const index = {}
+        for (const it of items || []) {
+          try {
+            const p = await decryptPayload(it.ciphertext)
+            index[it.id] = {
+              login: (p.login || '').toLowerCase(),
+              password: p.password || '',
+              notes: (p.notes || '').toLowerCase()
+            }
+          } catch {/* ignore */}
+        }
+        setPlainIndex(index)
+      })
+      .catch(e => setErr(String(e)))
   }, [])
 
+  // Charger catégories (id -> nom)
   useEffect(() => {
-    api.categories.list().then((cats) => {
-      const map = {}
-      for (const c of cats) map[c.id] = c.name
-      setCatById(map)
-    }).catch(e => setErr(String(e)))
+    api.categories.list()
+      .then((cats) => {
+        const map = {}
+        for (const c of cats || []) map[c.id] = c.name
+        setCatById(map)
+      })
+      .catch(e => setErr(String(e)))
   }, [])
 
-  const filtered = useMemo(() => {
+  // Tri par nom/titre (accents FR) + filtre recherche
+  const filteredSorted = useMemo(() => {
+    // tri d'abord
+    const sorted = [...(list || [])].sort((a, b) => {
+      const an = (a.title || '').toString()
+      const bn = (b.title || '').toString()
+      const cmp = an.localeCompare(bn, 'fr', { sensitivity: 'base' })
+      if (cmp !== 0) return cmp
+      // clé secondaire pour stabilité
+      return (a.id || 0) - (b.id || 0)
+    })
+    // puis filtre recherche
     const s = q.trim().toLowerCase()
-    if (!s) return list
-    return list.filter(it => {
-      const inTitle = it.title.toLowerCase().includes(s)
+    if (!s) return sorted
+    return sorted.filter(it => {
+      const inTitle = (it.title || '').toLowerCase().includes(s)
       const inUrl = (it.url || '').toLowerCase().includes(s)
       const inLogin = plainIndex[it.id]?.login?.includes(s)
       const inNotes = plainIndex[it.id]?.notes?.includes(s)
@@ -68,7 +85,7 @@ export default function PasswordList(){
   return (
     <main style={{maxWidth:960, margin:'5vh auto', fontFamily:'system-ui'}}>
       <header style={{display:'flex', gap:12, alignItems:'center', flexWrap:'wrap'}}>
-        <h2 style={{flex:1, minWidth:200}}>Mes mots de passe</h2>
+        <h2 style={{flex:1, minWidth:200}}>Mes mots de passe (triés par nom)</h2>
         <Link to="/category-guide">Guide des catégories</Link>
         <Link to="/new">Ajouter</Link>
       </header>
@@ -83,7 +100,7 @@ export default function PasswordList(){
       />
 
       <ul style={{listStyle:'none', padding:0}}>
-        {filtered.map(item => {
+        {filteredSorted.map(item => {
           const catName = catById[item.category] || '(Aucune)'
           return (
             <li key={item.id} style={{border:'1px solid #eee', padding:12, borderRadius:8, marginBottom:8}}>
