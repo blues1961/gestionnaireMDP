@@ -1,54 +1,68 @@
-import React, { useEffect, useState } from 'react'
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
-import LoginForm from './components/LoginForm'
+import React, { useEffect } from 'react'
+import { Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom'
+import { ensureKeyPair } from './utils/crypto'
 import PasswordList from './components/PasswordList'
 import PasswordForm from './components/PasswordForm'
 import PasswordEdit from './components/PasswordEdit'
-import CategoryManager from './components/CategoryManager'
 import CategoryGuide from './components/CategoryGuide'
-import { setToken, initToken } from './api'
-import { ensureKeyPair } from './utils/crypto'
+import CategoryManager from './components/CategoryManager'
 import KeyBackup from './components/KeyBackup'
+import KeyCheck from "./components/KeyCheck";
+import Help from "./components/Help";
 
-export default function App() {
-  const [authed, setAuthed] = useState(false)
-  const [booted, setBooted] = useState(false) // on attend le rechargement du token
-  const navigate = useNavigate()
 
+import { api } from './api'
+
+function Private({ children }){
+  const [ok, setOk] = React.useState(null)
   useEffect(() => {
-    // Génère/charge la paire RSA et restaure le JWT si présent
-    ensureKeyPair().catch(console.error)
-    const t = initToken()
-    if (t) setAuthed(true)
-    setBooted(true)
+    api.categories.list()
+      .then(() => setOk(true))
+      .catch(() => setOk(false))
   }, [])
-
-  const onLogin = async (tokens) => {
-    setToken(tokens.access)
-    setAuthed(true)
-    navigate('/vault')
+  if (ok === null) return <p style={{padding:20}}>Vérification d’accès…</p>
+  if (ok === false) {
+    return (
+      <main style={{maxWidth:720, margin:'10vh auto', fontFamily:'system-ui'}}>
+        <h2>Authentification requise</h2>
+        <p>Connecte-toi à l’admin Django, puis reviens ici :</p>
+        <p><a href="http://localhost:8000/admin/login/?next=/admin/" target="_blank" rel="noreferrer">Ouvrir la page de connexion Django</a></p>
+      </main>
+    )
   }
+  return children
+}
 
-  const Private = ({ children }) => {
-    if (!booted) return null           // évite une redirection prématurée
-    return authed ? children : <Navigate to="/" />
-  }
+export default function App(){
+  const nav = useNavigate()
+  useEffect(() => { ensureKeyPair().catch(() => {}) }, [])
 
   return (
-    <Routes>
-      {/* Public */}
-      <Route path="/" element={<LoginForm onLogin={onLogin} />} />
+    <div style={{fontFamily:'system-ui'}}>
+      <nav style={{display:'flex', gap:12, padding:'10px 16px', borderBottom:'1px solid #eee', alignItems:'center', flexWrap:'wrap'}}>
+        <strong style={{marginRight:16, cursor:'pointer'}} onClick={()=>nav('/vault')}>Gestionnaire MDP</strong>
+        <Link to="/vault">Voûte</Link>
+        <Link to="/new">Ajouter</Link>
+        <Link to="/category-guide">Guide catégories</Link>
+        <Link to="/categories">Gérer catégories</Link>
+        <Link to="/key-backup">Sauvegarde clé</Link>
+        <Link to="/help">Aide</Link>
 
-      {/* Protégées */}
-      <Route path="/vault" element={<Private><PasswordList /></Private>} />
-      <Route path="/new" element={<Private><PasswordForm /></Private>} />
-      <Route path="/edit/:id" element={<Private><PasswordEdit /></Private>} />
-      <Route path="/categories" element={<Private><CategoryManager /></Private>} />
-      <Route path="/category-guide" element={<Private><CategoryGuide /></Private>} />
-      <Route path="/key-backup" element={<Private><KeyBackup /></Private>} />
+      </nav>
 
-      {/* Divers */}
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+      <Routes>
+        <Route path="/" element={<Navigate to="/vault" replace />} />
+        <Route path="/vault" element={<Private><PasswordList/></Private>} />
+        <Route path="/new" element={<Private><PasswordForm/></Private>} />
+        <Route path="/edit/:id" element={<Private><PasswordEdit/></Private>} />
+        <Route path="/category-guide" element={<Private><CategoryGuide/></Private>} />
+        <Route path="/categories" element={<Private><CategoryManager/></Private>} />
+        <Route path="/key-backup" element={<Private><KeyBackup/></Private>} />
+        <Route path="/key-check" element={<Private><KeyCheck/></Private>} />
+        <Route path="/help" element={<Private><Help/></Private>} />
+
+
+      </Routes>
+    </div>
   )
 }

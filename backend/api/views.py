@@ -1,28 +1,25 @@
 from rest_framework import viewsets, permissions
-from rest_framework.response import Response
-from rest_framework.decorators import action
 from .models import Category, PasswordEntry
-from .serializers import CategorySerializer, PasswordEntrySerializer
+from .serializers import CategorySerializer, PasswordSerializer
 
-class BaseOwnerViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+class IsOwner(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return getattr(obj, "owner_id", None) == request.user.id
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated
 
+class CategoryViewSet(viewsets.ModelViewSet):
+    serializer_class = CategorySerializer
+    permission_classes = [IsOwner]
+    def get_queryset(self):
+        return Category.objects.filter(owner=self.request.user)
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
+class PasswordViewSet(viewsets.ModelViewSet):
+    serializer_class = PasswordSerializer
+    permission_classes = [IsOwner]
     def get_queryset(self):
-        return self.queryset.filter(owner=self.request.user)
-
-class CategoryViewSet(BaseOwnerViewSet):
-    queryset = Category.objects.all()
-    serializer_class = CategorySerializer
-
-class PasswordEntryViewSet(BaseOwnerViewSet):
-    queryset = PasswordEntry.objects.all()
-    serializer_class = PasswordEntrySerializer
-
-    @action(detail=False, methods=["get"])
-    def search(self, request):
-        q = request.query_params.get("q", "").strip()
-        qs = self.get_queryset().filter(title__icontains=q)
-        return Response(self.serializer_class(qs, many=True).data)
+        return PasswordEntry.objects.filter(owner=self.request.user)
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)

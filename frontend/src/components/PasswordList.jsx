@@ -4,6 +4,8 @@ import { api } from '../api'
 import { decryptPayload } from '../utils/crypto'
 import RevealDialog from './RevealDialog'
 import { useToast } from './ToastProvider'
+import { useNavigate } from "react-router-dom";
+
 
 export default function PasswordList(){
   const toast = useToast()
@@ -13,6 +15,8 @@ export default function PasswordList(){
   const [q, setQ] = useState('')
   const [err, setErr] = useState(null)
   const [revealItem, setRevealItem] = useState(null)
+  const navigate = useNavigate();
+
 
   // Charger mots de passe + index déchiffré (pour recherche locale)
   useEffect(() => {
@@ -98,6 +102,22 @@ export default function PasswordList(){
         onChange={e=>setQ(e.target.value)}
         style={{width:'100%', padding:8, margin:'12px 0'}}
       />
+      <div style={{display:"flex", justifyContent:"flex-end", margin:"8px 0"}}>
+        <button
+          onClick={() => navigate("/key-check")}
+          style={{
+            padding:"8px 12px",
+            borderRadius:8,
+            border:"1px solid #e5e7eb",
+            background:"#fff",
+            cursor:"pointer"
+          }}
+          title="Tester que votre clé importée peut déchiffrer les entrées existantes"
+        >
+          Vérifier ma clé
+        </button>
+      </div>
+
 
       <ul style={{listStyle:'none', padding:0}}>
         {filteredSorted.map(item => {
