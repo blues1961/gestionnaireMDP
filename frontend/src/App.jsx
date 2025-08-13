@@ -41,7 +41,6 @@ export default function App(){
     <div style={{fontFamily:'system-ui'}}>
       <nav style={{display:'flex', gap:12, padding:'10px 16px', borderBottom:'1px solid #eee', alignItems:'center', flexWrap:'wrap'}}>
         <strong style={{marginRight:16, cursor:'pointer'}} onClick={()=>nav('/vault')}>Gestionnaire MDP</strong>
-        <Link to="/new">Ajouter</Link>
         <Link to="/category-guide">Catégories</Link>
         <Link to="/key-backup">Clé de chiffrement</Link>
         <Link to="/help">Aide</Link>

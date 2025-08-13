@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { decryptPayload } from '../utils/crypto'
 import RevealDialog from './RevealDialog'
@@ -88,11 +87,41 @@ export default function PasswordList(){
 
   return (
     <main style={{maxWidth:960, margin:'5vh auto', fontFamily:'system-ui'}}>
-      <header style={{display:'flex', gap:12, alignItems:'center', flexWrap:'wrap'}}>
-        <h2 style={{flex:1, minWidth:200}}>Mes mots de passe (triés par nom)</h2>
+      <header style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap'}}>
+          <h2 style={{margin:0}}>Mes mots de passe</h2>
+
+          <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+            <button
+              onClick={() => navigate('/new')} // ← ajuste la route si besoin (/add ?)
+              style={{
+              padding:"8px 12px",
+              borderRadius:8,
+              border:"1px solid #e5e7eb",
+              background:"#1a1a1a",
+              color:"#eee",
+              cursor:"pointer"
+              }}
+              title="Créer une nouvelle entrée"
+            >
+            Ajouter
+          </button>
+
+          <button
+            onClick={() => navigate("/key-check")}
+            style={{
+              padding:"8px 12px",
+              borderRadius:8,
+              border:"1px solid #e5e7eb",
+              background:"#fff",
+              cursor:"pointer"
+            }}
+            title="Tester que votre clé importée peut déchiffrer les entrées existantes"
+            >
+            Vérifier ma clé
+          </button>
+        </div>
       </header>
 
-      {err && <p style={{color:'crimson', whiteSpace:'pre-wrap'}}>{err}</p>}
 
       <input
         placeholder="Recherche (titre, URL, login, notes, catégorie)…"
@@ -100,21 +129,7 @@ export default function PasswordList(){
         onChange={e=>setQ(e.target.value)}
         style={{width:'100%', padding:8, margin:'12px 0'}}
       />
-      <div style={{display:"flex", justifyContent:"flex-end", margin:"8px 0"}}>
-        <button
-          onClick={() => navigate("/key-check")}
-          style={{
-            padding:"8px 12px",
-            borderRadius:8,
-            border:"1px solid #e5e7eb",
-            background:"#fff",
-            cursor:"pointer"
-          }}
-          title="Tester que votre clé importée peut déchiffrer les entrées existantes"
-        >
-          Vérifier ma clé
-        </button>
-      </div>
+      
 
 
       <ul style={{listStyle:'none', padding:0}}>
@@ -131,7 +146,9 @@ export default function PasswordList(){
                   </div>
                 </div>
                 <div style={{display:'flex', gap:8}}>
-                  <Link to={`/edit/${item.id}`}>Modifier</Link>
+                 <button type="button" onClick={()=>navigate(`/edit/${item.id}`)}>
+                    Modifier
+                 </button>
                   <button onClick={()=>setRevealItem(item)}>Révéler</button>
                   <button onClick={()=>remove(item.id)} style={{color:'#a00'}}>Supprimer</button>
                 </div>
