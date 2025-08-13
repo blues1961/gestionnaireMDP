@@ -1,0 +1,37 @@
+.help { padding: 16px; }
+.help__header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.help__title { margin: 0; font-size: 1.5rem; }
+
+.help__back {
+  appearance: none;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
+  padding: 6px 10px;
+  font-weight: 600;
+  background: white;
+  cursor: pointer;
+}
+.help__back:hover { background: #f6f6f6; }
+.help__back:focus-visible {
+  outline: 2px solid #666;
+  outline-offset: 2px;
+}
+
+.help__content { line-height: 1.6; }
+
+.help__markdown {
+  max-width: 80ch;
+}
+
+.help__markdown h1, .help__markdown h2, .help__markdown h3 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.help__markdown p, .help__markdown ul, .help__markdown ol {
+  margin: 0.75em 0;
+}
+
+.help__markdown pre, .help__markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
