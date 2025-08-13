@@ -90,8 +90,6 @@ export default function PasswordList(){
     <main style={{maxWidth:960, margin:'5vh auto', fontFamily:'system-ui'}}>
       <header style={{display:'flex', gap:12, alignItems:'center', flexWrap:'wrap'}}>
         <h2 style={{flex:1, minWidth:200}}>Mes mots de passe (triés par nom)</h2>
-        <Link to="/category-guide">Guide des catégories</Link>
-        <Link to="/new">Ajouter</Link>
       </header>
 
       {err && <p style={{color:'crimson', whiteSpace:'pre-wrap'}}>{err}</p>}
