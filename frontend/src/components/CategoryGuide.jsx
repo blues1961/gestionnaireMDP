@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { api } from '../api'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from './ToastProvider'
-import CategorySelect from './CategorySelect' // ← si tu ne l’as pas, je te fournis un <select> de repli
+import CategorySelect from './CategorySelect' // si absent, je fournis une version <select> native
 
 export default function CategoryGuide(){
   const toast = useToast()
@@ -14,15 +14,19 @@ export default function CategoryGuide(){
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
 
-  // Formulaire d’ajout (conservé si tu l’avais déjà)
+  // Ajout
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
 
-  // Panneau de réassignation/suppression
+  // Suppression + réassignation
   const [confirm, setConfirm] = useState({ open:false, cat:null, target:'' })
   const [working, setWorking] = useState(false)
+
+  // Édition
+  const [edit, setEdit] = useState({ open:false, cat:null, name:'', description:'' })
+  const [editSaving, setEditSaving] = useState(false)
 
   const buildUsage = (passwords) => {
     const m = {}
@@ -52,7 +56,7 @@ export default function CategoryGuide(){
 
   useEffect(() => { refresh() }, [])
 
-  // ---- Ajout de catégorie (si tu veux le garder) ----
+  // ---- Ajout ----
   const resetAdd = () => { setName(''); setDescription('') }
   const submitAdd = async (e) => {
     e?.preventDefault?.()
@@ -78,10 +82,8 @@ export default function CategoryGuide(){
   const tryDelete = (cat) => {
     const count = usage[String(cat.id)] || 0
     if (count === 0) {
-      // suppression directe
       doDelete(cat)
     } else {
-      // demander réassignation
       setConfirm({ open:true, cat, target:'' })
     }
   }
@@ -107,21 +109,15 @@ export default function CategoryGuide(){
 
     setWorking(true)
     try {
-      // 1) Réassigner toutes les entrées qui pointent vers la catégorie source
       const affected = pwds.filter(p => String(p.category) === sourceId)
       for (const p of affected) {
-        // PATCH partiel, on ne touche qu’à la catégorie
         if (api.passwords.updatePartial) {
           await api.passwords.updatePartial(p.id, { category: targetId })
         } else {
-          // Fallback peu probable: essayer update() si ton backend accepte PUT partiel
           await api.passwords.update(p.id, { category: targetId })
         }
       }
-
-      // 2) Supprimer la catégorie
       await api.categories.remove(confirm.cat.id)
-
       toast.success(`Réassignation (${affected.length}) + suppression OK`)
       setConfirm({ open:false, cat:null, target:'' })
       await refresh()
@@ -129,6 +125,37 @@ export default function CategoryGuide(){
       toast.error(e?.message || 'Échec lors de la réassignation/suppression')
     } finally {
       setWorking(false)
+    }
+  }
+
+  // ---- Édition ----
+  const openEdit = (cat) => {
+    setEdit({
+      open: true,
+      cat,
+      name: cat?.name || '',
+      description: cat?.description || ''
+    })
+  }
+
+  const closeEdit = () => setEdit({ open:false, cat:null, name:'', description:'' })
+
+  const submitEdit = async (e) => {
+    e?.preventDefault?.()
+    const n = (edit.name || '').trim()
+    const d = (edit.description || '').trim()
+    if (!edit.cat) return
+    if (!n) { toast.error('Le nom ne peut pas être vide'); return }
+    setEditSaving(true)
+    try {
+      await api.categories.update(edit.cat.id, { name: n, description: d })
+      toast.success('Catégorie mise à jour')
+      closeEdit()
+      await refresh()
+    } catch (e) {
+      toast.error(e?.message || 'Échec de la mise à jour')
+    } finally {
+      setEditSaving(false)
     }
   }
 
@@ -191,7 +218,7 @@ export default function CategoryGuide(){
         </form>
       )}
 
-      {/* Liste des catégories */}
+      {/* Liste */}
       <ul style={{listStyle:'none', padding:0, marginTop:16}}>
         {cats.map(c => {
           const count = usage[String(c.id)] || 0
@@ -199,8 +226,14 @@ export default function CategoryGuide(){
             <li key={c.id} style={{border:'1px solid #eee', borderRadius:10, padding:16, marginBottom:12}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:12}}>
                 <div style={{fontWeight:700}}>{c.name}</div>
-                <div style={{display:'flex', alignItems:'center', gap:12}}>
+                <div style={{display:'flex', alignItems:'center', gap:8, flexWrap:'wrap'}}>
                   <span style={{fontSize:12, color:'#888'}}>{count} entrée{count>1?'s':''}</span>
+                  <button
+                    onClick={()=>openEdit(c)}
+                    style={{padding:'6px 10px', border:'1px solid #444', background:'#1a1a1a', color:'#eee', borderRadius:8, cursor:'pointer'}}
+                  >
+                    Modifier
+                  </button>
                   <button
                     onClick={()=>tryDelete(c)}
                     style={{padding:'6px 10px', border:'1px solid #733', background:'#2a1111', color:'#eee', borderRadius:8, cursor:'pointer'}}
@@ -217,7 +250,7 @@ export default function CategoryGuide(){
         })}
       </ul>
 
-      {/* Panneau de réassignation si la catégorie est utilisée */}
+      {/* Modal réassignation */}
       {confirm.open && confirm.cat && (
         <section style={{
           position:'fixed', inset:0, background:'rgba(0,0,0,.5)',
@@ -243,8 +276,6 @@ export default function CategoryGuide(){
               <CategorySelect
                 value={confirm.target}
                 onChange={(v)=>setConfirm(s => ({...s, target: v}))}
-                // Empêche de choisir la même catégorie
-                style={{opacity:1}}
               />
             </div>
 
@@ -258,6 +289,59 @@ export default function CategoryGuide(){
                 {working ? 'Traitement…' : 'Réassigner & Supprimer'}
               </button>
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* Modal édition */}
+      {edit.open && edit.cat && (
+        <section style={{
+          position:'fixed', inset:0, background:'rgba(0,0,0,.5)',
+          display:'grid', placeItems:'center', padding:12, zIndex:1000
+        }}>
+          <div style={{
+            width:'min(640px, 94vw)', background:'#111', color:'#eee',
+            border:'1px solid #333', borderRadius:12, padding:16, boxShadow:'0 10px 30px rgba(0,0,0,.4)'
+          }}>
+            <header style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
+              <div style={{fontWeight:700}}>Modifier “{edit.cat.name}”</div>
+              <button onClick={closeEdit}
+                      style={{background:'transparent', border:'none', color:'#bbb', fontSize:18, cursor:'pointer'}}>✕</button>
+            </header>
+
+            <form onSubmit={submitEdit}>
+              <div style={{display:'grid', gridTemplateColumns:'140px 1fr', gap:8, alignItems:'center', marginBottom:8}}>
+                <label style={{color:'#bbb'}}>Nom</label>
+                <input
+                  value={edit.name}
+                  onChange={e=>setEdit(s => ({...s, name: e.target.value}))}
+                  aria-label="Nom de la catégorie"
+                  style={{padding:'8px 10px', background:'#0c0c0c', border:'1px solid #333', color:'#eee', borderRadius:8}}
+                />
+              </div>
+
+              <div style={{display:'grid', gridTemplateColumns:'140px 1fr', gap:8, alignItems:'start', marginBottom:12}}>
+                <label style={{color:'#bbb', marginTop:6}}>Suggestion d’utilisation</label>
+                <textarea
+                  value={edit.description}
+                  onChange={e=>setEdit(s => ({...s, description: e.target.value}))}
+                  rows={4}
+                  aria-label="Suggestion d’utilisation"
+                  style={{padding:'8px 10px', background:'#0c0c0c', border:'1px solid #333', color:'#eee', borderRadius:8, resize:'vertical'}}
+                />
+              </div>
+
+              <div style={{display:'flex', gap:8, justifyContent:'flex-end', flexWrap:'wrap'}}>
+                <button type="button" onClick={closeEdit}
+                        style={{padding:'8px 10px', border:'1px solid #444', background:'#1a1a1a', color:'#eee', borderRadius:8}}>
+                  Annuler
+                </button>
+                <button type="submit" disabled={editSaving}
+                        style={{padding:'8px 10px', border:'1px solid #2a5a2a', background:'#0f1a12', color:'#aef3ba', borderRadius:8}}>
+                  {editSaving ? 'Enregistrement…' : 'Enregistrer'}
+                </button>
+              </div>
+            </form>
           </div>
         </section>
       )}
