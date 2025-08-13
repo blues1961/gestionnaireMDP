@@ -5,7 +5,6 @@ import PasswordList from './components/PasswordList'
 import PasswordForm from './components/PasswordForm'
 import PasswordEdit from './components/PasswordEdit'
 import CategoryGuide from './components/CategoryGuide'
-import CategoryManager from './components/CategoryManager'
 import KeyBackup from './components/KeyBackup'
 import KeyCheck from "./components/KeyCheck";
 import Help from "./components/Help";
@@ -53,7 +52,6 @@ export default function App(){
         <Route path="/new" element={<Private><PasswordForm/></Private>} />
         <Route path="/edit/:id" element={<Private><PasswordEdit/></Private>} />
         <Route path="/category-guide" element={<Private><CategoryGuide/></Private>} />
-        <Route path="/categories" element={<Private><CategoryManager/></Private>} />
         <Route path="/key-backup" element={<Private><KeyBackup/></Private>} />
         <Route path="/key-check" element={<Private><KeyCheck/></Private>} />
         <Route path="/help" element={<Private><Help/></Private>} />
