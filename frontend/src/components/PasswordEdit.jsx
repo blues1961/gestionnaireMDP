@@ -4,6 +4,8 @@ import { api } from '../api'
 import { decryptPayload, encryptPayload } from '../utils/crypto'
 import PasswordGenerator from './PasswordGenerator'
 import { useToast } from './ToastProvider'
+import CategorySelect from './CategorySelect'
+
 
 // Utilitaire copie (reprend l’approche de RevealDialog)
 async function copyToClipboard(text){
@@ -163,20 +165,14 @@ export default function PasswordEdit(){
               </button>
             </div>
           </div>
-
+          
           <div style={styles.row}>
             <label style={styles.label}>Catégorie</label>
-            <select
-              style={styles.input}
-              value={categoryId}
-              onChange={e=>setCategoryId(e.target.value)}
-            >
-              <option value="">(Aucune)</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <CategorySelect value={categoryId} onChange={setCategoryId} />
             <a href="/categories" style={{alignSelf:'center', fontSize:13}}>Gérer</a>
           </div>
 
+         
           <div style={styles.row}>
             <label style={styles.label}>Nom d’utilisateur</label>
             <input
