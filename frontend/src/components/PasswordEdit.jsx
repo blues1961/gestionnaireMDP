@@ -165,14 +165,12 @@ export default function PasswordEdit(){
               </button>
             </div>
           </div>
-          
+
           <div style={styles.row}>
             <label style={styles.label}>Catégorie</label>
             <CategorySelect value={categoryId} onChange={setCategoryId} />
-            <a href="/categories" style={{alignSelf:'center', fontSize:13}}>Gérer</a>
           </div>
 
-         
           <div style={styles.row}>
             <label style={styles.label}>Nom d’utilisateur</label>
             <input
@@ -229,17 +227,7 @@ export default function PasswordEdit(){
 
           <div style={{display:'flex', gap:8, marginTop:16, flexWrap:'wrap', justifyContent:'flex-end'}}>
             <button type="button" style={styles.btn} onClick={()=>navigate('/vault')}>Annuler</button>
-            <button
-              type="button"
-              style={{...styles.btn, color:'#f88', borderColor:'#5a2a2a', background:'#1c0f0f'}}
-              onClick={async ()=>{
-                if (!confirm('Supprimer cette entrée ?')) return
-                try { await api.passwords.remove(id); toast.success('Entrée supprimée'); navigate('/vault') }
-                catch(e){ toast.error(e?.message || 'Échec de la suppression') }
-              }}
-            >
-              Supprimer
-            </button>
+           
             <button type="submit" style={styles.btn} disabled={saving}>
               {saving ? 'Enregistrement…' : 'Enregistrer'}
             </button>

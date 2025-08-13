@@ -135,7 +135,6 @@ export default function PasswordForm(){
           <div style={styles.row}>
             <label style={styles.label}>Catégorie</label>
             <CategorySelect value={categoryId} onChange={setCategoryId} />
-            <a href="/categories" style={{alignSelf:'center', fontSize:13}}>Créer/Gérer</a>
           </div>
 
           
