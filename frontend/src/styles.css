@@ -88,3 +88,20 @@
 .right { text-align: right; }
 .link { font-size: 13px; text-decoration: underline; }
 .code { background:#f6f6f6; color:#111; padding:10px; border-radius:8px; overflow:auto; }
+.notes-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--gap-3);
+  gap: var(--gap-2);
+}
+
+.notes-actions .left {
+  display: flex;
+  align-items: center;
+}
+
+.notes-actions .right {
+  display: flex;
+  gap: var(--gap-2);
+}
