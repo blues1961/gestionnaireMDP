@@ -1,17 +1,20 @@
 import React, { useState } from 'react'
 import { api } from '../api'
+import { useNavigate } from 'react-router-dom'
 
 export default function LoginForm({ onLogin }){
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
+  const navigate = useNavigate()
 
   const submit = async (e) => {
     e.preventDefault()
     setError(null)
     try {
       const tokens = await api.login(username, password)
-      onLogin(tokens)
+      onLogin?.(tokens)                          // si fourni, on l’appelle
+      navigate('/vault', { replace: true })      // redirection vers la voûte
     } catch (err) {
       setError('Échec de connexion')
     }

@@ -1,123 +1,120 @@
-// frontend/src/api.js
+// api.js — version complète pour backend Django (sessions + CSRF)
+// - BASE configurable via Vite: import.meta.env.VITE_API_BASE (défaut: http://localhost:8000)
+// - Cookies toujours envoyés (credentials: 'include')
+// - CSRF auto: GET /api/csrf/ si nécessaire, puis envoi X-CSRFToken sur les méthodes non-GET
+// - Gestion d'erreurs homogène (lève Error avec .status, .body, .url)
+// - Endpoints couverts: auth (login, logout, whoami), categories, passwords
+// - Endpoints optionnels (si dispo côté Django): categories.reassign, key.export, key.import
 
-/** Utilitaires fetch JSON + CSRF (compat Django) **/
+const BASE = import.meta.env?.VITE_API_BASE || 'http://localhost:8000';
+
 function getCookie(name) {
-  const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)')
-  return m ? decodeURIComponent(m.pop()) : ''
+  const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([$?*|{}\\^])/g, '\\$1') + '=([^;]*)'));
+  return m ? decodeURIComponent(m[1]) : null;
 }
 
-async function jfetch(url, opts = {}) {
-  const method = (opts.method || 'GET').toUpperCase()
-  const hasBody = !!opts.body
-  const headers = new Headers(opts.headers || {})
-  const isJSON = !(opts.rawBody === true)
-
-  if (isJSON && hasBody && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json')
+async function ensureCsrf() {
+  if (!getCookie('csrftoken')) {
+    await fetch(`${BASE}/api/csrf/`, { credentials: 'include' });
   }
-  // CSRF pour requêtes non-GET
-  if (method !== 'GET' && method !== 'HEAD' && !headers.has('X-CSRFToken')) {
-    const csrftoken = getCookie('csrftoken')
-    if (csrftoken) headers.set('X-CSRFToken', csrftoken)
-  }
+}
 
+async function jsonFetch(url, options = {}) {
   const res = await fetch(url, {
     credentials: 'include',
-    ...opts,
-    headers
-  })
-
-  // Pas de contenu
-  if (res.status === 204) return true
-
-  // Tente de parser JSON si disponible
-  const ctype = res.headers.get('content-type') || ''
-  const isJson = ctype.includes('application/json')
-  const data = isJson ? await res.json().catch(() => ({})) : await res.text()
-
+    headers: { 'Accept': 'application/json', ...(options.headers || {}) },
+    ...options,
+  });
+  const ct = res.headers.get('Content-Type') || '';
+  const isJSON = ct.includes('application/json');
+  const body = isJSON ? await res.json().catch(() => null) : await res.text().catch(() => '');
   if (!res.ok) {
-    // Message d’erreur utile (DRF: detail / errors)
-    let msg = 'Requête échouée'
-    if (data && typeof data === 'object') {
-      msg = data.detail || data.message || JSON.stringify(data)
-    } else if (typeof data === 'string' && data.trim()) {
-      msg = data
-    } else {
-      msg = `${res.status} ${res.statusText}`
-    }
-    const err = new Error(msg)
-    err.status = res.status
-    err.payload = data
-    throw err
+    const detail = (body && (body.detail || body.message || body.error)) || res.statusText;
+    const err = new Error(detail || `HTTP ${res.status}`);
+    err.status = res.status; err.body = body; err.url = url;
+    throw err;
   }
-
-  return data
+  return body;
 }
 
-/** API publique */
+function withCsrf(method, headers = {}, body) {
+  return (async () => {
+    await ensureCsrf();
+    const csrftoken = getCookie('csrftoken') || '';
+    const finalHeaders = { 'X-CSRFToken': csrftoken, ...headers };
+    return { method, headers: finalHeaders, body };
+  })();
+}
+
 export const api = {
-  /** Auth (à adapter si besoin) */
-  auth: {
-    me:    () => jfetch('/api/auth/me/'),
-    login: (body) => jfetch('/api/auth/login/', { method: 'POST', body: JSON.stringify(body) }),
-    logout: () => jfetch('/api/auth/logout/', { method: 'POST' }),
+  // --- Auth ---
+  async login(username, password) {
+    const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify({ username, password }));
+    return jsonFetch(`${BASE}/api/login/`, init);
+  },
+  async logout() {
+    const init = await withCsrf('POST');
+    return jsonFetch(`${BASE}/api/logout/`, init);
+  },
+  async whoami() {
+    try { return await jsonFetch(`${BASE}/api/whoami/`); }
+    catch (e) { if (e.status === 401) return null; throw e; }
   },
 
-  /** Catégories */
+  // --- Categories ---
   categories: {
-    // Récupère toutes les catégories
-    list: () => jfetch('/api/categories/'),
-
-    // Détail
-    get: (id) => jfetch(`/api/categories/${id}/`),
-
-    // Création : accepte "Banques" ou { name: "Banques", description: "..." }
-    // → Poste UNIQUEMENT {name} pour éviter le 400, la description doit être
-    //   mise à jour ensuite via update(id, {description}).
-    create: (payload) => {
-      const name = typeof payload === 'string' ? payload : payload?.name
-      return jfetch('/api/categories/', {
-        method: 'POST',
-        body: JSON.stringify({ name })
-      })
+    async list() {
+      return jsonFetch(`${BASE}/api/categories/`);
     },
-
-    // Mise à jour partielle (DRF: PATCH)
-    update: (id, patch) => jfetch(`/api/categories/${id}/`, {
-      method: 'PATCH',
-      body: JSON.stringify(patch)
-    }),
-
-    // Suppression
-    remove: (id) => jfetch(`/api/categories/${id}/`, { method: 'DELETE' }),
+    async create(name, extra = {}) {
+      const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify({ name, ...extra }));
+      return jsonFetch(`${BASE}/api/categories/`, init);
+    },
+    async update(id, payload) {
+      const init = await withCsrf('PATCH', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
+      return jsonFetch(`${BASE}/api/categories/${id}/`, init);
+    },
+    async remove(id) {
+      const init = await withCsrf('DELETE');
+      return jsonFetch(`${BASE}/api/categories/${id}/`, init);
+    },
+    // Optionnel: nécessite une action côté Django (ex: @action(detail=True, methods=['post']))
+    async reassign(id, targetCategoryId) {
+      const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify({ target: targetCategoryId || null }));
+      return jsonFetch(`${BASE}/api/categories/${id}/reassign/`, init);
+    },
   },
 
-  /** Passwords / Entrées de la voûte */
+  // --- Passwords ---
   passwords: {
-    list:   () => jfetch('/api/passwords/'),
-    get:    (id) => jfetch(`/api/passwords/${id}/`),
-    create: (payload) => jfetch('/api/passwords/', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    }),
-    update: (id, payload) => jfetch(`/api/passwords/${id}/`, {
-      method: 'PUT', // ou 'PATCH' si ton backend le préfère
-      body: JSON.stringify(payload)
-    }),
-    remove: (id) => jfetch(`/api/passwords/${id}/`, { method: 'DELETE' }),
-    updatePartial: (id, patch) => jfetch(`/api/passwords/${id}/`, {
-      method: 'PATCH',
-      body: JSON.stringify(patch)
-    }),
+    async list() {
+      return jsonFetch(`${BASE}/api/passwords/`);
+    },
+    async create(payload) {
+      const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
+      return jsonFetch(`${BASE}/api/passwords/`, init);
+    },
+    async update(id, payload) {
+      const init = await withCsrf('PATCH', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
+      return jsonFetch(`${BASE}/api/passwords/${id}/`, init);
+    },
+    async remove(id) {
+      const init = await withCsrf('DELETE');
+      return jsonFetch(`${BASE}/api/passwords/${id}/`, init);
+    },
   },
 
-  /** (Facultatif) Catégories ↔ Passwords association si tu en as besoin plus tard */
-  // passwordCategories: {
-  //   add: (passwordId, categoryId) => jfetch(`/api/passwords/${passwordId}/category/`, {
-  //     method: 'POST',
-  //     body: JSON.stringify({ category: categoryId })
-  //   }),
-  // }
-}
+  // --- Key (optionnel, si endpoints exposés côté Django) ---
+  key: {
+    async export() {
+      const init = await withCsrf('POST');
+      return jsonFetch(`${BASE}/api/key/export/`, init); // attend un JSON (par ex. {private_key_pem: ..., passphrase_required: ...})
+    },
+    async import(payload) {
+      const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
+      return jsonFetch(`${BASE}/api/key/import/`, init);
+    },
+  },
+};
 
-export default api
+export default api;
