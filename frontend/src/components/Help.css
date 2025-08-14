@@ -35,3 +35,48 @@
 .help__markdown pre, .help__markdown code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+
+.help__markdown {
+  max-width: 80ch;
+  line-height: 1.6;
+}
+
+.help__markdown h1, .help__markdown h2, .help__markdown h3 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.25;
+}
+
+.help__markdown p, .help__markdown ul, .help__markdown ol {
+  margin: 0.75em 0;
+}
+
+.help__markdown a { text-decoration: underline; }
+
+/* Blocs de code */
+.help__markdown pre {
+  padding: 12px;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background: #0c0c0c;
+  overflow: auto;
+}
+.help__markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Citations */
+.help__markdown blockquote {
+  margin: 1em 0;
+  padding: .6em .8em;
+  border-left: 4px solid #333;
+  background: #121212;
+  border-radius: 8px;
+}
+
+/* Tables (si présentes) */
+.help__markdown table { border-collapse: collapse; width: 100%; }
+.help__markdown th, .help__markdown td {
+  border: 1px solid #333;
+  padding: .4em .6em;
+}

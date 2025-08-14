@@ -1,3 +1,5 @@
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useNavigate } from "react-router-dom";
 import playbookMd from "../docs/operational-playbook.md?raw";
 import "./Help.css";
@@ -21,14 +23,13 @@ export default function Help() {
         </button>
       </header>
 
-      <section className="help__content">
-        <pre>
-          {playbookMd}
-        </pre>
-      
-      
-
-      </section>
+     <section className="help__content">
+        <div className="help__markdown">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {playbookMd}
+           </ReactMarkdown>
+        </div>
+</section>
     </main>
   );
 }
