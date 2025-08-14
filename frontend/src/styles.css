@@ -1,0 +1,90 @@
+/* ========== Design tokens (thème sombre) ========== */
+:root{
+  --bg-page: #000;
+  --bg-surface: #111;
+  --bg-input: #0c0c0c;
+  --bg-surface-alt: #0f0f0f;
+  --text: #eee;
+  --text-muted: #bbb;
+  --text-dim: #666;
+
+  --border: #333;
+  --border-soft: #222;
+
+  --shadow: 0 10px 30px rgba(0,0,0,.4);
+
+  --radius: 12px;
+  --radius-sm: 8px;
+
+  --gap-1: 6px;
+  --gap-2: 8px;
+  --gap-3: 12px;
+  --gap-4: 16px;
+  --gap-5: 20px;
+
+  --copy-ring: rgba(34,197,94,.35);
+  --copy-border: rgba(34,197,94,.6);
+  --copy-bg: #0f1a12;
+
+  --warn-border: #5a4a1a;
+  --warn-bg: #1d1706;
+  --warn-text: #facc15;
+
+  --danger-border: #733;
+  --danger-bg: #2a1111;
+
+  --ok: #0a7a34;
+  --error: #b00020;
+}
+
+/* ========== Layout de page générique ========== */
+.page { min-height: 100vh; background: var(--bg-page); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+.container { max-width: 960px; margin: 5vh auto; padding: 0 16px; }
+
+/* ========== Modaux / cartes / backdrop ========== */
+.backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.card, .modal { width: min(720px, 96vw); background: var(--bg-surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--gap-4); box-shadow: var(--shadow); margin: 0 auto; }
+.modal--wide { width: min(820px, 96vw); }
+.card__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--gap-3); }
+.card__close { background: transparent; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; }
+
+/* ========== Typo utilitaires ========== */
+.muted { color: var(--text-muted); }
+.dim { color: var(--text-dim); }
+.small { font-size: 13px; }
+.error { color: crimson; }
+.ok { color: var(--ok); }
+.bad { color: var(--error); }
+
+/* ========== Entrées & formulaires ========== */
+.form { display: block; }
+.form-row { display: grid; grid-template-columns: 140px 1fr auto; align-items: center; gap: var(--gap-2); margin: 8px 0; }
+.form-row--noactions { grid-template-columns: 140px 1fr; }
+.label { color: var(--text-muted); font-size: 14px; }
+.input, .textarea, .select, .file { width: 100%; padding: 8px 10px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); transition: box-shadow .25s, border-color .25s, background .25s; }
+.textarea { min-height: 120px; resize: vertical; }
+.input--flash, .textarea--flash { box-shadow: 0 0 0 2px var(--copy-ring); border-color: var(--copy-border); background: var(--copy-bg); }
+
+/* ========== Boutons ========== */
+.btn { padding: 8px 10px; border: 1px solid #444; background: #1a1a1a; color: var(--text); border-radius: var(--radius-sm); cursor: pointer; }
+.btn--light { background: #fff; color: #000; border-color: #e5e7eb; }
+.btn--success { border-color: var(--copy-border); background: #16351f; }
+.btn--danger { border-color: var(--danger-border); background: var(--danger-bg); }
+.btn--ghost { background: transparent; }
+
+/* ========== Listes & items ========== */
+.list { list-style: none; padding: 0; margin: 0; }
+.item { border: 1px solid #eee; padding: 12px; border-radius: var(--radius-sm); margin-bottom: 8px; }
+
+/* ========== Encadrés (KeyBackup) ========== */
+.stack { display: grid; gap: 36px; margin-top: 16px; }
+.box { border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 30px; background: var(--bg-surface-alt); }
+.box__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.box__title { margin: 0; font-size: 16px; font-weight: 700; }
+.note { margin-top: 6px; padding: 10px 12px; border: 1px solid var(--warn-border); background: var(--warn-bg); color: var(--warn-text); border-radius: var(--radius-sm); line-height: 1.35; }
+
+/* ========== Utilitaires divers ========== */
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.right { text-align: right; }
+.link { font-size: 13px; text-decoration: underline; }
+.code { background:#f6f6f6; color:#111; padding:10px; border-radius:8px; overflow:auto; }

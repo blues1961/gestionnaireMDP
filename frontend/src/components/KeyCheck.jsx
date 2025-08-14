@@ -1,117 +1,114 @@
-import React, { useEffect, useState } from "react";
-import { api } from "../api";
-import { decryptPayload, ensureKeyPair } from "../utils/crypto";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from 'react'
+import { api } from '../api'
+import { decryptPayload, ensureKeyPair } from '../utils/crypto'
+import { useNavigate } from 'react-router-dom'
 
 export default function KeyCheck() {
-  const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState(null);
-  const [error, setError] = useState("");
-  const [sample, setSample] = useState(null);
-  const navigate = useNavigate();
+  const navigate = useNavigate()
+
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const [summary, setSummary] = useState(null) // { total, ok, fail }
+  const [results, setResults] = useState([])   // [{id, title, ok, reason?}]
+  const [sample, setSample] = useState(null)   // premier échec (pour l'exemple)
 
   useEffect(() => {
     (async () => {
-      setLoading(true);
-      setError("");
+      setLoading(true)
+      setError('')
       try {
-        await ensureKeyPair(); // s’assure qu’une clé est présente (importée ou existante)
-        const items = await api.passwords.list(); // [{id, title, ciphertext, ...}]
-        if (!items || items.length === 0) {
-          setSummary({ total: 0, ok: 0, fail: 0, details: [] });
-          setSample(null);
-          setLoading(false);
-          return;
-        }
+        await ensureKeyPair()
+        const items = await api.passwords.list()
 
-        let ok = 0, fail = 0;
-        const details = [];
-        for (const it of items) {
+        const res = []
+        let example = null
+        for (const it of items || []) {
           try {
-            await decryptPayload(it.ciphertext);
-            ok += 1;
-            details.push({ id: it.id, title: it.title, ok: true });
-            if (!sample) setSample(it);
-          } catch {
-            fail += 1;
-            details.push({ id: it.id, title: it.title, ok: false });
+            await decryptPayload(it.ciphertext)
+            res.push({ id: it.id, title: it.title || '', ok: true })
+          } catch (e) {
+            const reason = e?.message || 'Déchiffrement impossible'
+            res.push({ id: it.id, title: it.title || '', ok: false, reason })
+            if (!example) example = it
           }
         }
-        setSummary({ total: items.length, ok, fail, details });
+
+        setResults(res)
+        setSummary({ total: res.length, ok: res.filter(r => r.ok).length, fail: res.filter(r => !r.ok).length })
+        setSample(example)
       } catch (e) {
-        setError(e.message || String(e));
+        setError(String(e))
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    })();
-  }, []);
+    })()
+  }, [])
 
   return (
-    <main style={{maxWidth: 900, margin: "4vh auto", padding: "0 16px", fontFamily: "system-ui"}}>
-      <div style={{display:"flex", alignItems:"center", gap:12, marginBottom:12}}>
-        <h2 style={{margin:0, flex:1}}>Vérification de la clé de chiffrement</h2>
-        <button
-          onClick={() => navigate("/vault")}
-          style={{padding:"8px 12px", borderRadius:8, border:"1px solid #e5e7eb", background:"#fff", cursor:"pointer"}}
-          title="Revenir à la voûte"
-        >
-          ← Retour à la voûte
-        </button>
+    <main className="container">
+      <div className="row" style={{ marginBottom: 12 }}>
+        <h2 style={{ margin: 0, flex: 1 }}>Vérification de la clé de chiffrement</h2>
+        <button className="btn btn--light" onClick={() => navigate('/vault')} title="Revenir à la voûte">← Retour à la voûte</button>
       </div>
 
       {loading && <p>Test de déchiffrement en cours…</p>}
-      {error && <p style={{color:"crimson"}}>Erreur: {error}</p>}
+      {error && <p className="error">Erreur: {error}</p>}
 
       {!loading && !error && (
         <>
           {summary && (
-            <section style={{border:"1px solid #eee", padding:12, borderRadius:10, marginTop:8}}>
+            <section className="card">
               <div>Entrées totales : <strong>{summary.total}</strong></div>
-              <div>Déchiffrées OK : <strong style={{color:"#0a7a34"}}>{summary.ok}</strong></div>
-              <div>Échecs : <strong style={{color:"#b00020"}}>{summary.fail}</strong></div>
+              <div>Déchiffrées OK : <strong className="ok">{summary.ok}</strong></div>
+              <div>Échecs : <strong className="bad">{summary.fail}</strong></div>
             </section>
           )}
 
-          {summary?.fail > 0 && (
-            <p style={{marginTop:10, color:"#b00020"}}>
-              Certaines entrées ne sont pas déchiffrables avec la clé actuelle. Vérifie que tu as importé le
-              <em> même</em> fichier JSON et la même passphrase que lors de l’export précédent.
-            </p>
-          )}
-
-          {summary?.details?.length > 0 && (
-            <section style={{marginTop:16}}>
-              <h3>Détails</h3>
-              <ul style={{listStyle:"none", padding:0}}>
-                {summary.details.map(d => (
-                  <li key={d.id} style={{
-                    border:"1px solid #eee",
-                    borderLeft:`4px solid ${d.ok ? "#0a7a34" : "#b00020"}`,
-                    padding:"8px 10px",
-                    borderRadius:8,
-                    marginBottom:8
-                  }}>
-                    <strong>#{d.id}</strong> — {d.title || "(sans titre)"} — {d.ok ? "OK" : "ÉCHEC"}
+          {/* Liste détaillée avec indicateur couleur */}
+          {results.length > 0 && (
+            <section className="card" style={{ marginTop: 12 }}>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>Détails par entrée</div>
+              <ul className="list">
+                {results.map((r) => (
+                  <li key={r.id} className="item">
+                    <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{r.title || '(sans titre)'}</div>
+                        {!r.ok && (
+                          <div className="small dim">Échec : {r.reason || '—'}</div>
+                        )}
+                      </div>
+                      <div className={`small ${r.ok ? 'ok' : 'bad'}`}>
+                        <span style={{ marginRight: 6 }}>●</span>
+                        {r.ok ? 'OK' : 'Échec'}
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
             </section>
           )}
 
+          {summary?.fail > 0 && (
+            <p className="bad" style={{ marginTop: 10 }}>
+              Certaines entrées ne sont pas déchiffrables avec la clé actuelle. Vérifie que tu as importé le
+              <em> même</em> fichier JSON et la même passphrase que lors de l’export précédent.
+            </p>
+          )}
+
           {sample && (
-            <section style={{marginTop:16}}>
-              <h3>Exemple testé</h3>
-              <div style={{fontSize:14, color:"#555"}}>ID: {sample.id} — {sample.title || "(sans titre)"}</div>
-              <details style={{marginTop:6}}>
+            <section className="card" style={{ marginTop: 12 }}>
+              <div style={{ fontWeight: 600 }}>Exemple d’entrée problématique</div>
+              <div className="small dim">ID: {sample.id} — {sample.title || '(sans titre)'}</div>
+              <details style={{ marginTop: 6 }}>
                 <summary>Voir le ciphertext brut</summary>
-                <pre style={{background:"#f6f6f6", padding:10, borderRadius:8, overflow:"auto"}}>
-{JSON.stringify(sample.ciphertext, null, 2)}
-                </pre>
+                <pre className="code">{JSON.stringify(sample.ciphertext, null, 2)}</pre>
               </details>
             </section>
           )}
         </>
       )}
     </main>
-  );
+  )
 }

@@ -8,6 +8,8 @@ import CategoryGuide from './components/CategoryGuide'
 import KeyBackup from './components/KeyBackup'
 import KeyCheck from "./components/KeyCheck";
 import Help from "./components/Help";
+import './styles.css';
+
 
 
 import { api } from './api'
