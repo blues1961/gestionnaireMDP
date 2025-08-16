@@ -42,21 +42,14 @@ backups/
 *.dump
 *.sql
 
-# --- Backups / éditeurs ---
+# Sensible
+cookies.txt
 *.bak
 *.bak.*
-*~
-# --- Secrets / locaux ---
-cookies.txt
-.env
-*.env
-vault-key.json
-*.zkkey*
-# --- Python ---
-__pycache__/
-*.pyc
-backend/staticfiles/
-media/
-# --- Node/Vite ---
-node_modules/
-frontend/dist/
+
+# Local-only artifacts
+catmap.tsv
+dev.categories.json
+dev.passwords.json
+dev.cookies
+prod.cookies
