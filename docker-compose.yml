@@ -1,3 +1,4 @@
+version: "3.9"
 services:
   db:
     image: postgres:16
@@ -7,75 +8,43 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - db_data:/var/lib/postgresql/data
-    networks:
-      - internal
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appuser} -d ${POSTGRES_DB:-appdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [appnet]
 
   backend:
     build: ./backend
     depends_on:
-      - db
-    environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
-      DJANGO_DEBUG: ${DJANGO_DEBUG}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_HOST: db
-      DB_PORT: ${DB_PORT}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
-    volumes:
-      - media:/app/media
-    networks:
-      - internal
-    #command: ["sh", "-c", "python manage.py migrate && gunicorn gestionnaire_mdp.wsgi:application --bind 0.0.0.0:8000"]
-    command: ["sh","-c","python manage.py makemigrations api && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
-
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      db:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    command: >
+      gunicorn gestionnaire_mdp.wsgi:application
+      --bind 0.0.0.0:8000
+      --workers 3
+      --timeout 60
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks: [appnet]
 
   frontend:
     build: ./frontend
-    depends_on:
-      - backend
-    networks:
-      - internal
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.middlewares.frontend_headers.headers.contentSecurityPolicy=default-src 'self'; connect-src 'self' https://${DOMAIN}; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none';"
-      - "traefik.http.routers.frontend.middlewares=frontend_headers@docker"
-
-  traefik:
-    image: traefik:v3.0
-    command:
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
-      - "--log.level=INFO"
+    depends_on: [backend]
+    environment:
+      VITE_API_BASE: https://api.mon-site.ca
+    command: ["npm","run","preview","--","--host","0.0.0.0","--port","4173"]
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "letsencrypt:/letsencrypt"
-    networks:
-      - internal
+      - "127.0.0.1:4173:4173"
+    networks: [appnet]
 
 volumes:
   db_data:
-  media:
-  letsencrypt:
 
 networks:
-  internal:
+  appnet:
     driver: bridge

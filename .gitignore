@@ -41,3 +41,22 @@ zkkey*.json
 backups/
 *.dump
 *.sql
+
+# --- Backups / éditeurs ---
+*.bak
+*.bak.*
+*~
+# --- Secrets / locaux ---
+cookies.txt
+.env
+*.env
+vault-key.json
+*.zkkey*
+# --- Python ---
+__pycache__/
+*.pyc
+backend/staticfiles/
+media/
+# --- Node/Vite ---
+node_modules/
+frontend/dist/

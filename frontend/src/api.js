@@ -6,7 +6,9 @@
 // - Endpoints couverts: auth (login, logout, whoami), categories, passwords
 // - Endpoints optionnels (si dispo côté Django): categories.reassign, key.export, key.import
 
-const BASE = import.meta.env?.VITE_API_BASE || 'http://localhost:8000';
+
+const BASE = (import.meta.env?.VITE_API_BASE ?? '').trim(); // '' => appels en /api/... sur le même domaine
+
 
 function getCookie(name) {
   const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([$?*|{}\\^])/g, '\\$1') + '=([^;]*)'));

@@ -1,17 +1,15 @@
-# ====== Étape 1 : installer les dépendances via le lockfile ======
-FROM node:20-alpine AS deps
+FROM node:20-alpine
 WORKDIR /app
-# On ne copie QUE les manifests pour maximiser le cache
-COPY package.json package-lock.json ./
+
+# Installer deps
+COPY package*.json ./
 RUN npm ci
 
-# ====== Étape 2 : image de dev (Vite) ======
-FROM node:20-alpine AS dev
-WORKDIR /app
-# Réutilise node_modules installés à l’étape deps
-COPY --from=deps /app/node_modules ./node_modules
-# Copie le code après (pour que changer le code ne réinstalle pas les deps)
+# Copier le code et builder
 COPY . .
+# (facultatif) si tu utilises une variable Vite au build :
+# ENV VITE_API_BASE=https://api.mon-site.ca
+RUN npm run build
 
-EXPOSE 5173
-CMD ["npm", "run", "dev", "--", "--host"]
+# Servir le build avec vite preview
+CMD ["npm","run","preview","--","--host","0.0.0.0","--port","4173"]
