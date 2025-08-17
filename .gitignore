@@ -60,7 +60,3 @@ media/
 # --- Node/Vite ---
 node_modules/
 frontend/dist/
-.env
-.env.*
-backend/.env
-backend/.env.*
