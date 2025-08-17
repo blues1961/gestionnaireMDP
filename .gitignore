@@ -60,3 +60,5 @@ media/
 # --- Node/Vite ---
 node_modules/
 frontend/dist/
+prod.cookies
+dev.cookies

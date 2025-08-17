@@ -8,7 +8,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - db_data:/var/lib/postgresql/data
-
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appuser} -d ${POSTGRES_DB:-appdb}"]
       interval: 10s
@@ -22,7 +21,7 @@ services:
       db:
         condition: service_healthy
     env_file:
-      - ./backend/.env
+      - ./.env            # ⬅️ au lieu de ./backend/.env
     command: >
       gunicorn gestionnaire_mdp.wsgi:application
       --bind 0.0.0.0:8000
