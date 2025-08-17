@@ -22,7 +22,9 @@ services:
       db:
         condition: service_healthy
     env_file:
-      - ./backend/.env
+      - ./.env
+    environment:
+      DJANGO_ALLOWED_HOSTS: "api.mon-site.ca,app.mon-site.ca,localhost,127.0.0.1,backend"
     command: >
       gunicorn gestionnaire_mdp.wsgi:application
       --bind 0.0.0.0:8000
