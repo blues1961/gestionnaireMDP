@@ -1,49 +1,45 @@
 version: "3.9"
+
 services:
   db:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    image: postgres:16-alpine
+    container_name: mdp_db_prod
+    restart: unless-stopped
+    env_file:
+      - .env.prod
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - mdp_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appuser} -d ${POSTGRES_DB:-appdb}"]
-      interval: 10s
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
       timeout: 5s
-      retries: 5
-    networks: [appnet]
+      retries: 20
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mdp_backend_prod
+    restart: unless-stopped
+    # En prod on ne monte PAS le code hôte (image immuable)
+    env_file:
+      - .env.prod
     depends_on:
       db:
         condition: service_healthy
-    env_file:
-      - ./.env            # ⬅️ au lieu de ./backend/.env
+    # Commande: migrations + collectstatic + gunicorn
     command: >
+      sh -c "
+      python manage.py migrate &&
+      python manage.py collectstatic --noinput &&
       gunicorn gestionnaire_mdp.wsgi:application
-      --bind 0.0.0.0:8000
-      --workers 3
-      --timeout 60
+        --bind 0.0.0.0:8000
+        --workers 3
+        --timeout 60
+      "
+    # Expose uniquement en loopback du serveur (Apache reverse-proxy /api → 127.0.0.1:8000)
     ports:
       - "127.0.0.1:8000:8000"
-    networks: [appnet]
-
-  frontend:
-    build: ./frontend
-    depends_on: [backend]
-    environment:
-      VITE_API_BASE: https://api.mon-site.ca
-    command: ["npm","run","preview","--","--host","0.0.0.0","--port","4173"]
-    ports:
-      - "127.0.0.1:4173:4173"
-    networks: [appnet]
 
 volumes:
-  db_data:
-
-networks:
-  appnet:
-    driver: bridge
+  mdp_db_data:
