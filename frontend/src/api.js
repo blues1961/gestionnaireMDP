@@ -17,7 +17,7 @@ function getCookie(name) {
 
 async function ensureCsrf() {
   if (!getCookie('csrftoken')) {
-    await fetch(`${BASE}/api/csrf/`, { credentials: 'include' });
+    await fetch(`${BASE}/csrf/`, { credentials: 'include' });
   }
 }
 
@@ -52,57 +52,57 @@ export const api = {
   // --- Auth ---
   async login(username, password) {
     const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify({ username, password }));
-    return jsonFetch(`${BASE}/api/login/`, init);
+    return jsonFetch(`${BASE}/login/`, init);
   },
   async logout() {
     const init = await withCsrf('POST');
-    return jsonFetch(`${BASE}/api/logout/`, init);
+    return jsonFetch(`${BASE}/logout/`, init);
   },
   async whoami() {
-    try { return await jsonFetch(`${BASE}/api/whoami/`); }
+    try { return await jsonFetch(`${BASE}/whoami/`); }
     catch (e) { if (e.status === 401) return null; throw e; }
   },
 
   // --- Categories ---
   categories: {
     async list() {
-      return jsonFetch(`${BASE}/api/categories/`);
+      return jsonFetch(`${BASE}/categories/`);
     },
     async create(name, extra = {}) {
       const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify({ name, ...extra }));
-      return jsonFetch(`${BASE}/api/categories/`, init);
+      return jsonFetch(`${BASE}/categories/`, init);
     },
     async update(id, payload) {
       const init = await withCsrf('PATCH', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
-      return jsonFetch(`${BASE}/api/categories/${id}/`, init);
+      return jsonFetch(`${BASE}/categories/${id}/`, init);
     },
     async remove(id) {
       const init = await withCsrf('DELETE');
-      return jsonFetch(`${BASE}/api/categories/${id}/`, init);
+      return jsonFetch(`${BASE}/categories/${id}/`, init);
     },
     // Optionnel: nécessite une action côté Django (ex: @action(detail=True, methods=['post']))
     async reassign(id, targetCategoryId) {
       const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify({ target: targetCategoryId || null }));
-      return jsonFetch(`${BASE}/api/categories/${id}/reassign/`, init);
+      return jsonFetch(`${BASE}/categories/${id}/reassign/`, init);
     },
   },
 
   // --- Passwords ---
   passwords: {
     async list() {
-      return jsonFetch(`${BASE}/api/passwords/`);
+      return jsonFetch(`${BASE}/passwords/`);
     },
     async create(payload) {
       const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
-      return jsonFetch(`${BASE}/api/passwords/`, init);
+      return jsonFetch(`${BASE}/passwords/`, init);
     },
     async update(id, payload) {
       const init = await withCsrf('PATCH', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
-      return jsonFetch(`${BASE}/api/passwords/${id}/`, init);
+      return jsonFetch(`${BASE}/passwords/${id}/`, init);
     },
     async remove(id) {
       const init = await withCsrf('DELETE');
-      return jsonFetch(`${BASE}/api/passwords/${id}/`, init);
+      return jsonFetch(`${BASE}/passwords/${id}/`, init);
     },
   },
 
@@ -110,11 +110,11 @@ export const api = {
   key: {
     async export() {
       const init = await withCsrf('POST');
-      return jsonFetch(`${BASE}/api/key/export/`, init); // attend un JSON (par ex. {private_key_pem: ..., passphrase_required: ...})
+      return jsonFetch(`${BASE}/key/export/`, init); // attend un JSON (par ex. {private_key_pem: ..., passphrase_required: ...})
     },
     async import(payload) {
       const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
-      return jsonFetch(`${BASE}/api/key/import/`, init);
+      return jsonFetch(`${BASE}/key/import/`, init);
     },
   },
 };

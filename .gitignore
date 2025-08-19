@@ -80,3 +80,10 @@ docker-compose.yml.bak*
 # Cookies / artefacts locaux
 cookies.txt
 prod.cookies
+
+# DB dumps & backups
+backups/
+*.sql
+*.sql.gz
+*.dump
+*.bak
