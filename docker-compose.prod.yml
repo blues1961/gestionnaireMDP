@@ -5,7 +5,8 @@ services:
     image: postgres:16-alpine
     container_name: mdp_db_prod
     restart: unless-stopped
-    
+    env_file:
+      - .env.prod
     volumes:
       - mdp_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -20,21 +21,15 @@ services:
       dockerfile: Dockerfile
     container_name: mdp_backend_prod
     restart: unless-stopped
-    
+    env_file:
+      - .env.prod
     depends_on:
       db:
         condition: service_healthy
-    # Commande: migrations + collectstatic + gunicorn
     command: >
-      sh -c "
-      python manage.py migrate &&
-      python manage.py collectstatic --noinput &&
-      gunicorn gestionnaire_mdp.wsgi:application
-        --bind 0.0.0.0:8000
-        --workers 3
-        --timeout 60
-      "
-    # Expose uniquement en loopback du serveur (Apache reverse-proxy /api → 127.0.0.1:8000)
+      sh -ce 'python manage.py migrate &&
+              python manage.py collectstatic --noinput &&
+              exec gunicorn gestionnaire_mdp.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60'
     ports:
       - "127.0.0.1:8000:8000"
 

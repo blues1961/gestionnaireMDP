@@ -68,3 +68,15 @@ dev.categories.json
 dev.passwords.json
 catmap.tsv
 project-tree-*.txt
+# === Backups & fichiers temporaires (ne pas versionner) ===
+backups/
+*backup*.sql
+*.sql.gz
+*.dump
+*.bak
+*.BAK.*
+*.BROKEN.*
+docker-compose.yml.bak*
+# Cookies / artefacts locaux
+cookies.txt
+prod.cookies
