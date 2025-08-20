@@ -1,37 +1,45 @@
+# settings.py
 import os
 from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 import dj_database_url
 
-
-
-
-# --- Base ---
+# ───────────────────────── Base ─────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 def env(name, default=None, required=False):
+    """petit helper env avec 'required' optionnel"""
     v = os.environ.get(name, default)
     if required and (v is None or str(v).strip() == ""):
         raise ImproperlyConfigured(f"Missing env: {name}")
     return v
 
-DEBUG = str(env("DJANGO_DEBUG", "")).lower() in {"1", "true", "yes"}
+def env_list(name, default=""):
+    """split par virgules, espaces ignorés"""
+    raw = env(name, default=default) or ""
+    return [item.strip() for item in raw.split(",") if item.strip()]
 
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE   = not DEBUG
+# ───────────────────────── Mode (dev/prod) ─────────────────────────
+# Par défaut on se comporte comme DEV (True), et on met DJANGO_DEBUG=false en prod.
+DEBUG = str(env("DJANGO_DEBUG", "true")).lower() in {"1", "true", "yes"}
 
-SESSION_COOKIE_DOMAIN = ".mon-site.ca"
-CSRF_COOKIE_DOMAIN    = ".mon-site.ca"
-
-
-
-
-
+# ───────────────────────── Secret key ─────────────────────────
+# En dev : valeur par défaut; en prod : OBLIGATOIRE
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="dev-secret", required=not DEBUG)
 
-ALLOWED_HOSTS = [h.strip() for h in env("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h.strip()]
+# ───────────────────────── Hôtes ─────────────────────────
+if DEBUG:
+    # suffisants pour Vite (localhost:5173) et backend (localhost:8000)
+    ALLOWED_HOSTS = list(set(
+        env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0")
+    ))
+else:
+    # en prod on force par défaut vos domaines; surcharge possible via env
+    ALLOWED_HOSTS = list(set(
+        env_list("DJANGO_ALLOWED_HOSTS", "mon-site.ca,api.mon-site.ca,app.mon-site.ca")
+    ))
 
-# --- Apps ---
+# ───────────────────────── Apps ─────────────────────────
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -44,10 +52,10 @@ INSTALLED_APPS = [
     "api",
 ]
 
-# --- Middleware (ordre important) ---
+# ───────────────────────── Middleware ─────────────────────────
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",       # fichiers statiques en prod
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",            # CORS avant Session
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -57,8 +65,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# Middleware DEV facultatif (désactive CSRF) – seulement si DEBUG
-if DEBUG:
+# (optionnel) désactiver CSRF en dépannage quand DEBUG et DISABLE_CSRF=true
+if DEBUG and str(env("DISABLE_CSRF", "false")).lower() in {"1", "true", "yes"}:
     MIDDLEWARE.insert(3, "gestionnaire_mdp.middleware.DisableCSRFMiddleware")
 
 ROOT_URLCONF = "gestionnaire_mdp.urls"
@@ -81,15 +89,22 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "gestionnaire_mdp.wsgi.application"
 
-# --- DB ---
-DATABASES = {
-    "default": dj_database_url.config(
-        default=env("DATABASE_URL"),      # ex: postgres://mdpuser:...@db:5432/mdpdb
-        conn_max_age=600,
-    )
-}
+# ───────────────────────── Base de données ─────────────────────────
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
+elif DEBUG:
+    # Permet de lancer le backend hors Docker si besoin
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+else:
+    raise ImproperlyConfigured("DATABASE_URL is required in production.")
 
-# --- DRF ---
+# ───────────────────────── DRF ─────────────────────────
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
@@ -97,28 +112,37 @@ REST_FRAMEWORK = {
     ],
 }
 
-# --- Static files / WhiteNoise ---
+# ───────────────────────── Statique / WhiteNoise ─────────────────────────
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# --- Proxy/HTTPS ---
+# ───────────────────────── HTTPS/Proxy ─────────────────────────
+# Apache/Nginx gère TLS; on évite la redirection ici pour ne pas boucler
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SECURE_SSL_REDIRECT = False  # Apache gère la redirection → évite les boucles
+SECURE_SSL_REDIRECT = False
 
-# Cookies plus stricts en prod
+# ───────────────────────── Cookies (sessions/CSRF) ─────────────────────────
+# En prod on met le cookie sur le domaine parent pour partager entre sous-domaines
+COOKIE_PARENT_DOMAIN = env("COOKIE_PARENT_DOMAIN", default=".mon-site.ca" if not DEBUG else None)
+
 SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_DOMAIN = None if DEBUG else ".mon-site.ca"
+CSRF_COOKIE_SECURE   = not DEBUG
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE    = "Lax"
 
-# (SameSite par défaut "Lax" convient pour des sous-domaines du même site)
+# En DEV : domaine None (requis pour que le navigateur accepte sur localhost)
+# En PROD : domaine parent (ex: .mon-site.ca)
+SESSION_COOKIE_DOMAIN = None if DEBUG else COOKIE_PARENT_DOMAIN
+CSRF_COOKIE_DOMAIN    = None if DEBUG else COOKIE_PARENT_DOMAIN
 
-# --- CORS / CSRF ---
+# ───────────────────────── CORS / CSRF ─────────────────────────
 CORS_ALLOW_CREDENTIALS = True
 
 if DEBUG:
+    # Vite (5173) + accès direct backend dev (8000)
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -130,9 +154,9 @@ if DEBUG:
         "http://localhost:8000",
     ]
 else:
-    # Prod : adapte si besoin via variables d'env
-    CORS_ALLOWED_ORIGINS = [env("CORS_ALLOWED_ORIGIN", "https://app.mon-site.ca")]
-    CSRF_TRUSTED_ORIGINS = [
-        "https://app.mon-site.ca",
-        "https://api.mon-site.ca",
-    ]
+    # par défaut, votre frontend en prod; surcharge via env au besoin
+    CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "https://app.mon-site.ca")
+    CSRF_TRUSTED_ORIGINS = env_list(
+        "CSRF_TRUSTED_ORIGINS",
+        "https://app.mon-site.ca,https://api.mon-site.ca",
+    )
