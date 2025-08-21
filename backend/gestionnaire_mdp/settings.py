@@ -138,11 +138,10 @@ CSRF_COOKIE_SAMESITE    = "Lax"
 SESSION_COOKIE_DOMAIN = None if DEBUG else COOKIE_PARENT_DOMAIN
 CSRF_COOKIE_DOMAIN    = None if DEBUG else COOKIE_PARENT_DOMAIN
 
-# ───────────────────────── CORS / CSRF ─────────────────────────
+# ───────────── CORS / CSRF ─────────────
 CORS_ALLOW_CREDENTIALS = True
 
 if DEBUG:
-    # Vite (5173) + accès direct backend dev (8000)
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -154,9 +153,8 @@ if DEBUG:
         "http://localhost:8000",
     ]
 else:
-    # par défaut, votre frontend en prod; surcharge via env au besoin
     CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "https://app.mon-site.ca")
     CSRF_TRUSTED_ORIGINS = env_list(
         "CSRF_TRUSTED_ORIGINS",
-        "https://app.mon-site.ca,https://api.mon-site.ca",
+        "https://app.mon-site.ca,https://mon-site.ca"
     )

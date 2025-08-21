@@ -14,6 +14,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+    # Pas de port exposé en prod → accès uniquement interne
 
   backend:
     build:
@@ -31,7 +32,7 @@ services:
               python manage.py collectstatic --noinput &&
               exec gunicorn gestionnaire_mdp.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60'
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8000:8000"  # exposé uniquement en local pour Apache (pas accessible depuis Internet)
 
 volumes:
   mdp_db_data:
