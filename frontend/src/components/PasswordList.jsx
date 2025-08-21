@@ -41,7 +41,14 @@ export default function PasswordList(){
       .catch(e => setErr(String(e)))
   }, [])
 
+  // --- RECHERCHE élargie: titre, url, username, catégorie, notes (décryptées)
   const filteredSorted = useMemo(() => {
+    const normalize = (s) =>
+      (s ?? '').toString()
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .toLowerCase()
+
     const sorted = [...(list || [])].sort((a, b) => {
       const an = (a.title || '').toString()
       const bn = (b.title || '').toString()
@@ -49,10 +56,24 @@ export default function PasswordList(){
       if (cmp !== 0) return cmp
       return (a.id || 0) - (b.id || 0)
     })
-    const needle = (q || '').trim().toLowerCase()
+
+    const needle = normalize(q || '')
     if (!needle) return sorted
-    return sorted.filter((it) => (it.title||'').toLowerCase().includes(needle))
-  }, [list, q])
+
+    return sorted.filter((it) => {
+      const categoryName = catById[it.category] || ''
+      const notes = plainIndex[it.id]?.notes || ''
+      const haystack = [
+        it.title,
+        it.url,
+        it.username,
+        categoryName,
+        notes,
+      ].map(normalize).join(' ')
+      return haystack.includes(needle)
+    })
+  }, [list, q, catById, plainIndex])
+  // ----------------------
 
   const remove = async (id) => {
     if (!window.confirm('Supprimer cette entrée ?')) return
