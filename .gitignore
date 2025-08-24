@@ -1,89 +1,27 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.sqlite3
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
 
-# Environnements virtuels
-venv/
+# Python cache
+**/__pycache__/
+*.pyc
+
+# Backups & dumps
+backups/
+*.sql
+*.sql.gz
+*.tar.gz
+
+# Secrets & cookies
+secrets.txt
+*.cookies
+cookies.txt
 .env
 .env.*
+!.env.example
 
-# Node.js
-node_modules/
-npm-debug.log
-yarn-debug.log
-yarn-error.log
-
-# Docker
-db_data/
-*.pid
-
-# Build React
-frontend/dist/
-frontend/build/
-
-# Secrets
-*.pem
-*.key
-secrets.json
-
-# VSCode / IDE
-.vscode/
-.idea/
-tools/
-
-# fichiers usager
-
-secrets.txt
-zkkey*.json
-backups/
-*.dump
-*.sql
-
-# --- Backups / éditeurs ---
+# Fichiers temporaires & .bak
 *.bak
-*.bak.*
-*~
-# --- Secrets / locaux ---
-cookies.txt
-.env
-*.env
-vault-key.json
-*.zkkey*
-# --- Python ---
-__pycache__/
-*.pyc
-backend/staticfiles/
-media/
-# --- Node/Vite ---
-node_modules/
-frontend/dist/
-prod.cookies
-dev.cookies
-
-# fichiers locaux à ignorer
-dev.categories.json
-dev.passwords.json
-catmap.tsv
+*.swp
+*.swo
 project-tree-*.txt
-# === Backups & fichiers temporaires (ne pas versionner) ===
-backups/
-*backup*.sql
-*.sql.gz
-*.dump
-*.bak
-*.BAK.*
-*.BROKEN.*
-docker-compose.yml.bak*
-# Cookies / artefacts locaux
-cookies.txt
-prod.cookies
-
-# DB dumps & backups
-backups/
-*.sql
-*.sql.gz
-*.dump
-*.bak
