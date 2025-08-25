@@ -25,3 +25,9 @@ cookies.txt
 *.swp
 *.swo
 project-tree-*.txt
+
+# Local backup artifacts (server-only)
+*.bak*
+*.BAK.*
+*.BROKEN.*
+docker-compose.yml.bak*
