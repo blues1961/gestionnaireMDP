@@ -31,3 +31,6 @@ project-tree-*.txt
 *.BAK.*
 *.BROKEN.*
 docker-compose.yml.bak*
+dev.passwords.json
+dev.categories.json
+catmap.tsv
