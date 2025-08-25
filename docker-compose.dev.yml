@@ -1,6 +1,9 @@
+version: "3.9"
+
 services:
   db:
     image: postgres:16
+    env_file: .env.dev
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -11,8 +14,6 @@ services:
       - db_data:/var/lib/postgresql/data
     networks:
       - internal
-    env_file:
-      - .env.dev
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 3s
@@ -21,12 +22,16 @@ services:
 
   backend:
     build: ./backend
+    env_file: .env.dev
     depends_on:
       db:
         condition: service_healthy
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       DJANGO_DEBUG: ${DJANGO_DEBUG}
+      # On garde DATABASE_URL car utilisé ailleurs dans le projet
+      DATABASE_URL: ${DATABASE_URL}
+      # Variables explicites pour scripts/tests psql
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -40,8 +45,6 @@ services:
       - "8000:8000"
     networks:
       - internal
-    env_file:
-      - .env.dev
     command: >
       sh -c "
         python manage.py migrate &&
@@ -50,9 +53,10 @@ services:
 
   frontend:
     image: node:20-slim
+    env_file: .env.dev
     working_dir: /app
     environment:
-      - VITE_API_BASE=/api
+      VITE_API_BASE: "/api"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -61,8 +65,6 @@ services:
     command: sh -c "npm install && npm run dev -- --host"
     networks:
       - internal
-    env_file:
-      - .env.dev
 
 volumes:
   db_data:

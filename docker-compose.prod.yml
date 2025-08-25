@@ -1,16 +1,21 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16-alpine
     container_name: mdp_db_prod
     restart: unless-stopped
-    env_file:
-      - .env.prod
+    env_file: .env.prod
+    # (optionnel mais explicite) si tu veux forcer l'injection plutôt que de ne compter que sur env_file :
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - mdp_db_data:/var/lib/postgresql/data
+    networks:
+      - internal
     healthcheck:
-      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      # $$ pour éviter l'expansion côté host; expansion se fera DANS le conteneur
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -22,17 +27,26 @@ services:
       dockerfile: Dockerfile
     container_name: mdp_backend_prod
     restart: unless-stopped
-    env_file:
-      - .env.prod
+    env_file: .env.prod
     depends_on:
       db:
         condition: service_healthy
+    # Pas besoin de redéfinir l'env ici si tout est dans .env.prod (incluant DATABASE_URL)
+    networks:
+      - internal
     command: >
-      sh -ce 'python manage.py migrate &&
-              python manage.py collectstatic --noinput &&
-              exec gunicorn gestionnaire_mdp.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60'
+      sh -ce '
+        python manage.py migrate &&
+        python manage.py collectstatic --noinput &&
+        exec gunicorn gestionnaire_mdp.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60
+      '
+    # Exposé seulement en loopback pour le reverse proxy (Apache/Nginx/Traefik)
     ports:
-      - "127.0.0.1:8000:8000"  # exposé uniquement en local pour Apache (pas accessible depuis Internet)
+      - "127.0.0.1:8000:8000"
 
 volumes:
   mdp_db_data:
+
+networks:
+  internal:
+    driver: bridge
