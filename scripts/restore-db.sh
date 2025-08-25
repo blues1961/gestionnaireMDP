@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ENV_FILE="${ENV_FILE:-.env.dev}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.dev.yml}"
 FILE="${1:-}"
 
@@ -9,14 +10,12 @@ if [ -z "$FILE" ]; then
   exit 1
 fi
 
+DC="docker compose --env-file \"$ENV_FILE\" -f \"$COMPOSE_FILE\""
+
 if [[ "$FILE" == *.gz ]]; then
-  # Restauration depuis un dump compressé
-  zcat "$FILE" | docker compose -f "$COMPOSE_FILE" exec -T db \
-    sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+  zcat "$FILE" | eval $DC exec -T db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 else
-  # Restauration depuis un dump texte
-  cat "$FILE" | docker compose -f "$COMPOSE_FILE" exec -T db \
-    sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+  cat "$FILE" | eval $DC exec -T db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 fi
 
 echo "✅ Restauration terminée depuis: $FILE"

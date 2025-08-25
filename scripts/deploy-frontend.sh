@@ -11,8 +11,8 @@ BUILD_DIR="$FRONTEND_DIR/dist"
 DEPLOY_DIR="/var/www/app.mon-site.ca"
 
 pushd "$FRONTEND_DIR" >/dev/null
-  echo "Build du frontend avec VITE_API_BASE=$API_BASE"
-  export VITE_API_BASE="$API_BASE"
+  echo "Build du frontend avec VITE_API_BASE=$VITE_API_BASE"
+  export VITE_API_BASE="$VITE_API_BASE"
   npm ci
   npm run build
 popd >/dev/null

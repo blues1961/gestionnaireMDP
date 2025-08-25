@@ -1,33 +1,35 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Config via variables d'env (valeurs par défaut ci-dessous)
-COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.dev.yml}"  # ou docker-compose.yml en prod
+# Par défaut: dev. Prod: ENV_FILE=.env.prod COMPOSE_FILE=docker-compose.prod.yml ./scripts/backup-db.sh
+ENV_FILE="${ENV_FILE:-.env.dev}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.dev.yml}"
+
 BACKUP_DIR="${BACKUP_DIR:-backups}"
-GZIP="${GZIP:-1}"                 # 1 = compresser en .gz, 0 = garder .sql
-RETENTION_DAYS="${RETENTION_DAYS:-14}"  # supprimer les backups plus vieux que N jours
+GZIP="${GZIP:-1}"                 # 1 = .gz, 0 = .sql
+RETENTION_DAYS="${RETENTION_DAYS:-14}"
 
 mkdir -p "$BACKUP_DIR"
 TS="$(date +%F_%H%M%S)"
 OUTFILE="$BACKUP_DIR/backup_${TS}.sql"
 
-# Dump depuis le conteneur PostgreSQL
-# (les variables $POSTGRES_USER / $POSTGRES_DB sont lues dans le conteneur)
-docker compose -f "$COMPOSE_FILE" exec -T db sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$OUTFILE"
+DC="docker compose --env-file \"$ENV_FILE\" -f \"$COMPOSE_FILE\""
 
-# Compression optionnelle
+# Dump depuis le conteneur DB (pg_dump lit POSTGRES_* dans le conteneur)
+eval $DC exec -T db sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$OUTFILE"
+
 if [ "$GZIP" = "1" ]; then
   gzip -f "$OUTFILE"
   OUTFILE="${OUTFILE}.gz"
 fi
 
-# Vérification basique (fichier non vide)
+# Sanity check
 if [ ! -s "$OUTFILE" ]; then
-  echo "Backup échoué: fichier vide $OUTFILE" >&2
+  echo "❌ Backup échoué: fichier vide $OUTFILE" >&2
   exit 1
 fi
 
-# Rotation (supprime les backups plus vieux que RETENTION_DAYS)
+# Rotation
 find "$BACKUP_DIR" -type f -name 'backup_*.sql*' -mtime +"$RETENTION_DAYS" -print -delete || true
 
 echo "✅ Backup OK: $OUTFILE"
