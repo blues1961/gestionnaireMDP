@@ -1,0 +1,31 @@
+# Template Apache pour l’app MDP (ordre: /api, /admin, /)
+<VirtualHost *:80>
+    ServerName {{APP_DOMAIN}}
+    RewriteEngine On
+    RewriteRule ^/(.*)$ https://{{APP_DOMAIN}}/$1 [R=301,L]
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName {{APP_DOMAIN}}
+
+    SSLEngine On
+    SSLCertificateFile /etc/letsencrypt/live/{{APP_DOMAIN}}/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/{{APP_DOMAIN}}/privkey.pem
+    Include /etc/letsencrypt/options-ssl-apache.conf
+
+    ProxyPreserveHost On
+    RequestHeader set X-Forwarded-Proto "https"
+
+    ProxyPass        /api/   http://127.0.0.1:{{MDP_API_PORT}}/api/
+    ProxyPassReverse /api/   http://127.0.0.1:{{MDP_API_PORT}}/api/
+
+    ProxyPass        /admin/ http://127.0.0.1:{{MDP_API_PORT}}/admin/
+    ProxyPassReverse /admin/ http://127.0.0.1:{{MDP_API_PORT}}/admin/
+
+    ProxyPass        /       http://127.0.0.1:{{MDP_FRONT_PORT}}/
+    ProxyPassReverse /       http://127.0.0.1:{{MDP_FRONT_PORT}}/
+
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</VirtualHost>
