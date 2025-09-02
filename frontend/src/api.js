@@ -1,14 +1,27 @@
-// api.js — version complète pour backend Django (sessions + CSRF)
-// - BASE configurable via Vite: import.meta.env.VITE_API_BASE (défaut: http://localhost:8000)
-// - Cookies toujours envoyés (credentials: 'include')
-// - CSRF auto: GET /api/csrf/ si nécessaire, puis envoi X-CSRFToken sur les méthodes non-GET
-// - Gestion d'erreurs homogène (lève Error avec .status, .body, .url)
-// - Endpoints couverts: auth (login, logout, whoami), categories, passwords
-// - Endpoints optionnels (si dispo côté Django): categories.reassign, key.export, key.import
+// api.js — backend Django (sessions + CSRF), 100% relative par défaut
+// - BASE configurable via Vite: import.meta.env.VITE_API_BASE (défaut: '/api')
+// - Cookies envoyés (credentials: 'include')
+// - CSRF auto: GET `${BASE}/csrf/` si nécessaire, envoi X-CSRFToken ensuite
+// - Erreurs homogènes (.status, .body, .url)
+// - Endpoints: auth (login/logout/whoami), categories, passwords, key (optionnel)
 
+function normalizeBase(b) {
+  let x = (b ?? '').trim();
+  if (!x) x = '/api';
+  // si ce n'est pas http(s):// et ne commence pas par '/', on préfixe
+  if (!/^https?:\/\//i.test(x) && !x.startsWith('/')) x = '/' + x;
+  // retire trailing slash (on joindra avec "/xxx/")
+  if (x.length > 1 && x.endsWith('/')) x = x.slice(0, -1);
+  return x;
+}
 
-const BASE = (import.meta.env?.VITE_API_BASE ?? '').trim(); // '' => appels en /api/... sur le même domaine
+const BASE = normalizeBase(import.meta.env?.VITE_API_BASE);
 
+function u(path) {
+  // jointure sûre: BASE + "/xxx/"
+  const p = path.startsWith('/') ? path : '/' + path;
+  return BASE + p;
+}
 
 function getCookie(name) {
   const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([$?*|{}\\^])/g, '\\$1') + '=([^;]*)'));
@@ -17,7 +30,7 @@ function getCookie(name) {
 
 async function ensureCsrf() {
   if (!getCookie('csrftoken')) {
-    await fetch(`${BASE}/csrf/`, { credentials: 'include' });
+    await fetch(u('/csrf/'), { credentials: 'include' });
   }
 }
 
@@ -49,72 +62,68 @@ function withCsrf(method, headers = {}, body) {
 }
 
 export const api = {
-  // --- Auth ---
+  // --- Auth (sessions) ---
   async login(username, password) {
     const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify({ username, password }));
-    return jsonFetch(`${BASE}/login/`, init);
+    return jsonFetch(u('/login/'), init);
   },
   async logout() {
     const init = await withCsrf('POST');
-    return jsonFetch(`${BASE}/logout/`, init);
+    return jsonFetch(u('/logout/'), init);
   },
   async whoami() {
-    try { return await jsonFetch(`${BASE}/whoami/`); }
+    try { return await jsonFetch(u('/whoami/')); }
     catch (e) { if (e.status === 401) return null; throw e; }
   },
 
   // --- Categories ---
   categories: {
-    async list() {
-      return jsonFetch(`${BASE}/categories/`);
-    },
-    async create(name, extra = {}) {
+    list:   () => jsonFetch(u('/categories/')),
+    create: async (name, extra = {}) => {
       const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify({ name, ...extra }));
-      return jsonFetch(`${BASE}/categories/`, init);
+      return jsonFetch(u('/categories/'), init);
     },
-    async update(id, payload) {
+    update: async (id, payload) => {
       const init = await withCsrf('PATCH', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
-      return jsonFetch(`${BASE}/categories/${id}/`, init);
+      return jsonFetch(u(`/categories/${id}/`), init);
     },
-    async remove(id) {
+    remove: async (id) => {
       const init = await withCsrf('DELETE');
-      return jsonFetch(`${BASE}/categories/${id}/`, init);
+      return jsonFetch(u(`/categories/${id}/`), init);
     },
-    // Optionnel: nécessite une action côté Django (ex: @action(detail=True, methods=['post']))
-    async reassign(id, targetCategoryId) {
+    // Optionnel: action custom côté Django
+    reassign: async (id, targetCategoryId) => {
       const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify({ target: targetCategoryId || null }));
-      return jsonFetch(`${BASE}/categories/${id}/reassign/`, init);
+      return jsonFetch(u(`/categories/${id}/reassign/`), init);
     },
   },
 
   // --- Passwords ---
   passwords: {
-    async list() {
-      return jsonFetch(`${BASE}/passwords/`);
-    },
-    async create(payload) {
+    list:   () => jsonFetch(u('/passwords/')),
+    create: async (payload) => {
       const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
-      return jsonFetch(`${BASE}/passwords/`, init);
+      return jsonFetch(u('/passwords/'), init);
     },
-    async update(id, payload) {
+    update: async (id, payload) => {
       const init = await withCsrf('PATCH', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
-      return jsonFetch(`${BASE}/passwords/${id}/`, init);
+      return jsonFetch(u(`/passwords/${id}/`), init);
     },
-    async remove(id) {
+    remove: async (id) => {
       const init = await withCsrf('DELETE');
-      return jsonFetch(`${BASE}/passwords/${id}/`, init);
+      return jsonFetch(u(`/passwords/${id}/`), init);
     },
   },
 
-  // --- Key (optionnel, si endpoints exposés côté Django) ---
+  // --- Key (optionnel) ---
   key: {
-    async export() {
+    export: async () => {
       const init = await withCsrf('POST');
-      return jsonFetch(`${BASE}/key/export/`, init); // attend un JSON (par ex. {private_key_pem: ..., passphrase_required: ...})
+      return jsonFetch(u('/key/export/'), init);
     },
-    async import(payload) {
+    import: async (payload) => {
       const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
-      return jsonFetch(`${BASE}/key/import/`, init);
+      return jsonFetch(u('/key/import/'), init);
     },
   },
 };
