@@ -40,7 +40,9 @@ services:
         condition: service_healthy
     networks: [internal]
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/admin/login/ >/dev/null || exit 1"]
+      # dans docker-compose.prod.yml, sous backend.healthcheck:
+      start_period: 10s
+      test: ["CMD-SHELL", "curl -fsS -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/api/csrf/ >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
