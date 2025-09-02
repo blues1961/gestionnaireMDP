@@ -57,6 +57,11 @@ services:
         python manage.py collectstatic --noinput &&
         exec gunicorn gestionnaire_mdp.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60
       '
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -H 'X-Forwarded-Proto: https' http://localhost:8000/admin/login/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     # Exposé seulement en loopback pour le reverse proxy (Apache/Nginx/Traefik)
     ports:
       - "127.0.0.1:8000:8000"
