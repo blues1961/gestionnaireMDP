@@ -1,15 +1,14 @@
-FROM node:20-alpine
+# --- Build ---
+FROM node:20-bookworm-slim AS build
 WORKDIR /app
-
-# Installer deps
+ARG VITE_API_BASE="http://localhost:9004"
+ENV VITE_API_BASE=${VITE_API_BASE}
 COPY package*.json ./
 RUN npm ci
-
-# Copier le code et builder
 COPY . .
-# (facultatif) si tu utilises une variable Vite au build :
-# ENV VITE_API_BASE=https://api.mon-site.ca
 RUN npm run build
 
-# Servir le build avec vite preview
-CMD ["npm","run","preview","--","--host","0.0.0.0","--port","4173"]
+# --- Runtime (Nginx statique) ---
+FROM nginx:alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist/ /usr/share/nginx/html/
