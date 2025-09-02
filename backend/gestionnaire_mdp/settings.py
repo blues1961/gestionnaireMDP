@@ -158,3 +158,25 @@ else:
         "CSRF_TRUSTED_ORIGINS",
         "https://app.mon-site.ca,https://mon-site.ca"
     )
+
+# === Overrides from environment (standardisation prod/dev) ===
+def _split_env(name: str, default: str = ""):
+    import os
+    return [x.strip() for x in os.environ.get(name, default).split(",") if x.strip()]
+
+# Autorise hosts depuis .env (ex: 127.0.0.1,localhost,mdp-api.mon-site.ca)
+_env_allowed = _split_env("ALLOWED_HOSTS")
+if _env_allowed:
+    ALLOWED_HOSTS = _env_allowed
+
+# CSRF / CORS depuis .env (ex: https://mdp.mon-site.ca,https://mdp-api.mon-site.ca)
+_env_csrf = _split_env("CSRF_TRUSTED_ORIGINS")
+if _env_csrf:
+    CSRF_TRUSTED_ORIGINS = _env_csrf
+
+_env_cors = _split_env("CORS_ALLOWED_ORIGINS")
+if _env_cors:
+    CORS_ALLOWED_ORIGINS = _env_cors
+
+# Indique au backend que le proxy frontal termine le TLS
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
