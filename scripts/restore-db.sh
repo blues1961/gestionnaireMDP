@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+DB_SERVICE=${DB_SERVICE:-db}
 set -euo pipefail
 # shellcheck source=scripts/lib/env_detect.sh
 . "$(dirname "$0")/lib/env_detect.sh"
@@ -19,14 +20,14 @@ echo "INFO: Using dump -> $FILE"
 
 # Reset complet du schéma avant restauration (évite les erreurs relation exists/duplicate key)
 echo "INFO: Dropping and recreating schema 'public'..."
-dc exec -T db sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public AUTHORIZATION \"$POSTGRES_USER\";"'
+dc exec -T ${DB_SERVICE} sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public AUTHORIZATION \"$POSTGRES_USER\";"'
 
 
 # Restauration du dump (plain SQL, gz ou non)
 if [[ "$FILE" == *.gz ]]; then
-zcat "$FILE" | dc exec -T db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+zcat "$FILE" | dc exec -T ${DB_SERVICE} sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 else
-cat "$FILE" | dc exec -T db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+cat "$FILE" | dc exec -T ${DB_SERVICE} sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 fi
 
 
