@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16-alpine
@@ -12,60 +10,40 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - mdp_db_data:/var/lib/postgresql/data
-    networks:
-      - internal
+    networks: [internal]
     healthcheck:
-      # $$ pour éviter l’expansion côté host; expansion se fera DANS le conteneur
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 20
-    # Pas de port exposé (accès interne uniquement)
 
   mdp_frontend_prod:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_BASE: ${API_BASE}
-    image: mdp-frontend:prod
+    image: ghcr.io/${REPO_OWNER:-blues1961}/mdp-frontend:${IMAGE_TAG:-latest}
     container_name: mdp_frontend_prod
     ports:
       - "127.0.0.1:${MDP_FRONT_PORT:-9082}:80"
     networks: [internal]
     healthcheck:
-      # La page d’accueil suffit pour vérifier Nginx + artefacts Vite
-      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
     restart: unless-stopped
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/${REPO_OWNER:-blues1961}/mdp-backend:${IMAGE_TAG:-latest}
     container_name: mdp_backend_prod
     restart: unless-stopped
     env_file: .env.prod
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - internal
-    command: >
-      sh -ce '
-        python manage.py migrate &&
-        python manage.py collectstatic --noinput &&
-        exec gunicorn gestionnaire_mdp.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60
-      '
+    networks: [internal]
     healthcheck:
-      # Si tu préfères un endpoint dédié, remplace /admin/login/ par /api/health/
-      test: ["CMD-SHELL", "curl -fsS -H 'X-Forwarded-Proto: https' http://localhost:8000/admin/login/ >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/admin/login/ >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
-    # Exposé seulement en loopback pour reverse-proxy
     ports:
       - "127.0.0.1:${MDP_API_PORT:-9004}:8000"
 
