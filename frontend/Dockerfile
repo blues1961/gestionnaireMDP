@@ -9,7 +9,9 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build
+ARG VITE_API_BASE=/api
+ENV VITE_API_BASE=${VITE_API_BASE}
+RUN VITE_API_BASE=${VITE_API_BASE} npm run build
 
 # --- Runtime Nginx (statique) ---
 FROM nginx:alpine
