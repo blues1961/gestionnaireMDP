@@ -34,3 +34,4 @@ docker-compose.yml.bak*
 dev.passwords.json
 dev.categories.json
 catmap.tsv
+backend/db.sqlite3
