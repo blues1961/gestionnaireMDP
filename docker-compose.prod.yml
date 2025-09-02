@@ -20,6 +20,23 @@ services:
       timeout: 5s
       retries: 20
     # Pas de port exposé en prod → accès uniquement interne
+  mdp_frontend_prod:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ${API_BASE}
+    image: mdp-frontend:prod
+    container_name: mdp_frontend_prod
+    ports:
+      - "127.0.0.1:9082:80"
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
 
   backend:
     build:
