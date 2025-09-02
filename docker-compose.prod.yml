@@ -1,10 +1,11 @@
+version: "3.9"
+
 services:
   db:
     image: postgres:16-alpine
     container_name: mdp_db_prod
     restart: unless-stopped
     env_file: .env.prod
-    # (optionnel mais explicite) si tu veux forcer l'injection plutôt que de ne compter que sur env_file :
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -14,12 +15,13 @@ services:
     networks:
       - internal
     healthcheck:
-      # $$ pour éviter l'expansion côté host; expansion se fera DANS le conteneur
+      # $$ pour éviter l’expansion côté host; expansion se fera DANS le conteneur
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 20
-    # Pas de port exposé en prod → accès uniquement interne
+    # Pas de port exposé (accès interne uniquement)
+
   mdp_frontend_prod:
     build:
       context: ./frontend
@@ -29,10 +31,11 @@ services:
     image: mdp-frontend:prod
     container_name: mdp_frontend_prod
     ports:
-      - "127.0.0.1:9082:80"
+      - "127.0.0.1:${MDP_FRONT_PORT:-9082}:80"
     networks: [internal]
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/healthz >/dev/null 2>&1 || exit 1"]
+      # La page d’accueil suffit pour vérifier Nginx + artefacts Vite
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -48,7 +51,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Pas besoin de redéfinir l'env ici si tout est dans .env.prod (incluant DATABASE_URL)
     networks:
       - internal
     command: >
@@ -58,13 +60,14 @@ services:
         exec gunicorn gestionnaire_mdp.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60
       '
     healthcheck:
+      # Si tu préfères un endpoint dédié, remplace /admin/login/ par /api/health/
       test: ["CMD-SHELL", "curl -fsS -H 'X-Forwarded-Proto: https' http://localhost:8000/admin/login/ >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
-    # Exposé seulement en loopback pour le reverse proxy (Apache/Nginx/Traefik)
+    # Exposé seulement en loopback pour reverse-proxy
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${MDP_API_PORT:-9004}:8000"
 
 volumes:
   mdp_db_data:
