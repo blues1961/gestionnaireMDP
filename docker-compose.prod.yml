@@ -1,57 +1,65 @@
+# Utilise APP_SLUG pour le nom de projet → ressources nommées "mdp_prod_*"
+name: ${APP_SLUG}_prod
+
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: mdp_db_prod
-    restart: unless-stopped
-    env_file: .env.prod
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ${APP_SLUG}_backend_prod
+    env_file:
+      - .env.prod
+      - .env.prod.local
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on: [db]
+    networks: [appnet, edge]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mdp_api.rule=Host(`mdp-api.mon-site.ca`)
+      - traefik.http.routers.mdp_api.entrypoints=web
+      - traefik.http.services.mdp_api.loadbalancer.server.port=8000
+    command: >
+      bash -lc "
+        python manage.py migrate &&
+        python manage.py collectstatic --noinput &&
+        gunicorn gestionnaire_mdp.wsgi:application -b 0.0.0.0:8000 --workers 3
+      "
+    expose: ["8000"]
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    container_name: ${APP_SLUG}_frontend_prod
+    depends_on: [backend]
+    networks: [appnet, edge]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mdp_front.rule=Host(`mdp.mon-site.ca`)
+      - traefik.http.routers.mdp_front.entrypoints=web
+      - traefik.http.services.mdp_front.loadbalancer.server.port=80
+    expose: ["80"]
+
+  db:
+    image: postgres:16
+    container_name: ${APP_SLUG}_db_prod
+    environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - mdp_db_data:/var/lib/postgresql/data
-    networks: [internal]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
-  mdp_frontend_prod:
-    image: ghcr.io/${REPO_OWNER:-blues1961}/mdp-frontend:${IMAGE_TAG:-latest}
-    container_name: mdp_frontend_prod
-    ports:
-      - "127.0.0.1:${MDP_FRONT_PORT:-9082}:80"
-    networks: [internal]
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-
-  backend:
-    image: ghcr.io/${REPO_OWNER:-blues1961}/mdp-backend:${IMAGE_TAG:-latest}
-    container_name: mdp_backend_prod
-    restart: unless-stopped
-    env_file: .env.prod
-    depends_on:
-      db:
-        condition: service_healthy
-    networks: [internal]
-    healthcheck:
-      # dans docker-compose.prod.yml, sous backend.healthcheck:
-      start_period: 10s
-      test: ["CMD-SHELL", "curl -fsS -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/api/csrf/ >/dev/null || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-    ports:
-      - "127.0.0.1:${MDP_API_PORT:-9004}:8000"
-
-volumes:
-  mdp_db_data:
+      - pgdata:/var/lib/postgresql/data
+    networks: [appnet]
 
 networks:
-  internal:
-    driver: bridge
+  appnet: {}
+  edge:
+    external: true
+
+volumes:
+  pgdata: {}
