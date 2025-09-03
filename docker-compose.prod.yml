@@ -17,9 +17,9 @@ services:
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
     depends_on: [db]
-    networks: [appnet, edge]
     labels:
       - traefik.enable=true
+      - traefik.docker.network=edge  
       - traefik.http.routers.mdp_api.rule=Host(`mdp-api.mon-site.ca`)
       - traefik.http.routers.mdp_api.entrypoints=web
       - traefik.http.services.mdp_api.loadbalancer.server.port=8000
@@ -37,9 +37,9 @@ services:
       dockerfile: Dockerfile
     container_name: ${APP_SLUG}_frontend_prod
     depends_on: [backend]
-    networks: [appnet, edge]
     labels:
       - traefik.enable=true
+      - traefik.docker.network=edge  
       - traefik.http.routers.mdp_front.rule=Host(`mdp.mon-site.ca`)
       - traefik.http.routers.mdp_front.entrypoints=web
       - traefik.http.services.mdp_front.loadbalancer.server.port=80
