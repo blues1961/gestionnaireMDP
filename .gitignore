@@ -20,6 +20,9 @@ cookies.txt
 .env.*
 !.env.example
 
+# env locaux (jamais versionner)
+.env.local
+
 # Fichiers temporaires & .bak
 *.bak
 *.swp
@@ -35,3 +38,14 @@ dev.passwords.json
 dev.categories.json
 catmap.tsv
 backend/db.sqlite3
+
+
+
+# env locaux (jamais versionner)
+.env.local
+
+# local env
+.env.local
+frontend/.env.development.local
+# backups
+backups/
