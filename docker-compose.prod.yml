@@ -4,15 +4,12 @@ services:
   db:
     image: postgres:16
     container_name: mdp_db_prod
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+    env_file: [ .env.prod, .env.prod.local ]
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - mdp_prod_pgdata:/var/lib/postgresql/data
     networks: [appnet]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h localhost -p 5432"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -h localhost -p 5432"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -64,7 +61,5 @@ networks:
     external: true
 
 volumes:
-  pgdata:
+  mdp_prod_pgdata:
     external: true
-    name: app_slug_prod_pgdata 
-
