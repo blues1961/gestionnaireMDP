@@ -18,12 +18,13 @@ services:
     build: { context: ./backend, dockerfile: Dockerfile }
     container_name: mdp_backend_prod
     env_file: [ .env.prod, .env.prod.local ]
-    environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
+  environment:
+    DB_HOST: db
+    DB_PORT: 5432
+    DB_NAME: ${POSTGRES_DB:-mdp_prod}
+    DB_USER: ${POSTGRES_USER:-mdpuser}
+    DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+
     depends_on:
       db:
         condition: service_healthy
