@@ -64,4 +64,7 @@ networks:
     external: true
 
 volumes:
-  pgdata: {}
+  pgdata:
+    external: true
+    name: app_slug_prod_pgdata 
+
