@@ -21,6 +21,9 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
     depends_on:
       db:
         condition: service_healthy
@@ -33,9 +36,6 @@ services:
       - traefik.http.services.mdp_api.loadbalancer.server.port=8000
     command: >
       bash -lc "
-        export DB_NAME=\"$${POSTGRES_DB:-mdp_prod}\";
-        export DB_USER=\"$${POSTGRES_USER:-mdpuser}\";
-        export DB_PASSWORD=\"$${POSTGRES_PASSWORD:-change-me}\";
         python manage.py migrate &&
         python manage.py collectstatic --noinput &&
         gunicorn gestionnaire_mdp.wsgi:application -b 0.0.0.0:8000 --workers 3
