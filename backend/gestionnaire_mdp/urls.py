@@ -1,13 +1,16 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.http import JsonResponse
-from django.middleware.csrf import get_token
+from django.http import HttpResponse
+from django.views.decorators.csrf import ensure_csrf_cookie
+from api.views_logout import api_logout
 
+@ensure_csrf_cookie
 def csrf_view(request):
-    return JsonResponse({"csrfToken": get_token(request)})
+    return HttpResponse(status=204)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('api.urls')),   # ← toute l'API sous /api/
-    path('api/csrf/', csrf_view),        # ← endpoint pour déposer le cookie CSRF
+    path('api/logout/', api_logout, name='api-logout'),
+    path('api/csrf/', csrf_view, name='api-csrf'),
+    path('api/', include('api.urls')),
 ]

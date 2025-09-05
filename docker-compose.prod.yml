@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16-alpine
@@ -9,9 +7,9 @@ services:
       - .env.prod
       - .env.prod.local
     environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      POSTGRES_DB: "${POSTGRES_DB}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     volumes:
       - mdp_prod_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -35,22 +33,56 @@ services:
       - .env.prod
       - .env.prod.local
     environment:
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=${POSTGRES_DB}
-      - DB_USER=${POSTGRES_USER}
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
-      - DJANGO_DEBUG=0
-      - ALLOWED_HOSTS=mdp-api.mon-site.ca
-      - CSRF_TRUSTED_ORIGINS=http://mdp-api.mon-site.ca,http://mdp.mon-site.ca,https://mdp-api.mon-site.ca,https://mdp.mon-site.ca
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: "${POSTGRES_DB}"
+      DB_USER: "${POSTGRES_USER}"
+      DB_PASSWORD: "${POSTGRES_PASSWORD}"
+      DJANGO_DEBUG: "0"
+      ALLOWED_HOSTS: "mdp-api.mon-site.ca,mdp.mon-site.ca"
+      CSRF_TRUSTED_ORIGINS: "http://mdp-api.mon-site.ca,http://mdp.mon-site.ca,https://mdp-api.mon-site.ca,https://mdp.mon-site.ca"
     expose:
       - "8000"
     labels:
       traefik.enable: "true"
       traefik.docker.network: "edge"
+
+      # Middleware redirection HTTP -> HTTPS
+      traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: "https"
+
+      # ===== Domaine API direct (mdp-api.mon-site.ca) =====
+      # HTTP -> redirige
+      traefik.http.routers.mdp_api_http.rule: "Host(`mdp-api.mon-site.ca`)"
+      traefik.http.routers.mdp_api_http.entrypoints: "web"
+      traefik.http.routers.mdp_api_http.middlewares: "redirect-to-https"
+      traefik.http.routers.mdp_api_http.service: "mdp_api"
+
+      # HTTPS -> sert l'API/Admin
       traefik.http.routers.mdp_api.rule: "Host(`mdp-api.mon-site.ca`)"
-      traefik.http.routers.mdp_api.entrypoints: "web"
+      traefik.http.routers.mdp_api.entrypoints: "websecure"
+      traefik.http.routers.mdp_api.tls: "true"
+      traefik.http.routers.mdp_api.tls.certresolver: "le"
+      traefik.http.routers.mdp_api.service: "mdp_api"
+
+      # Service backend (port interne)
       traefik.http.services.mdp_api.loadbalancer.server.port: "8000"
+
+      # ===== Pass-through API sous le domaine front (mdp.mon-site.ca) =====
+      # HTTP -> redirige
+      traefik.http.routers.mdp_api_on_front_http.rule: "Host(`mdp.mon-site.ca`) && PathPrefix(`/api/`)"
+      traefik.http.routers.mdp_api_on_front_http.entrypoints: "web"
+      traefik.http.routers.mdp_api_on_front_http.middlewares: "redirect-to-https"
+      traefik.http.routers.mdp_api_on_front_http.priority: "1000"
+      traefik.http.routers.mdp_api_on_front_http.service: "mdp_api"
+
+      # HTTPS -> sert l'API sous /api/*
+      traefik.http.routers.mdp_api_on_front.rule: "Host(`mdp.mon-site.ca`) && PathPrefix(`/api/`)"
+      traefik.http.routers.mdp_api_on_front.entrypoints: "websecure"
+      traefik.http.routers.mdp_api_on_front.tls: "true"
+      traefik.http.routers.mdp_api_on_front.tls.certresolver: "le"
+      traefik.http.routers.mdp_api_on_front.priority: "1000"
+      traefik.http.routers.mdp_api_on_front.service: "mdp_api"
+
     networks:
       - appnet
       - edge
@@ -68,8 +100,21 @@ services:
     labels:
       traefik.enable: "true"
       traefik.docker.network: "edge"
-      traefik.http.routers.mdp_front.rule: "Host(`mdp.mon-site.ca`)"
-      traefik.http.routers.mdp_front.entrypoints: "web"
+
+      # HTTP -> redirige (mais NE capture PAS /api/*)
+      traefik.http.routers.mdp_front_http.rule: "Host(`mdp.mon-site.ca`) && !PathPrefix(`/api/`)"
+      traefik.http.routers.mdp_front_http.entrypoints: "web"
+      traefik.http.routers.mdp_front_http.middlewares: "redirect-to-https"
+      traefik.http.routers.mdp_front_http.priority: "1"
+
+      # HTTPS -> sert le front (mais NE capture PAS /api/*)
+      traefik.http.routers.mdp_front.rule: "Host(`mdp.mon-site.ca`) && !PathPrefix(`/api/`)"
+      traefik.http.routers.mdp_front.entrypoints: "websecure"
+      traefik.http.routers.mdp_front.tls: "true"
+      traefik.http.routers.mdp_front.tls.certresolver: "le"
+      traefik.http.routers.mdp_front.priority: "1"
+
+      # Service front (port interne)
       traefik.http.services.mdp_front.loadbalancer.server.port: "80"
     networks:
       - edge

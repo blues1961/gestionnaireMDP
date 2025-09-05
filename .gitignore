@@ -49,3 +49,4 @@ backend/db.sqlite3
 frontend/.env.development.local
 # backups
 backups/
+.env.prod.local
