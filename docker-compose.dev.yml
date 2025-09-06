@@ -1,67 +1,73 @@
 services:
   mdp_db:
-    image: postgres:16
+    image: postgres:16-alpine
     container_name: mdp_db_dev
-    ports: ["5443:5432"]
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+      - .env.dev.local            # ← contient POSTGRES_PASSWORD
+    ports:
+      - "${DB_PORT_HOST:-5443}:5432"   # expose si tu veux DBeaver: localhost:5443
     volumes:
       - mdp_db_data_dev:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 40
 
+
   mdp_backend:
     build: ./backend
     container_name: mdp_backend_dev
-    depends_on:
-      mdp_db:
-        condition: service_healthy
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+      - .env.dev.local            # ← indispensable pour que POSTGRES_PASSWORD entre
+    mdp_backend:
+      depends_on:
+        mdp_db:
+          condition: service_healthy
+
     environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
-      DJANGO_DEBUG: ${DJANGO_DEBUG}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
-      ACCESS_TOKEN_LIFETIME_MIN: ${ACCESS_TOKEN_LIFETIME_MIN}
-      REFRESH_TOKEN_LIFETIME_DAYS: ${REFRESH_TOKEN_LIFETIME_DAYS}
+      # On ne définit PLUS DB_NAME/DB_USER/DB_PASSWORD ici.
+      # On ne garde que l’accessibilité réseau interne :
+        DB_HOST: mdp_db
+        DB_PORT: "5432"
     volumes:
       - ./backend:/app
-    ports: ["9004:8000"]
+    ports:
+      - "${BACKEND_PORT_HOST:-9004}:8000"
     command: ["bash","-lc","python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
 
-  # serveur Vite pour le dev (hot-reload)
   mdp_vite:
     image: node:20-alpine
     container_name: mdp_vite_dev
     working_dir: /usr/src/app
+    restart: unless-stopped
     environment:
-      VITE_API_BASE: ${API_BASE}
+      VITE_API_BASE: ${API_BASE:-http://localhost:9004/api/}
     volumes:
       - ./frontend:/usr/src/app
       - mdp_node_modules:/usr/src/app/node_modules
-    ports: ["5274:5173"]
+    ports:
+      - "${VITE_PORT_HOST:-5274}:5173"
     command: ["sh","-lc","npm install && npm run dev -- --host 0.0.0.0 --port 5173"]
 
-  # build Vite + Nginx (parité prod)
   mdp_frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE: ${API_BASE}
+        VITE_API_BASE: ${API_BASE:-http://localhost:9004/api/}
     image: mdp-frontend:dev
     container_name: mdp_frontend_dev
-    ports: ["127.0.0.1:5275:80"]
     restart: unless-stopped
+    env_file:
+      - .env.dev
+      - .env.dev.local
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT_HOST:-5275}:80"
 
 volumes:
   mdp_db_data_dev:

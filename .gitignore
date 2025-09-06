@@ -50,3 +50,11 @@ frontend/.env.development.local
 # backups
 backups/
 .env.prod.local
+
+# Dev-only (debug)
+frontend/nginx.dev.conf
+frontend/nginx.resolver.conf
+
+# Dev-only
+.cookies.dev
+docker-compose.dev.override.yml

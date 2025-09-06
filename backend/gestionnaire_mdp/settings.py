@@ -90,19 +90,32 @@ TEMPLATES = [
 WSGI_APPLICATION = "gestionnaire_mdp.wsgi.application"
 
 # ───────────────────────── Base de données ─────────────────────────
+# ───────────────────────── Base de données ─────────────────────────
+# Priorité à DATABASE_URL si présent (Heroku/Render/etc.), sinon DB_* avec
+# repli automatique sur POSTGRES_* — plus de fallback SQLite pour éviter
+# les décalages entre CLI et appli.
 DATABASE_URL = os.getenv("DATABASE_URL")
 if DATABASE_URL:
     DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
-elif DEBUG:
-    # Permet de lancer le backend hors Docker si besoin
+else:
+    def _env(name, default=None, required=False):
+        v = os.environ.get(name, default)
+        if required and (v is None or str(v).strip() == ""):
+            raise ImproperlyConfigured(f"Missing env: {name}")
+        return v
+
     DATABASES = {
         "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "ENGINE": "django.db.backends.postgresql",
+            "HOST": _env("DB_HOST", "mdp_db"),
+            "PORT": int(_env("DB_PORT", "5432")),
+            # DB_* si définies, sinon POSTGRES_*
+            "NAME": (_env("DB_NAME") or _env("POSTGRES_DB", required=True)),
+            "USER": (_env("DB_USER") or _env("POSTGRES_USER", required=True)),
+            "PASSWORD": (_env("DB_PASSWORD") or _env("POSTGRES_PASSWORD", required=True)),
         }
+
     }
-else:
-    raise ImproperlyConfigured("DATABASE_URL is required in production.")
 
 # ───────────────────────── DRF ─────────────────────────
 REST_FRAMEWORK = {
