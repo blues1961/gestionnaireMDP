@@ -50,3 +50,7 @@ frontend/.env.development.local
 # backups
 backups/
 .env.prod.local
+
+# Dev-only (debug)
+frontend/nginx.dev.conf
+frontend/nginx.resolver.conf
