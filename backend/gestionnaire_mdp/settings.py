@@ -1,8 +1,6 @@
 # settings.py
 import os
 from pathlib import Path
-from django.core.exceptions import ImproperlyConfigured
-import dj_database_url
 
 # ───────────────────────── Base ─────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -90,47 +88,42 @@ TEMPLATES = [
 WSGI_APPLICATION = "gestionnaire_mdp.wsgi.application"
 
 # ───────────────────────── Base de données ─────────────────────────
-# ───────────────────────── Base de données ─────────────────────────
-# Priorité à DATABASE_URL si présent (Heroku/Render/etc.), sinon DB_* avec
-# repli automatique sur POSTGRES_* — plus de fallback SQLite pour éviter
-# les décalages entre CLI et appli.
-DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL:
-    DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600)}
-else:
-    def _env(name, default=None, required=False):
-        v = os.environ.get(name, default)
-        if required and (v is None or str(v).strip() == ""):
-            raise ImproperlyConfigured(f"Missing env: {name}")
-        return v
-
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "HOST": _env("DB_HOST", "mdp_db"),
-            "PORT": int(_env("DB_PORT", "5432")),
-            # DB_* si définies, sinon POSTGRES_*
-            "NAME": (_env("DB_NAME") or _env("POSTGRES_DB", required=True)),
-            "USER": (_env("DB_USER") or _env("POSTGRES_USER", required=True)),
-            "PASSWORD": (_env("DB_PASSWORD") or _env("POSTGRES_PASSWORD", required=True)),
-        }
-
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": env("POSTGRES_DB", "mdp_pg_db"),
+        "USER": env("POSTGRES_USER", "mdp_pg_user"),
+        "PASSWORD": env("POSTGRES_PASSWORD", ""),
+        "HOST": env("POSTGRES_HOST", "db"),
+        "PORT": env("POSTGRES_PORT", "5432"),
     }
+}
 
 # ───────────────────────── DRF ─────────────────────────
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
     ],
 }
 
+from datetime import timedelta
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(env("ACCESS_TOKEN_LIFETIME_MIN", "30"))),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=int(env("REFRESH_TOKEN_LIFETIME_DAYS", "7"))),
+}
+
+
 # ───────────────────────── Statique / WhiteNoise ─────────────────────────
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+if not DEBUG:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+else:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+
 
 # ───────────────────────── HTTPS/Proxy ─────────────────────────
 # Apache/Nginx gère TLS; on évite la redirection ici pour ne pas boucler
@@ -153,17 +146,19 @@ CSRF_COOKIE_DOMAIN    = None if DEBUG else COOKIE_PARENT_DOMAIN
 
 # ───────────── CORS / CSRF ─────────────
 CORS_ALLOW_CREDENTIALS = True
-
 if DEBUG:
+    # Par défaut, colle à ton dev: Vite=5274, Front nginx=5275
     CORS_ALLOWED_ORIGINS = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:8000",
+        "http://localhost:5274",
+        "http://127.0.0.1:5274",
+        "http://localhost:5275",
+        "http://127.0.0.1:5275",
     ]
     CSRF_TRUSTED_ORIGINS = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:8000",
+        "http://localhost:5274",
+        "http://127.0.0.1:5274",
+        "http://localhost:5275",
+        "http://127.0.0.1:5275",
     ]
 else:
     CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "https://app.mon-site.ca")

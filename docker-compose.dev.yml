@@ -16,6 +16,7 @@ services:
       timeout: 3s
       retries: 40
 
+ # docker-compose.dev.yml (service backend)
   backend:
     build: ./backend
     container_name: mdp_backend_dev
@@ -27,9 +28,8 @@ services:
       db:
         condition: service_healthy
     environment:
-      # On ne définit PAS DB_NAME/DB_USER/DB_PASSWORD ici.
-      DB_HOST: mdp_db
-      DB_PORT: "5432"
+      POSTGRES_HOST: db       # <-- au lieu de DB_HOST: mdp_db
+      POSTGRES_PORT: "5432"   # <-- optionnel, mais cohérent avec POSTGRES_*
     volumes:
       - ./backend:/app
     ports:
