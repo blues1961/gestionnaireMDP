@@ -5,9 +5,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env.dev
-      - .env.dev.local            # ← contient POSTGRES_PASSWORD
+      - .env.dev.local
     ports:
-      - "${DB_PORT_HOST:-5443}:5432"   # expose si tu veux DBeaver: localhost:5443
+      - "${DB_PORT_HOST:-5443}:5432"   # expose localhost:5443 -> 5432 (DBeaver)
     volumes:
       - mdp_db_data_dev:/var/lib/postgresql/data
     healthcheck:
@@ -16,24 +16,20 @@ services:
       timeout: 3s
       retries: 40
 
-
   mdp_backend:
     build: ./backend
     container_name: mdp_backend_dev
     restart: unless-stopped
     env_file:
       - .env.dev
-      - .env.dev.local            # ← indispensable pour que POSTGRES_PASSWORD entre
-    mdp_backend:
-      depends_on:
-        mdp_db:
-          condition: service_healthy
-
+      - .env.dev.local
+    depends_on:
+      mdp_db:
+        condition: service_healthy
     environment:
-      # On ne définit PLUS DB_NAME/DB_USER/DB_PASSWORD ici.
-      # On ne garde que l’accessibilité réseau interne :
-        DB_HOST: mdp_db
-        DB_PORT: "5432"
+      # On ne définit PAS DB_NAME/DB_USER/DB_PASSWORD ici.
+      DB_HOST: mdp_db
+      DB_PORT: "5432"
     volumes:
       - ./backend:/app
     ports:
