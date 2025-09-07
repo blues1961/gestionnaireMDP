@@ -24,7 +24,7 @@ services:
       - .env.dev
       - .env.dev.local
     depends_on:
-      mdp_db:
+      db:
         condition: service_healthy
     environment:
       # On ne définit PAS DB_NAME/DB_USER/DB_PASSWORD ici.
