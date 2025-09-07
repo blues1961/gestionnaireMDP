@@ -6,10 +6,6 @@ services:
     env_file:
       - .env.prod
       - .env.prod.local
-    environment:
-      POSTGRES_DB: "${POSTGRES_DB}"
-      POSTGRES_USER: "${POSTGRES_USER}"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     volumes:
       - mdp_prod_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -33,11 +29,6 @@ services:
       - .env.prod
       - .env.prod.local
     environment:
-      DB_HOST: db
-      DB_PORT: "5432"
-      DB_NAME: "${POSTGRES_DB}"
-      DB_USER: "${POSTGRES_USER}"
-      DB_PASSWORD: "${POSTGRES_PASSWORD}"
       DJANGO_DEBUG: "0"
       ALLOWED_HOSTS: "mdp-api.mon-site.ca,mdp.mon-site.ca"
       CSRF_TRUSTED_ORIGINS: "http://mdp-api.mon-site.ca,http://mdp.mon-site.ca,https://mdp-api.mon-site.ca,https://mdp.mon-site.ca"
