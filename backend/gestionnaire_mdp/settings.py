@@ -88,16 +88,31 @@ TEMPLATES = [
 WSGI_APPLICATION = "gestionnaire_mdp.wsgi.application"
 
 # ───────────────────────── Base de données ─────────────────────────
+DB_USER = env("POSTGRES_USER", required=True)
+DB_PASS = env("POSTGRES_PASSWORD", required=True)
+DB_HOST = env("POSTGRES_HOST", default="db")
+DB_PORT = env("POSTGRES_PORT", default="5432")
+DB_NAME = env("POSTGRES_DB", required=True)
+
+# Construit DATABASE_URL (utile pour logs, libs tierces, debug…)
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+os.environ["DATABASE_URL"] = DATABASE_URL  # <— rendu dispo pour dj-database-url & co
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("POSTGRES_DB", "mdp_pg_db"),
-        "USER": env("POSTGRES_USER", "mdp_pg_user"),
-        "PASSWORD": env("POSTGRES_PASSWORD", ""),
-        "HOST": env("POSTGRES_HOST", "db"),
-        "PORT": env("POSTGRES_PORT", "5432"),
+        "NAME": DB_NAME,
+        "USER": DB_USER,
+        "PASSWORD": DB_PASS,
+        "HOST": DB_HOST,
+        "PORT": DB_PORT,
     }
 }
+# ───────────────────────── Debug: affiche la DB courante ─────────────────────────
+if DEBUG:
+    safe_url = DATABASE_URL.replace(DB_PASS, "********") if DB_PASS else DATABASE_URL
+    print(f"[DEBUG] DATABASE_URL = {safe_url}")
+
 
 # ───────────────────────── DRF ─────────────────────────
 REST_FRAMEWORK = {
