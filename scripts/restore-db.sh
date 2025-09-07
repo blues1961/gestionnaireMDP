@@ -1,78 +1,89 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ========= Config par défaut (surchargeables via l'env) =========
-: "${APP_ENV:=dev}"
-: "${ENV_FILE:=.env.dev.local}"
-: "${COMPOSE_FILE:=docker-compose.dev.yml}"
-: "${DB_SERVICE:=mdp_db}"
-: "${BACKEND_SERVICE:=mdp_backend}"
-: "${DUMP:=}"     # si vide -> dernier dump dans backups/
+# ───────────────────────── config de base ─────────────────────────
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_SLUG="${APP_SLUG:-mdp}"
 
-# ========= Helpers =========
-dc() { docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"; }
-
-log() { printf "%s %s\n" "[INFO]" "$*"; }
-err() { printf "%s %s\n" "[ERR ]" "$*" >&2; }
-
-# ========= Sanity =========
-if [[ "$APP_ENV" != "dev" ]]; then
-  err "APP_ENV=$APP_ENV. Par sécurité, n’exécute que sur dev (export APP_ENV=dev)"; exit 2
-fi
-
-if [[ ! -f "$ENV_FILE" ]]; then
-  err "ENV_FILE introuvable: $ENV_FILE"; exit 2
-fi
-
-# Charge quelques variables utiles (si présentes)
-export $(grep -E '^(POSTGRES_DB|POSTGRES_USER)=' "$ENV_FILE" | sed 's/#.*//' || true)
-
-: "${POSTGRES_DB:=mdp_dev}"
-: "${POSTGRES_USER:=mdpuser}"
-
-# Sélection du dump si non fourni
-if [[ -z "${DUMP}" ]]; then
-  DUMP="$(ls -1t backups/*.sql backups/*.sql.gz 2>/dev/null | head -n1 || true)"
-fi
-if [[ -z "${DUMP}" || ! -f "$DUMP" ]]; then
-  err "Aucun dump trouvé. Place un fichier dans ./backups ou passe DUMP=/chemin/mon_dump.sql(.gz)"
+DUMP_PATH="${1:-}"
+if [[ -z "${DUMP_PATH}" || ! -f "${DUMP_PATH}" ]]; then
+  echo "Usage: $0 /chemin/vers/db.YYYYMMDD-HHMMSS.dump" >&2
   exit 2
 fi
 
-log "APP_ENV=$APP_ENV | ENV_FILE=$ENV_FILE | COMPOSE_FILE=$COMPOSE_FILE"
-log "DB_SERVICE=$DB_SERVICE | BACKEND_SERVICE=$BACKEND_SERVICE"
-log "POSTGRES_DB=$POSTGRES_DB | POSTGRES_USER=$POSTGRES_USER"
-log "Dump = $DUMP"
+# ───────────────────────── détection env ─────────────────────────
+detect_env() {
+  # priorité à ENV_OVERRIDE si fourni (dev|prod)
+  if [[ "${ENV_OVERRIDE:-}" == "dev" || "${ENV_OVERRIDE:-}" == "prod" ]]; then
+    echo "${ENV_OVERRIDE}"
+    return
+  fi
+  local dev="${APP_SLUG}_db_dev" prod="${APP_SLUG}_db_prod"
+  local have_dev have_prod
+  have_dev="$(docker ps --format '{{.Names}}' | grep -E "^${dev}\$" || true)"
+  have_prod="$(docker ps --format '{{.Names}}' | grep -E "^${prod}\$" || true)"
+  if [[ -n "$have_dev" && -z "$have_prod" ]]; then echo "dev"; return; fi
+  if [[ -z "$have_dev" && -n "$have_prod" ]]; then echo "prod"; return; fi
+  # défaut si les deux / aucun détecté
+  echo "dev"
+}
 
-# ========= Étapes =========
-log "1) Stop $BACKEND_SERVICE pour libérer la DB"
-dc stop "$BACKEND_SERVICE" >/dev/null || true
+ENV="$(detect_env)"
+DB_CONT="${APP_SLUG}_db_${ENV}"
 
-log "2) S'assure que $DB_SERVICE est up"
-dc up -d "$DB_SERVICE" >/dev/null
+# ───────────────────────── charger .env ─────────────────────────
+set -a
+# shellcheck source=/dev/null
+source "$ROOT_DIR/.env.$ENV"
+[[ -f "$ROOT_DIR/.env.$ENV.local" ]] && source "$ROOT_DIR/.env.$ENV.local"
+set +a
 
-log "3) (Re)création propre de la base avec TEMPLATE=template0 (évite les soucis de collation)"
-dc exec -T "$DB_SERVICE" sh -lc '
+: "${POSTGRES_USER:?POSTGRES_USER manquant dans .env.$ENV}"
+: "${POSTGRES_DB:?POSTGRES_DB manquant dans .env.$ENV}"
+: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant (mettre dans .env.$ENV.local)}"
+
+echo "[*] ENV=${ENV}  CONTAINER=${DB_CONT}  DB=${POSTGRES_DB}  USER=${POSTGRES_USER}"
+echo "[*] Restore ${DUMP_PATH}"
+
+# ───────────────────────── copier le dump ───────────────────────
+docker cp "${DUMP_PATH}" "${DB_CONT}:/tmp/restore.dump"
+
+# ───────────────────────── helpers SQL ──────────────────────────
+# Essayes avec 'mdpuser' (superuser du cluster docker), sinon retombe sur $POSTGRES_USER
+sql_db_super_or_app() {
+  local sql="$1"
+  docker exec -i "${DB_CONT}" sh -lc "
+    psql -U mdpuser      -d postgres -v ON_ERROR_STOP=1 -c \"$sql\" 2>/dev/null \
+    || psql -U \"$POSTGRES_USER\" -d postgres -v ON_ERROR_STOP=1 -c \"$sql\"
+  "
+}
+
+# ───────────────────────── ensure DB existe ─────────────────────
+docker exec -i "${DB_CONT}" sh -lc "
+  psql -U mdpuser -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='${POSTGRES_DB}'\" | grep -q 1 \
+  || psql -U mdpuser -d postgres -v ON_ERROR_STOP=1 \
+       -c \"CREATE DATABASE ${POSTGRES_DB} OWNER ${POSTGRES_USER} TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C';\" \
+  || psql -U \"${POSTGRES_USER}\" -d postgres -v ON_ERROR_STOP=1 \
+       -c \"CREATE DATABASE ${POSTGRES_DB} OWNER ${POSTGRES_USER} TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C';\"
+"
+
+# ───────────────────────── search_path + droits ─────────────────
+sql_db_super_or_app "ALTER DATABASE ${POSTGRES_DB} SET search_path=public;"
+sql_db_super_or_app "ALTER ROLE ${POSTGRES_USER} SET search_path=public;"
+
+docker exec -i "${DB_CONT}" sh -lc "
+  psql -U \"${POSTGRES_USER}\" -d \"${POSTGRES_DB}\" -v ON_ERROR_STOP=1 -c \"ALTER SCHEMA public OWNER TO ${POSTGRES_USER};\"
+  psql -U \"${POSTGRES_USER}\" -d \"${POSTGRES_DB}\" -v ON_ERROR_STOP=1 -c \"GRANT USAGE, CREATE ON SCHEMA public TO ${POSTGRES_USER};\"
+"
+
+# ───────────────────────── reset schéma + restore ───────────────
+docker exec -i "${DB_CONT}" sh -lc "
   set -e
-  psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
-    -c "DROP DATABASE IF EXISTS \"$POSTGRES_DB\";" \
-    -c "CREATE DATABASE \"$POSTGRES_DB\" OWNER \"$POSTGRES_USER\" TEMPLATE template0;"
-'
+  psql -U \"${POSTGRES_USER}\" -d \"${POSTGRES_DB}\" -v ON_ERROR_STOP=1 -c \"DROP SCHEMA IF EXISTS public CASCADE;\"
+  psql -U \"${POSTGRES_USER}\" -d \"${POSTGRES_DB}\" -v ON_ERROR_STOP=1 -c \"CREATE SCHEMA public AUTHORIZATION ${POSTGRES_USER};\"
+  psql -U \"${POSTGRES_USER}\" -d \"${POSTGRES_DB}\" -v ON_ERROR_STOP=1 -c \"GRANT USAGE, CREATE ON SCHEMA public TO ${POSTGRES_USER};\"
+  pg_restore -U \"${POSTGRES_USER}\" -d \"${POSTGRES_DB}\" /tmp/restore.dump
+  rm -f /tmp/restore.dump
+"
 
-log "4) Restauration du dump dans $POSTGRES_DB"
-if [[ "$DUMP" == *.gz ]]; then
-  gzip -dc "$DUMP" | dc exec -T "$DB_SERVICE" sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1'
-else
-  cat "$DUMP" | dc exec -T "$DB_SERVICE" sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1'
-fi
-
-log "5) Redémarre $BACKEND_SERVICE + migrations (idempotent)"
-dc up -d "$BACKEND_SERVICE" >/dev/null
-dc exec -T "$BACKEND_SERVICE" python manage.py migrate --noinput || true
-
-log "6) Compteurs rapides"
-dc exec -T "$DB_SERVICE" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-  -c "select count(*) as passwords  from api_passwordentry;" \
-  -c "select count(*) as categories from api_category;"
-
-log "OK: restauration terminée."
+echo "[OK] restore terminé"

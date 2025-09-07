@@ -1,30 +1,49 @@
 #!/usr/bin/env bash
 set -euo pipefail
-. "$(dirname "$0")/lib/env_detect.sh"
-env_detect_init
-echo "INFO: APP_ENV=$APP_ENV | ENV_FILE=$ENV_FILE | COMPOSE_FILE=$COMPOSE_FILE"
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_SLUG="${APP_SLUG:-mdp}"
 
-BACKUP_DIR="${BACKUP_DIR:-backups}"
-GZIP="${GZIP:-1}"
-RETENTION_DAYS="${RETENTION_DAYS:-14}"
+# --- auto-détection de l'env (dev/prod) ---
+detect_env() {
+  # priorité à la variable d'override si définie
+  if [[ "${ENV_OVERRIDE:-}" == "prod" || "${ENV_OVERRIDE:-}" == "dev" ]]; then
+    echo "$ENV_OVERRIDE"; return
+  fi
 
+  local dev_cont="${APP_SLUG}_db_dev"
+  local prod_cont="${APP_SLUG}_db_prod"
+  local dev_running="" prod_running=""
 
-mkdir -p "$BACKUP_DIR"
-TS="$(date +%F_%H%M%S)"
-OUTFILE="$BACKUP_DIR/backup_${TS}.sql"
+  dev_running="$(docker ps --format '{{.Names}}' | grep -E "^${dev_cont}\$" || true)"
+  prod_running="$(docker ps --format '{{.Names}}' | grep -E "^${prod_cont}\$" || true)"
 
+  if [[ -n "$dev_running" && -z "$prod_running" ]]; then echo "dev"; return; fi
+  if [[ -z "$dev_running" && -n "$prod_running" ]]; then echo "prod"; return; fi
+  # si les deux (ou aucun) → défaut dev
+  echo "dev"
+}
 
-dc exec -T db sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$OUTFILE"
+ENV="$(detect_env)"
+DB_CONT="${APP_SLUG}_db_${ENV}"
 
+# --- charger les variables de l'env ---
+set -a
+source "$ROOT_DIR/.env.$ENV"
+[[ -f "$ROOT_DIR/.env.$ENV.local" ]] && source "$ROOT_DIR/.env.$ENV.local"
+set +a
 
-if [ "$GZIP" = "1" ]; then
-gzip -f "$OUTFILE"; OUTFILE="${OUTFILE}.gz"
-fi
+STAMP="$(date +%Y%m%d-%H%M%S)"
+OUT_DIR="$ROOT_DIR/backups"
+mkdir -p "$OUT_DIR"
+FILE="$OUT_DIR/db.$STAMP.dump"
 
+echo "[*] ENV=$ENV  CONTAINER=$DB_CONT  DB=$POSTGRES_DB  USER=$POSTGRES_USER"
+echo "[*] Dump -> $FILE"
 
-[ -s "$OUTFILE" ] || { echo "ERROR: empty backup $OUTFILE" >&2; exit 1; }
-find "$BACKUP_DIR" -type f -name 'backup_*.sql*' -mtime +"$RETENTION_DAYS" -print -delete || true
+docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" "$DB_CONT" \
+  pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -F c -f /tmp/backup.dump
 
-
-echo "OK: Backup created -> $OUTFILE"
+docker cp "$DB_CONT:/tmp/backup.dump" "$FILE"
+docker exec "$DB_CONT" rm -f /tmp/backup.dump
+echo "[OK] $FILE"
