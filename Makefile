@@ -98,20 +98,26 @@ check:
 # - lit ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD depuis $(LOCAL_EF)
 # - crée/maj le superuser (idempotent)
 createsuperuser:
-	@set -eu; \
-	if [ ! -f "$(LOCAL_EF)" ]; then \
-	  echo ">> Avertissement: $(LOCAL_EF) introuvable. Je continue quand même si ADMIN_* sont déjà dans l'env."; \
+	@set -euo pipefail; \
+	EF_LOCAL_ABS="$(abspath $(LOCAL_EF))"; \
+	if [ ! -f "$$EF_LOCAL_ABS" ]; then \
+	  echo "!! Fichier $$EF_LOCAL_ABS introuvable. Place ADMIN_USERNAME/EMAIL/PASSWORD dedans."; exit 1; \
 	fi; \
-	# charge les variables ADMIN_* si le fichier existe
-	set -a; [ -f "$(LOCAL_EF)" ] && . "$(LOCAL_EF)"; set +a; \
+	# Tente de sourcer (bash) ; si ça échoue, fallback via grep/xargs
+	set -a; \
+	if ! source "$$EF_LOCAL_ABS" 2>/dev/null; then \
+	  eval $$((grep -E '^(ADMIN_USERNAME|ADMIN_EMAIL|ADMIN_PASSWORD)=' "$$EF_LOCAL_ABS" || true) | xargs); \
+	fi; \
+	set +a; \
 	if [ -z "$${ADMIN_USERNAME:-}" ] || [ -z "$${ADMIN_EMAIL:-}" ] || [ -z "$${ADMIN_PASSWORD:-}" ]; then \
-	  echo "!! ADMIN_USERNAME / ADMIN_EMAIL / ADMIN_PASSWORD manquants (dans $(LOCAL_EF) ou environnement). Abandon."; \
-	  exit 1; \
+	  echo "!! ADMIN_USERNAME / ADMIN_EMAIL / ADMIN_PASSWORD manquants dans $$EF_LOCAL_ABS"; exit 1; \
 	fi; \
-	ADMIN_USERNAME="$${ADMIN_USERNAME}" \
-	ADMIN_EMAIL="$${ADMIN_EMAIL}" \
-	ADMIN_PASSWORD="$${ADMIN_PASSWORD}" \
-	$(COMPOSE) exec backend bash -lc 'python - << "PY"\nimport os, django\nfrom django.contrib.auth import get_user_model\n\ndjango.setup()\nUser = get_user_model()\nusername = os.environ.get("ADMIN_USERNAME")\nemail    = os.environ.get("ADMIN_EMAIL")\npassword = os.environ.get("ADMIN_PASSWORD")\n\nif not username or not password:\n    raise SystemExit(\"ADMIN_USERNAME/ADMIN_PASSWORD requis\")\n\nu, created = User.objects.get_or_create(username=username, defaults={\"email\": email})\nif not created:\n    if email:\n        u.email = email\n        u.save(update_fields=[\"email\"]) \n# Assure superuser/staff et met à jour le mot de passe\nu.is_superuser = True\nu.is_staff = True\nu.set_password(password)\nu.save()\nprint(f\"Superuser {'créé' if created else 'mis à jour'}: {u.username} <{u.email}>\")\nPY'
+	ADMIN_USERNAME="$$ADMIN_USERNAME" \
+	ADMIN_EMAIL="$$ADMIN_EMAIL" \
+	ADMIN_PASSWORD="$$ADMIN_PASSWORD" \
+	$(COMPOSE) exec backend bash -lc 'python - << "PY"\nimport os, django\nfrom django.contrib.auth import get_user_model\n\ndjango.setup()\nUser = get_user_model()\nusername = os.environ.get("ADMIN_USERNAME")\nemail    = os.environ.get("ADMIN_EMAIL")\npassword = os.environ.get("ADMIN_PASSWORD")\n\nu, created = User.objects.get_or_create(username=username, defaults={\"email\": email})\nif not created and email:\n    u.email = email\n    u.save(update_fields=[\"email\"]) \n# Superuser + staff + reset du mot de passe\nu.is_superuser = True\nu.is_staff = True\nu.set_password(password)\nu.save()\nprint(f\"Superuser {'créé' if created else 'mis à jour'}: {u.username} <{u.email}>\")\nPY'
+
+
 
 # =========================
 # PostgreSQL
