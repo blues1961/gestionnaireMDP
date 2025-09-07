@@ -1,5 +1,5 @@
 services:
-  mdp_db:
+  db:
     image: postgres:16-alpine
     container_name: mdp_db_dev
     restart: unless-stopped
@@ -16,7 +16,7 @@ services:
       timeout: 3s
       retries: 40
 
-  mdp_backend:
+  backend:
     build: ./backend
     container_name: mdp_backend_dev
     restart: unless-stopped
@@ -36,7 +36,7 @@ services:
       - "${BACKEND_PORT_HOST:-9004}:8000"
     command: ["bash","-lc","python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
 
-  mdp_vite:
+  vite:
     image: node:20-alpine
     container_name: mdp_vite_dev
     working_dir: /usr/src/app
@@ -50,7 +50,7 @@ services:
       - "${VITE_PORT_HOST:-5274}:5173"
     command: ["sh","-lc","npm install && npm run dev -- --host 0.0.0.0 --port 5173"]
 
-  mdp_frontend:
+  frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
