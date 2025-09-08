@@ -98,25 +98,22 @@ check:
 # - lit ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD depuis $(LOCAL_EF)
 # - crée/maj le superuser (idempotent)
 createsuperuser:
-	@set -euo pipefail; \
-	EF_LOCAL_ABS="$(abspath $(LOCAL_EF))"; \
-	if [ ! -f "$$EF_LOCAL_ABS" ]; then \
-	  echo "!! Fichier $$EF_LOCAL_ABS introuvable. Place ADMIN_USERNAME/EMAIL/PASSWORD dedans."; exit 1; \
-	fi; \
-	# Tente de sourcer (bash) ; si ça échoue, fallback via grep/xargs
-	set -a; \
-	if ! source "$$EF_LOCAL_ABS" 2>/dev/null; then \
-	  eval $$((grep -E '^(ADMIN_USERNAME|ADMIN_EMAIL|ADMIN_PASSWORD)=' "$$EF_LOCAL_ABS" || true) | xargs); \
-	fi; \
-	set +a; \
-	if [ -z "$${ADMIN_USERNAME:-}" ] || [ -z "$${ADMIN_EMAIL:-}" ] || [ -z "$${ADMIN_PASSWORD:-}" ]; then \
-	  echo "!! ADMIN_USERNAME / ADMIN_EMAIL / ADMIN_PASSWORD manquants dans $$EF_LOCAL_ABS"; exit 1; \
-	fi; \
-	ADMIN_USERNAME="$$ADMIN_USERNAME" \
-	ADMIN_EMAIL="$$ADMIN_EMAIL" \
-	ADMIN_PASSWORD="$$ADMIN_PASSWORD" \
-	$(COMPOSE) exec backend bash -lc 'python - << "PY"\nimport os, django\nfrom django.contrib.auth import get_user_model\n\ndjango.setup()\nUser = get_user_model()\nusername = os.environ.get("ADMIN_USERNAME")\nemail    = os.environ.get("ADMIN_EMAIL")\npassword = os.environ.get("ADMIN_PASSWORD")\n\nu, created = User.objects.get_or_create(username=username, defaults={\"email\": email})\nif not created and email:\n    u.email = email\n    u.save(update_fields=[\"email\"]) \n# Superuser + staff + reset du mot de passe\nu.is_superuser = True\nu.is_staff = True\nu.set_password(password)\nu.save()\nprint(f\"Superuser {'créé' if created else 'mis à jour'}: {u.username} <{u.email}>\")\nPY'
-
+	@$(COMPOSE) exec backend bash -lc 'python - << "PY"\n\
+import os, sys, django\n\
+from django.contrib.auth import get_user_model\n\
+django.setup()\n\
+u=os.getenv("ADMIN_USERNAME"); e=os.getenv("ADMIN_EMAIL"); p=os.getenv("ADMIN_PASSWORD")\n\
+missing=[k for k,v in [(\"ADMIN_USERNAME\",u),(\"ADMIN_EMAIL\",e),(\"ADMIN_PASSWORD\",p)] if not v]\n\
+if missing:\n\
+    print(\"!! Variables manquantes dans .env.%s.local: %s\" % (os.getenv(\"APP_ENV\",\"prod\"), \", \".join(missing)))\n\
+    sys.exit(1)\n\
+User=get_user_model()\n\
+obj,created=User.objects.get_or_create(username=u, defaults={\"email\": e})\n\
+if not created and e:\n\
+    obj.email=e; obj.save(update_fields=[\"email\"])\n\
+obj.is_staff=True; obj.is_superuser=True; obj.set_password(p); obj.save()\n\
+print(f\"Superuser {'créé' if created else 'mis à jour'}: {obj.username} <{obj.email}>\")\n\
+PY'
 
 
 # =========================
