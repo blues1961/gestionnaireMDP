@@ -97,23 +97,22 @@ check:
 # createsuperuser non interactif:
 # - lit ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD depuis $(LOCAL_EF)
 # - crée/maj le superuser (idempotent)
-createsuperuser:
-	@$(COMPOSE) exec backend bash -lc 'python - << "PY"\n\
-import os, sys, django\n\
-from django.contrib.auth import get_user_model\n\
-django.setup()\n\
-u=os.getenv("ADMIN_USERNAME"); e=os.getenv("ADMIN_EMAIL"); p=os.getenv("ADMIN_PASSWORD")\n\
-missing=[k for k,v in [(\"ADMIN_USERNAME\",u),(\"ADMIN_EMAIL\",e),(\"ADMIN_PASSWORD\",p)] if not v]\n\
-if missing:\n\
-    print(\"!! Variables manquantes dans .env.%s.local: %s\" % (os.getenv(\"APP_ENV\",\"prod\"), \", \".join(missing)))\n\
-    sys.exit(1)\n\
-User=get_user_model()\n\
-obj,created=User.objects.get_or_create(username=u, defaults={\"email\": e})\n\
-if not created and e:\n\
-    obj.email=e; obj.save(update_fields=[\"email\"])\n\
-obj.is_staff=True; obj.is_superuser=True; obj.set_password(p); obj.save()\n\
-print(f\"Superuser {'créé' if created else 'mis à jour'}: {obj.username} <{obj.email}>\")\n\
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec backend bash -lc 'python - << "PY"
+import os, sys, django
+from django.contrib.auth import get_user_model
+django.setup()
+u=os.getenv("ADMIN_USERNAME"); e=os.getenv("ADMIN_EMAIL"); p=os.getenv("ADMIN_PASSWORD")
+missing=[k for k,v in [("ADMIN_USERNAME",u),("ADMIN_EMAIL",e),("ADMIN_PASSWORD",p)] if not v]
+if missing:
+    print("!! Variables manquantes: " + ", ".join(missing)); sys.exit(1)
+User=get_user_model()
+obj, created = User.objects.get_or_create(username=u, defaults={"email": e})
+if not created and e:
+    obj.email = e; obj.save(update_fields=["email"])
+obj.is_superuser = True; obj.is_staff = True; obj.set_password(p); obj.save()
+print(f"Superuser {'créé' if created else 'mis à jour'}: {obj.username} <{obj.email}>")
 PY'
+
 
 
 # =========================
