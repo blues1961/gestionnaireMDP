@@ -1,70 +1,96 @@
+version: "3.9"
+
 services:
   db:
     image: postgres:16-alpine
-    container_name: mdp_db_dev
+    container_name: ${APP_SLUG}_db_${APP_ENV}
     restart: unless-stopped
     env_file:
       - .env.dev
       - .env.dev.local
+    environment:
+      # On ne garde que POSTGRES_*
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "${DB_PORT_HOST:-5443}:5432"   # expose localhost:5443 -> 5432 (DBeaver)
+      - "5433:5432"   # invariant: hôte 5433 -> conteneur 5432
     volumes:
-      - mdp_db_data_dev:/var/lib/postgresql/data
+      - ${APP_SLUG}_db_data_${APP_ENV}:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
-      retries: 40
+      retries: 30
+    networks:
+      - appnet
 
- # docker-compose.dev.yml (service backend)
   backend:
-    build: ./backend
-    container_name: mdp_backend_dev
+    # Utilise ton Dockerfile de dev si présent ; sinon image python + runserver (à adapter)
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    image: ${APP_SLUG}-backend:dev
+    container_name: ${APP_SLUG}_backend_${APP_ENV}
     restart: unless-stopped
     env_file:
       - .env.dev
       - .env.dev.local
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+    volumes:
+      - ./backend:/app
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      POSTGRES_HOST: db       # <-- au lieu de DB_HOST: mdp_db
-      POSTGRES_PORT: "5432"   # <-- optionnel, mais cohérent avec POSTGRES_*
-    volumes:
-      - ./backend:/app
     ports:
-      - "${BACKEND_PORT_HOST:-9004}:8000"
-    command: ["bash","-lc","python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+      - "8002:8000"   # invariant: hôte 8002 -> conteneur 8000
+    networks:
+      - appnet
 
   vite:
+    # Dev-front (Vite). En dev, c'est ce service qu'on consulte.
     image: node:20-alpine
-    container_name: mdp_vite_dev
-    working_dir: /usr/src/app
-    restart: unless-stopped
-    environment:
-      VITE_API_BASE: ${API_BASE:-http://localhost:9004/api/}
-    volumes:
-      - ./frontend:/usr/src/app
-      - mdp_node_modules:/usr/src/app/node_modules
-    ports:
-      - "${VITE_PORT_HOST:-5274}:5173"
-    command: ["sh","-lc","npm install && npm run dev -- --host 0.0.0.0 --port 5173"]
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_BASE: ${API_BASE:-http://localhost:9004/api/}
-    image: mdp-frontend:dev
-    container_name: mdp_frontend_dev
+    container_name: ${APP_SLUG}_vite_${APP_ENV}
+    working_dir: /app
     restart: unless-stopped
     env_file:
       - .env.dev
       - .env.dev.local
+    environment:
+      # invariant: API dev exposée sur 8002
+      VITE_API_BASE: ${API_BASE:-http://localhost:8002/api/}
+      NODE_ENV: development
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    volumes:
+      - ./frontend:/app
+      - ${APP_SLUG}_node_modules_${APP_ENV}:/app/node_modules
+    depends_on:
+      - backend
     ports:
-      - "127.0.0.1:${FRONTEND_PORT_HOST:-5275}:80"
+      - "5174:5173"   # invariant: hôte 5174 -> conteneur 5173
+    networks:
+      - appnet
+
+  frontend:
+    # Optionnel en dev : build statique (Caddy/Nginx). Non exposé (on utilise Vite).
+    # Laisse-le pour tester un build local si besoin (npm run build + serve statique).
+    image: caddy:2
+    container_name: ${APP_SLUG}_frontend_${APP_ENV}
+    restart: unless-stopped
+    volumes:
+      - ./frontend/dist:/usr/share/caddy:ro
+    depends_on:
+      - vite
+    networks:
+      - appnet
+    # Pas de ports en dev (on passe par Vite:5174)
 
 volumes:
-  mdp_db_data_dev:
-  mdp_node_modules:
+  ${APP_SLUG}_db_data_${APP_ENV}:
+  ${APP_SLUG}_node_modules_${APP_ENV}:
+
+networks:
+  appnet:
+    name: ${APP_SLUG}_appnet
