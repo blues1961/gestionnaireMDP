@@ -8,15 +8,11 @@ services:
     env_file:
       - .env.dev
       - .env.dev.local
-    environment:
-      # On ne garde que POSTGRES_*
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # Les POSTGRES_* viennent des env_file; pas besoin de les répéter ici
     ports:
-      - "5433:5432"   # invariant: hôte 5433 -> conteneur 5432
+      - "${DB_PORT_HOST:-5433}:5432"    # hôte -> conteneur
     volumes:
-      - ${APP_SLUG}_db_data_${APP_ENV}:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -26,7 +22,6 @@ services:
       - appnet
 
   backend:
-    # Utilise ton Dockerfile de dev si présent ; sinon image python + runserver (à adapter)
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
@@ -45,12 +40,11 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8002:8000"   # invariant: hôte 8002 -> conteneur 8000
+      - "${BACKEND_PORT_HOST:-8002}:8000"
     networks:
       - appnet
 
   vite:
-    # Dev-front (Vite). En dev, c'est ce service qu'on consulte.
     image: node:20-alpine
     container_name: ${APP_SLUG}_vite_${APP_ENV}
     working_dir: /app
@@ -59,23 +53,21 @@ services:
       - .env.dev
       - .env.dev.local
     environment:
-      # invariant: API dev exposée sur 8002
       VITE_API_BASE: ${API_BASE:-http://localhost:8002/api/}
       NODE_ENV: development
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     volumes:
       - ./frontend:/app
-      - ${APP_SLUG}_node_modules_${APP_ENV}:/app/node_modules
+      - node_modules:/app/node_modules
     depends_on:
       - backend
     ports:
-      - "5174:5173"   # invariant: hôte 5174 -> conteneur 5173
+      - "${VITE_PORT_HOST:-5174}:5173"
     networks:
       - appnet
 
   frontend:
     # Optionnel en dev : build statique (Caddy/Nginx). Non exposé (on utilise Vite).
-    # Laisse-le pour tester un build local si besoin (npm run build + serve statique).
     image: caddy:2
     container_name: ${APP_SLUG}_frontend_${APP_ENV}
     restart: unless-stopped
@@ -88,8 +80,10 @@ services:
     # Pas de ports en dev (on passe par Vite:5174)
 
 volumes:
-  ${APP_SLUG}_db_data_${APP_ENV}:
-  ${APP_SLUG}_node_modules_${APP_ENV}:
+  db_data:
+    name: ${APP_SLUG}_db_data_${APP_ENV}
+  node_modules:
+    name: ${APP_SLUG}_node_modules_${APP_ENV}
 
 networks:
   appnet:
