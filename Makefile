@@ -94,25 +94,27 @@ makemigrations:
 check:
 	$(COMPOSE) exec backend python manage.py check
 
-# createsuperuser non interactif:
-# - lit ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD depuis $(LOCAL_EF)
-# - crée/maj le superuser (idempotent)
-docker compose --env-file .env.prod -f docker-compose.prod.yml exec backend bash -lc 'python - << "PY"
-import os, sys, django
-from django.contrib.auth import get_user_model
-django.setup()
-u=os.getenv("ADMIN_USERNAME"); e=os.getenv("ADMIN_EMAIL"); p=os.getenv("ADMIN_PASSWORD")
-missing=[k for k,v in [("ADMIN_USERNAME",u),("ADMIN_EMAIL",e),("ADMIN_PASSWORD",p)] if not v]
-if missing:
-    print("!! Variables manquantes: " + ", ".join(missing)); sys.exit(1)
-User=get_user_model()
-obj, created = User.objects.get_or_create(username=u, defaults={"email": e})
-if not created and e:
-    obj.email = e; obj.save(update_fields=["email"])
-obj.is_superuser = True; obj.is_staff = True; obj.set_password(p); obj.save()
-print(f"Superuser {'créé' if created else 'mis à jour'}: {obj.username} <{obj.email}>")
-PY'
-
+# createsuperuser non interactif (idempotent) :
+# lit ADMIN_* depuis $(LOCAL_EF) car le service backend a:
+#   env_file:
+#     - .env.$(APP_ENV)
+#     - .env.$(APP_ENV).local
+createsuperuser:
+	@$(COMPOSE) exec backend bash -lc 'python - <<- "PY"
+	import os, sys, django
+	from django.contrib.auth import get_user_model
+	django.setup()
+	u=os.getenv("ADMIN_USERNAME"); e=os.getenv("ADMIN_EMAIL"); p=os.getenv("ADMIN_PASSWORD")
+	missing=[k for k,v in [("ADMIN_USERNAME",u),("ADMIN_EMAIL",e),("ADMIN_PASSWORD",p)] if not v]
+	if missing:
+	    print("!! Variables manquantes: " + ", ".join(missing)); sys.exit(1)
+	User=get_user_model()
+	obj, created = User.objects.get_or_create(username=u, defaults={"email": e})
+	if not created and e:
+	    obj.email = e; obj.save(update_fields=["email"])
+	obj.is_superuser = True; obj.is_staff = True; obj.set_password(p); obj.save()
+	print(f"Superuser {'créé' if created else 'mis à jour'}: {obj.username} <{obj.email}>")
+	PY'
 
 
 # =========================
