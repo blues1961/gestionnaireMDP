@@ -4,7 +4,7 @@ Ce guide standardise le processus pour mettre à jour l’application de gestion
 
 > Hypothèses (modifiez si besoin) :
 >
-> * Répertoire du projet : `/opt/apps/gestionnaire_mdp_zero_knowledge`
+> * Répertoire du projet : `/opt/apps/mdp`
 > * Fichier d’environnement prod : `.env.prod` (permissions strictes `600`)
 > * Compose : `docker-compose.prod.yml`
 > * Domaine d’app : `app.mon-site.ca`
@@ -35,7 +35,7 @@ Ce guide standardise le processus pour mettre à jour l’application de gestion
 
 ```bash
 ssh <user>@<votre_serveur>
-cd /opt/apps/gestionnaire_mdp_zero_knowledge
+cd /opt/apps/mdp
 ```
 
 ---
@@ -173,7 +173,7 @@ Exemple de contenu :
 #!/bin/bash
 set -euo pipefail
 
-cd /opt/apps/gestionnaire_mdp_zero_knowledge
+cd /opt/apps/mdp
 
 TS=$(date +"%Y%m%d-%H%M%S")
 source .env.prod
@@ -224,7 +224,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f backend
 ## 12) Résumé opératoire
 
 ```bash
-cd /opt/apps/gestionnaire_mdp_zero_knowledge
+cd /opt/apps/mdp
 TS=$(date +"%Y%m%d-%H%M%S")
 docker compose -f docker-compose.prod.yml exec -T \
   -e PGPASSWORD="$POSTGRES_PASSWORD" db \
