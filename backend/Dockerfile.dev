@@ -1,0 +1,25 @@
+# backend/Dockerfile.dev
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Outils utiles en dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    netcat-openbsd curl && rm -rf /var/lib/apt/lists/*
+
+# Dépendances
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Code de l'app
+COPY . .
+
+# Paramètre Django (même module que ta prod)
+ENV DJANGO_SETTINGS_MODULE=gestionnaire_mdp.settings
+
+EXPOSE 8000
+# Dev server + migrations auto (pratique en dev)
+CMD bash -lc "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
