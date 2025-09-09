@@ -10,7 +10,7 @@ services:
       - .env.dev.local
     # Les POSTGRES_* viennent des env_file; pas besoin de les répéter ici
     ports:
-      - "${DB_PORT_HOST:-5433}:5432"    # hôte -> conteneur
+      - "${DEV_DB_PORT:-5433}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -32,15 +32,17 @@ services:
       - .env.dev
       - .env.dev.local
     environment:
-      POSTGRES_HOST: db
-      POSTGRES_PORT: "5432"
+      # génère dynamiquement les origines à partir des ports DEV
+      FRONT_ORIGIN: "http://localhost:${DEV_VITE_PORT:-5174}"
+      CSRF_TRUSTED_ORIGINS: "http://localhost,http://127.0.0.1,http://localhost:${DEV_VITE_PORT:-5174},http://localhost:${DEV_API_PORT:-8002}"
+      API_BASE: "${API_BASE}"
     volumes:
       - ./backend:/app
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "${BACKEND_PORT_HOST:-8002}:8000"
+      - "${DEV_API_PORT:-8002}:8000"
     networks:
       - appnet
 
@@ -53,8 +55,7 @@ services:
       - .env.dev
       - .env.dev.local
     environment:
-      VITE_API_BASE: ${API_BASE:-http://localhost:8002/api/}
-      NODE_ENV: development
+      VITE_API_BASE: "http://localhost:${DEV_API_PORT:-8002}${API_BASE}"
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     volumes:
       - ./frontend:/app
@@ -62,7 +63,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "${VITE_PORT_HOST:-5174}:5173"
+      - "${DEV_VITE_PORT:-5174}:5173"
     networks:
       - appnet
 

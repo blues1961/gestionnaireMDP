@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions
 from .models import Category, PasswordEntry
 from .serializers import CategorySerializer, PasswordSerializer
+from django.http import JsonResponse
 
 class IsOwner(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
@@ -23,3 +24,8 @@ class PasswordViewSet(viewsets.ModelViewSet):
         return PasswordEntry.objects.filter(owner=self.request.user)
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+# backend/api/views.py
+
+
+def healthz(_request):
+    return JsonResponse({"status": "ok"})
