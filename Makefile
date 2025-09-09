@@ -1,25 +1,28 @@
 # =========================
 # Makefile - gestionnaire_mdp_zero_knowledge
 # =========================
-.DEFAULT_GOAL := help   # <--- la cible par défaut est help
-# =========================
-# Makefile - gestionnaire_mdp_zero_knowledge
-# =========================
+.DEFAULT_GOAL := help
+
 # Détection d'environnement:
-# - APP_ENV vient d'abord de ./.env (lien symbolique vers .env.dev ou .env.prod)
-# - défaut: dev
-APP_ENV ?= $(shell grep -E '^APP_ENV=' .env 2>/dev/null | cut -d= -f2 || echo dev)
+# - APP_ENV vient d'abord de ./.env (lien symbolique vers .env.dev|.env.prod)
+# - surcharge possible via: APP_ENV=prod make up
+APP_ENV ?= $(shell [ -f .env ] && grep -E '^APP_ENV=' .env | cut -d= -f2 || echo dev)
 
 # Fichiers env et compose en fonction de APP_ENV
 EF := .env.$(APP_ENV)
 LOCAL_EF := $(EF).local
 CF := docker-compose.$(APP_ENV).yml
 
-# Commande docker compose standardisée
+# docker compose standardisé
 COMPOSE := docker compose --env-file $(EF) -f $(CF)
 
 # Service par défaut pour certaines cibles (logs, shell, exec)
 S ?= backend
+
+# Assure le symlink .env -> .env.$(APP_ENV) (invariant)
+.PHONY: ensure-env
+ensure-env:
+	@ln -sfn $(EF) .env
 
 # =========================
 # Aide
@@ -29,78 +32,73 @@ help:
 	@echo "ENV: APP_ENV=$(APP_ENV)  EF=$(EF)  LOCAL_EF=$(LOCAL_EF)  CF=$(CF)"
 	@echo
 	@echo "Cibles principales:"
-	@echo "  make dps              - Tableau des conteneurs + service compose"
 	@echo "  make up               - Démarrer (build) l'environnement $(APP_ENV)"
 	@echo "  make down             - Stopper l'environnement $(APP_ENV)"
 	@echo "  make restart          - Redémarrer (down puis up -d --build)"
 	@echo "  make ps               - docker compose ps"
+	@echo "  make dps              - Tableau des conteneurs + service compose"
 	@echo "  make logs [S=backend] - Logs suivis du service (backend par défaut)"
 	@echo "  make shell [S=backend]- Shell bash dans un conteneur (backend par défaut)"
 	@echo
 	@echo "Django:"
 	@echo "  make migrate          - python manage.py migrate"
 	@echo "  make makemigrations   - python manage.py makemigrations"
-	@echo "  make createsuperuser  - crée/maj superuser avec ADMIN_* depuis $(LOCAL_EF)"
+	@echo "  make createsuperuser  - crée/maj superuser via ADMIN_* de $(LOCAL_EF)"
 	@echo "  make check            - python manage.py check"
 	@echo
 	@echo "PostgreSQL:"
-	@echo "  make psql             - psql *dans* le conteneur db (variables du conteneur)"
+	@echo "  make psql             - psql *dans* le conteneur db (POSTGRES_*)"
 	@echo
-	@echo "Scripts projet:"
-	@echo "  make backup-db        - lance ./scripts/backup-db.sh  (si présent)"
-	@echo "  make restore-db       - lance ./scripts/restore-db.sh (si présent)"
+	@echo "Backups:"
+	@echo "  make backup-db        - ./scripts/backup-db.sh (sortie: backups/<app>_db.YYYYMMDD-HHMMSS.dump)"
+	@echo "  make restore-db       - ./scripts/restore-db.sh [DUMP=backups/<app>_db.2025....dump]"
 	@echo
-	@echo "Astuce: override le service cible ex. 'make logs S=frontend'"
+	@echo "Astuce: APP_ENV=prod make up    (forcer l'env et relier .env automatiquement)"
 
 # =========================
 # Cycle de vie conteneurs
 # =========================
 .PHONY: up down restart ps dps logs shell build
-up:
+up: ensure-env
 	$(COMPOSE) up -d --build
 
-down:
+down: ensure-env
 	$(COMPOSE) down
 
-restart:
+restart: ensure-env
 	$(COMPOSE) down && $(COMPOSE) up -d --build
 
-ps:
+ps: ensure-env
 	$(COMPOSE) ps
 
 # Affichage containers + service compose
 dps:
 	@docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Label \"com.docker.compose.service\"}}\t{{.Status}}\t{{.Ports}}"
 
-logs:
+logs: ensure-env
 	$(COMPOSE) logs -f $(S)
 
-shell:
+shell: ensure-env
 	$(COMPOSE) exec $(S) bash
 
-build:
+build: ensure-env
 	$(COMPOSE) build
 
 # =========================
 # Django
 # =========================
 .PHONY: migrate makemigrations check createsuperuser
-migrate:
+migrate: ensure-env
 	$(COMPOSE) exec backend python manage.py migrate
 
-makemigrations:
+makemigrations: ensure-env
 	$(COMPOSE) exec backend python manage.py makemigrations
 
-check:
+check: ensure-env
 	$(COMPOSE) exec backend python manage.py check
 
-# createsuperuser non interactif (idempotent) :
-# lit ADMIN_* depuis $(LOCAL_EF) car le service backend a:
-#   env_file:
-#     - .env.$(APP_ENV)
-#     - .env.$(APP_ENV).local
-.PHONY: createsuperuser
-createsuperuser:
+# createsuperuser non interactif (idempotent)
+createsuperuser: ensure-env
 	@set -a; [ -f "./$(LOCAL_EF)" ] && . "./$(LOCAL_EF)"; set +a; \
 	$(COMPOSE) exec \
 		-e ADMIN_USERNAME -e ADMIN_EMAIL -e ADMIN_PASSWORD \
@@ -120,31 +118,34 @@ print('Superuser '+('cree' if created else 'mis a jour')+': '+obj.username+' <'+
 # PostgreSQL
 # =========================
 .PHONY: psql
-# Ouvre psql *dans* le conteneur db en utilisant les variables du conteneur
-psql:
+# psql *dans* le conteneur db avec les POSTGRES_* du conteneur
+psql: ensure-env
 	$(COMPOSE) exec db sh -lc 'psql -U $$POSTGRES_USER -d $$POSTGRES_DB'
 
 # =========================
-# Scripts projet (optionnels)
+# Backups (scripts projet)
 # =========================
 .PHONY: backup-db restore-db
-backup-db:
-	@test -x ./scripts/backup-db.sh && ./scripts/backup-db.sh $(APP_ENV) || \
+backup-db: ensure-env
+	@test -x ./scripts/backup-db.sh && ./scripts/backup-db.sh || \
 	 (echo "Script ./scripts/backup-db.sh introuvable ou non exécutable"; exit 1)
 
-restore-db:
-	@test -x ./scripts/restore-db.sh && ./scripts/restore-db.sh $(APP_ENV) || \
+# Usage: make restore-db          -> dernier dump conforme (<app>_db.*.dump)
+#        make restore-db DUMP=... -> chemin explicite
+restore-db: ensure-env
+	@test -x ./scripts/restore-db.sh && ./scripts/restore-db.sh $(DUMP) || \
 	 (echo "Script ./scripts/restore-db.sh introuvable ou non exécutable"; exit 1)
 
 # =========================
 # Tests pratiques (session: csrf + login + whoami)
 # =========================
-print-admin:
+.PHONY: print-admin token-test token-test-domain
+print-admin: ensure-env
 	@set -a; [ -f "./$(LOCAL_EF)" ] && . "./$(LOCAL_EF)"; set +a; \
 	printf "ADMIN_USERNAME=%s\nADMIN_EMAIL=%s\n" "$${ADMIN_USERNAME}" "$${ADMIN_EMAIL}"
 
-# Test interne (bypasse Traefik) : CSRF + login + whoami
-token-test:
+# Test interne (dans le conteneur backend) : port 8000 interne
+token-test: ensure-env
 	@set -a; [ -f "./$(LOCAL_EF)" ] && . "./$(LOCAL_EF)"; set +a; \
 	if [ -z "$${ADMIN_USERNAME}" ] || [ -z "$${ADMIN_PASSWORD}" ]; then \
 	  echo "!! ADMIN_USERNAME / ADMIN_PASSWORD manquants (dans $(LOCAL_EF))"; exit 1; \
@@ -164,8 +165,8 @@ token-test:
 		curl -sS -b $$JAR http://localhost:8000/api/whoami/; echo; \
 		rm -f $$JAR'
 
-# Test via Traefik (optionnel) — utilise API_PUBLIC_BASE si défini
-token-test-domain:
+# Test via domaine (Traefik) — utilise API_PUBLIC_BASE si défini
+token-test-domain: ensure-env
 	@set -a; [ -f "./$(LOCAL_EF)" ] && . "./$(LOCAL_EF)"; set +a; \
 	if [ -z "$${ADMIN_USERNAME}" ] || [ -z "$${ADMIN_PASSWORD}" ]; then \
 	  echo "!! ADMIN_USERNAME / ADMIN_PASSWORD manquants (dans $(LOCAL_EF))"; exit 1; \
