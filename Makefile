@@ -1,7 +1,24 @@
+# Interdit les cibles dev sur un hôte de prod
+PROD_SENTINEL := /opt/apps/.production_host
+ifneq ("$(wildcard $(PROD_SENTINEL))","")
+  ifeq ($(APP_ENV),dev)
+    $(error Refus: environnement dev interdit sur serveur de prod ($(PROD_SENTINEL) présent))
+  endif
+endif
+
+# Interdit les cibles dev sur un hôte de prod
+PROD_SENTINEL := /opt/apps/.production_host
+ifneq ("$(wildcard $(PROD_SENTINEL))","")
+  ifeq ($(APP_ENV),dev)
+    $(error Refus: environnement dev interdit sur serveur de prod ($(PROD_SENTINEL) présent))
+  endif
+endif
 # =========================
 # Makefile - gestionnaire_mdp_zero_knowledge
 # =========================
 .DEFAULT_GOAL := help
+
+
 
 # Détection d'environnement:
 # - APP_ENV vient d'abord de ./.env (lien symbolique vers .env.dev|.env.prod)
