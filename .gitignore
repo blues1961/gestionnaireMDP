@@ -6,55 +6,40 @@ frontend/dist/
 **/__pycache__/
 *.pyc
 
-# Backups & dumps
-backups/
+# Django/SQLite (dev)
+backend/db.sqlite3
+
+# Backups & dumps (garder le dossier via .gitkeep)
+backups/**
+!backups/.gitkeep
 *.sql
 *.sql.gz
 *.tar.gz
+*.dump
 
-# Secrets & cookies
-secrets.txt
-*.cookies
-cookies.txt
+# Secrets & env (ne jamais versionner, sauf l'exemple)
 .env
 .env.*
 !.env.example
 
-# env locaux (jamais versionner)
-.env.local
+# Cookies / tokens
+*.cookies
+cookies.txt
+.cookies.dev
 
 # Fichiers temporaires & .bak
 *.bak
+*.bak*
+*.BAK.*
+*.BROKEN.*
 *.swp
 *.swo
 project-tree-*.txt
 
-# Local backup artifacts (server-only)
-*.bak*
-*.BAK.*
-*.BROKEN.*
+# Docker (dev-only helpers)
 docker-compose.yml.bak*
-dev.passwords.json
-dev.categories.json
-catmap.tsv
-backend/db.sqlite3
+docker-compose.dev.override.yml
 
-
-
-# env locaux (jamais versionner)
-.env.local
-
-# local env
-.env.local
-frontend/.env.development.local
-# backups
-backups/
-.env.prod.local
-
-# Dev-only (debug)
+# Dev-only (nginx)
 frontend/nginx.dev.conf
 frontend/nginx.resolver.conf
-
-# Dev-only
-.cookies.dev
-docker-compose.dev.override.yml
