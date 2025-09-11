@@ -3,7 +3,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .views import CategoryViewSet, PasswordViewSet, healthz
-from .views_auth import csrf, login_view, logout_view, whoami
+from .views_auth import csrf, login_view, logout_view
 
 app_name = "api"
 
@@ -22,7 +22,7 @@ urlpatterns = [
     path("csrf/",   csrf,       name="api-csrf"),
     path("login/",  login_view, name="api-login"),
     path("logout/", logout_view, name="api-logout"),
-    path("whoami/", whoami,     name="api-whoami"),
+    path("whoami/",     name="api-whoami"),
 ]
 
 # --- SimpleJWT endpoints ---
