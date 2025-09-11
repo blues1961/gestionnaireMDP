@@ -9,6 +9,9 @@ Ce dépôt contient un **MVP fonctionnel** d'un gestionnaire de mots de passe **
 
 > ⚠️ Un seul utilisateur (scénario personnel). Pas de partage, pas de pièces jointes/notes.
 
+> 🔐 **Invariants & contrat d’architecture** : voir [docs/INVARIANTS.md](docs/INVARIANTS.md)
+
+
 ---
 
 ## 1) Prérequis

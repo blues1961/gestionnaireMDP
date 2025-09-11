@@ -6,3 +6,5 @@ Ce dossier contient des guides et procédures pour le projet **gestionnaire_mdp_
 
 ⚠️ **Attention** : ces documents peuvent contenir des chemins, noms de domaine ou commandes sensibles.  
 Ils ne doivent pas être intégrés au frontend compilé, ni exposés publiquement.  
+
+- **Contrat d’invariants (template “MDP”)** : [INVARIANTS.md](INVARIANTS.md)
