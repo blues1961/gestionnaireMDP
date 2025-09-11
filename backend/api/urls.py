@@ -12,6 +12,7 @@ router.register(r"categories", CategoryViewSet, basename="category")
 router.register(r"passwords",   PasswordViewSet, basename="password")
 
 urlpatterns = [
+urlpatterns += [ path('whoami/', jwt_whoami, name='api-whoami') ]
     # ⚠️ Pas de 'api/' ici : le préfixe 'api/' est ajouté au niveau du projet
     path("", include(router.urls)),
 
@@ -41,4 +42,3 @@ from api.views_jwt_whoami import jwt_whoami
 urlpatterns += [
     path("auth/whoami/", jwt_whoami, name="jwt-whoami"),
 ]
-
