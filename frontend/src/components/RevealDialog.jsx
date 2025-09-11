@@ -56,7 +56,13 @@ export default function RevealDialog({ item, onClose }) {
 
         <div className="form-row">
           <label className="label">Nom d’utilisateur</label>
-          <input className={`input${loginFlash}`} value={login} readOnly />
+          <input
+            className={`input${loginFlash}`}
+            value={login}
+            readOnly
+            aria-readonly="true"
+            title="Lecture seule — utilisez le bouton Copier"
+          />
           <button className={`btn${loginBtnOK}`} onClick={()=>handleCopy('login', login, 'Nom d’utilisateur')} aria-live="polite">
             {copied==='login' ? '✅ Copié !' : 'Copier'}
           </button>
@@ -64,7 +70,13 @@ export default function RevealDialog({ item, onClose }) {
 
         <div className="form-row">
           <label className="label">Mot de passe</label>
-          <input className={`input${passFlash}`} value={password} readOnly />
+          <input
+            className={`input${passFlash}`}
+            value={password}
+            readOnly
+            aria-readonly="true"
+            title="Lecture seule — utilisez le bouton Copier"
+          />
           <button className={`btn${passBtnOK}`} onClick={()=>handleCopy('password', password, 'Mot de passe')} aria-live="polite">
             {copied==='password' ? '✅ Copié !' : 'Copier'}
           </button>
@@ -72,7 +84,13 @@ export default function RevealDialog({ item, onClose }) {
 
         <div style={{marginTop:12}}>
           <div className="muted small" style={{marginBottom:6}}>Notes</div>
-          <textarea readOnly value={notes} className={`textarea${notesFlash}`} />
+          <textarea
+            readOnly
+            aria-readonly="true"
+            title="Lecture seule — utilisez le bouton Copier"
+            value={notes}
+            className={`textarea${notesFlash}`}
+          />
           <div style={{marginTop:8}}>
             <button className={`btn${notesBtnOK}`} onClick={()=>handleCopy('notes', notes, 'Notes')}>
               {copied==='notes' ? '✅ Copié !' : 'Copier les notes'}

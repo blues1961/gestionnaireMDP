@@ -61,9 +61,24 @@
 .form-row { display: grid; grid-template-columns: 140px 1fr auto; align-items: center; gap: var(--gap-2); margin: 8px 0; }
 .form-row--noactions { grid-template-columns: 140px 1fr; }
 .label { color: var(--text-muted); font-size: 14px; }
-.input, .textarea, .select, .file { width: 100%; padding: 8px 10px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); transition: box-shadow .25s, border-color .25s, background .25s; }
+.input, .textarea, .select, .file { width: 100%; padding: 8px 10px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); transition: box-shadow .25s, border-color .25s, background .25s; box-sizing: border-box; }
 .textarea { min-height: 120px; resize: vertical; }
 .input--flash, .textarea--flash { box-shadow: 0 0 0 2px var(--copy-ring); border-color: var(--copy-border); background: var(--copy-bg); }
+
+/* Lecture seule: aspect visuel clair mais sélection autorisée */
+.input[readonly], .textarea[readonly] {
+  background: #0b0b0b;
+  color: var(--text-muted);
+  border-color: var(--border-soft);
+  cursor: not-allowed;
+  /* Icône cadenas à droite */
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23bbb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='11' width='18' height='11' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px 16px;
+  padding-right: 34px;
+}
+.input[readonly]:focus, .textarea[readonly]:focus { box-shadow: none; }
 
 /* ========== Boutons ========== */
 .btn { padding: 8px 10px; border: 1px solid #444; background: #1a1a1a; color: var(--text); border-radius: var(--radius-sm); cursor: pointer; }

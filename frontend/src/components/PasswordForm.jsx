@@ -127,16 +127,17 @@ export default function PasswordForm(){
           <div style={{marginTop:12}}>
             <div className="muted small" style={{marginBottom:6}}>Notes</div>
             <textarea className={`textarea${notesFlash}`} value={notes} onChange={e=>setNotes(e.target.value)} />
-            <div style={{marginTop:8}}>
-              <button type="button" className={`btn${notesBtnOK}`} onClick={()=>handleCopy('notes', notes, 'Notes')}>
-                {copied==='notes' ? '✅ Copié !' : 'Copier les notes'}
-              </button>
+            <div className="notes-actions">
+              <div className="left">
+                <button type="button" className={`btn${notesBtnOK}`} onClick={()=>handleCopy('notes', notes, 'Notes')}>
+                  {copied==='notes' ? '✅ Copié !' : 'Copier les notes'}
+                </button>
+              </div>
+              <div className="right">
+                <button type="button" className="btn" onClick={()=>navigate('/vault')}>Annuler</button>
+                <button type="submit" className="btn" disabled={loadingCats}>Enregistrer</button>
+              </div>
             </div>
-          </div>
-
-          <div className="row" style={{marginTop:16, justifyContent:'flex-end'}}>
-            <button type="button" className="btn" onClick={()=>navigate('/vault')}>Annuler</button>
-            <button type="submit" className="btn" disabled={loadingCats}>Enregistrer</button>
           </div>
         </form>
 

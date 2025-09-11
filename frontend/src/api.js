@@ -1,131 +1,121 @@
-// api.js — backend Django (sessions + CSRF), 100% relative par défaut
-// - BASE configurable via Vite: import.meta.env.VITE_API_BASE (défaut: '/api')
-// - Cookies envoyés (credentials: 'include')
-// - CSRF auto: GET `${BASE}/csrf/` si nécessaire, envoi X-CSRFToken ensuite
-// - Erreurs homogènes (.status, .body, .url)
-// - Endpoints: auth (login/logout/whoami), categories, passwords, key (optionnel)
+// frontend/src/api.js
+import axios from "axios";
+import.meta.env?.VITE_API_BASE
+//use import.meta.env?.VITE_API_BASE
 
-function normalizeBase(b) {
-  let x = (b ?? '').trim();
-  if (!x) x = '/api';
-  // si ce n'est pas http(s):// et ne commence pas par '/', on préfixe
-  if (!/^https?:\/\//i.test(x) && !x.startsWith('/')) x = '/' + x;
-  // retire trailing slash (on joindra avec "/xxx/")
-  if (x.length > 1 && x.endsWith('/')) x = x.slice(0, -1);
-  return x;
+function normalizeBase(s) {
+  if (!s) return "/api";
+  return s.replace(/\/+$/, "");
 }
 
-const BASE = normalizeBase(import.meta.env?.VITE_API_BASE);
+export const BASE = normalizeBase(import.meta.env?.VITE_API_BASE);
+export const api = axios.create({ baseURL: BASE });
 
-function u(path) {
-  // jointure sûre: BASE + "/xxx/"
-  const p = path.startsWith('/') ? path : '/' + path;
-  return BASE + p;
+// --- Boot-time priming (si un JWT est déjà en storage) ---
+try {
+  const jwt = JSON.parse(localStorage.getItem("mdp.jwt") || "null");
+  const access = jwt?.access || localStorage.getItem("token") || null;
+  if (access) {
+    api.defaults.headers.common.Authorization = `Bearer ${access}`;
+  }
+} catch { /* noop */ }
+
+// --- Auth helpers ---
+export function loginJWT(username, password) {
+  // NB: endpoints SANS slash initial → "auth/jwt/create/"
+  return api.post("auth/jwt/create/", { username, password });
 }
 
-function getCookie(name) {
-  const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([$?*|{}\\^])/g, '\\$1') + '=([^;]*)'));
-  return m ? decodeURIComponent(m[1]) : null;
-}
-
-async function ensureCsrf() {
-  if (!getCookie('csrftoken')) {
-    await fetch(u('/csrf/'), { credentials: 'include' });
+export function setAccessToken(token) {
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common.Authorization;
   }
 }
 
-async function jsonFetch(url, options = {}) {
-  const res = await fetch(url, {
-    credentials: 'include',
-    headers: { 'Accept': 'application/json', ...(options.headers || {}) },
-    ...options,
-  });
-  const ct = res.headers.get('Content-Type') || '';
-  const isJSON = ct.includes('application/json');
-  const body = isJSON ? await res.json().catch(() => null) : await res.text().catch(() => '');
-  if (!res.ok) {
-    const detail = (body && (body.detail || body.message || body.error)) || res.statusText;
-    const err = new Error(detail || `HTTP ${res.status}`);
-    err.status = res.status; err.body = body; err.url = url;
-    throw err;
+// --- Interceptor minimal : si 401 => purge et redirige vers /login ---
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err?.response?.status === 401) {
+      try {
+        delete api.defaults.headers.common.Authorization;
+        localStorage.removeItem("mdp.jwt");
+        localStorage.removeItem("token");
+      } catch {}
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(err);
   }
-  return body;
+);
+
+// --- Convenience wrappers: resources (passwords, categories) ---
+function unpackList(res) {
+  const d = res?.data;
+  if (Array.isArray(d)) return d;
+  if (Array.isArray(d?.results)) return d.results;
+  return [];
 }
 
-function withCsrf(method, headers = {}, body) {
-  return (async () => {
-    await ensureCsrf();
-    const csrftoken = getCookie('csrftoken') || '';
-    const finalHeaders = { 'X-CSRFToken': csrftoken, ...headers };
-    return { method, headers: finalHeaders, body };
-  })();
+function unpackItem(res) {
+  return res?.data;
 }
 
-export const api = {
-  // --- Auth (sessions) ---
-  async login(username, password) {
-    const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify({ username, password }));
-    return jsonFetch(u('/login/'), init);
+api.passwords = {
+  async list() {
+    const res = await api.get("passwords/");
+    return unpackList(res);
   },
-  async logout() {
-    const init = await withCsrf('POST');
-    return jsonFetch(u('/logout/'), init);
+  async get(id) {
+    const res = await api.get(`passwords/${id}/`);
+    return unpackItem(res);
   },
-  async whoami() {
-    try { return await jsonFetch(u('/whoami/')); }
-    catch (e) { if (e.status === 401) return null; throw e; }
+  async create(payload) {
+    const res = await api.post("passwords/", payload);
+    return unpackItem(res);
   },
-
-  // --- Categories ---
-  categories: {
-    list:   () => jsonFetch(u('/categories/')),
-    create: async (name, extra = {}) => {
-      const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify({ name, ...extra }));
-      return jsonFetch(u('/categories/'), init);
-    },
-    update: async (id, payload) => {
-      const init = await withCsrf('PATCH', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
-      return jsonFetch(u(`/categories/${id}/`), init);
-    },
-    remove: async (id) => {
-      const init = await withCsrf('DELETE');
-      return jsonFetch(u(`/categories/${id}/`), init);
-    },
-    // Optionnel: action custom côté Django
-    reassign: async (id, targetCategoryId) => {
-      const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify({ target: targetCategoryId || null }));
-      return jsonFetch(u(`/categories/${id}/reassign/`), init);
-    },
+  async update(id, payload) {
+    const res = await api.put(`passwords/${id}/`, payload);
+    return unpackItem(res);
   },
-
-  // --- Passwords ---
-  passwords: {
-    list:   () => jsonFetch(u('/passwords/')),
-    create: async (payload) => {
-      const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
-      return jsonFetch(u('/passwords/'), init);
-    },
-    update: async (id, payload) => {
-      const init = await withCsrf('PATCH', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
-      return jsonFetch(u(`/passwords/${id}/`), init);
-    },
-    remove: async (id) => {
-      const init = await withCsrf('DELETE');
-      return jsonFetch(u(`/passwords/${id}/`), init);
-    },
+  async patch(id, payload) {
+    const res = await api.patch(`passwords/${id}/`, payload);
+    return unpackItem(res);
   },
-
-  // --- Key (optionnel) ---
-  key: {
-    export: async () => {
-      const init = await withCsrf('POST');
-      return jsonFetch(u('/key/export/'), init);
-    },
-    import: async (payload) => {
-      const init = await withCsrf('POST', { 'Content-Type': 'application/json' }, JSON.stringify(payload || {}));
-      return jsonFetch(u('/key/import/'), init);
-    },
+  async remove(id) {
+    await api.delete(`passwords/${id}/`);
+    return true;
   },
 };
 
-export default api;
+api.categories = {
+  async list() {
+    const res = await api.get("categories/");
+    return unpackList(res);
+  },
+  async create(data) {
+    const payload = typeof data === "string" ? { name: data } : data;
+    const res = await api.post("categories/", payload);
+    return unpackItem(res);
+  },
+  async update(id, payload) {
+    const res = await api.patch(`categories/${id}/`, payload);
+    return unpackItem(res);
+  },
+  async remove(id) {
+    await api.delete(`categories/${id}/`);
+    return true;
+  },
+  async reassign(sourceId, targetId) {
+    // Fallback client : PATCH chaque mot de passe de sourceId vers targetId (ou null)
+    const items = await api.passwords.list();
+    const affected = items.filter((it) => String(it.category || "") === String(sourceId));
+    for (const it of affected) {
+      await api.passwords.patch(it.id, { category: targetId || null });
+    }
+    return { count: affected.length };
+  },
+};

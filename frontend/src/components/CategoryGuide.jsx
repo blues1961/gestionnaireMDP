@@ -36,7 +36,10 @@ export default function CategoryGuide(){
         api?.categories?.list?.() ?? Promise.resolve([]),
         api?.passwords?.list?.() ?? Promise.resolve([]),
       ]);
-      setCats(Array.isArray(c) ? c : []);
+      const arr = Array.isArray(c) ? c.slice() : [];
+      const collator = new Intl.Collator('fr', { sensitivity: 'accent', numeric: true });
+      arr.sort((a,b) => collator.compare(a?.name || '', b?.name || ''));
+      setCats(arr);
       const u = {};
       for (const it of (Array.isArray(p) ? p : [])) {
         const cid = String(it?.category ?? '');

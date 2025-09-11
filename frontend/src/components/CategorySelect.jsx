@@ -23,7 +23,13 @@ export default function CategorySelect({
     let mounted = true
     setLoading(true)
     api.categories.list()
-      .then(data => { if (mounted) setCats(Array.isArray(data) ? data : []) })
+      .then(data => {
+        if (!mounted) return
+        const arr = Array.isArray(data) ? data.slice() : []
+        const collator = new Intl.Collator('fr', { sensitivity: 'accent', numeric: true })
+        arr.sort((a,b) => collator.compare(a?.name || '', b?.name || ''))
+        setCats(arr)
+      })
       .catch(e => setErr(e?.message || 'Échec du chargement des catégories'))
       .finally(() => setLoading(false))
     return () => { mounted = false }
