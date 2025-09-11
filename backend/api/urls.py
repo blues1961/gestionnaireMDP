@@ -24,3 +24,14 @@ urlpatterns = [
     path("logout/", logout_view, name="api-logout"),
     path("whoami/", whoami,     name="api-whoami"),
 ]
+
+# --- SimpleJWT endpoints ---
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView, TokenRefreshView, TokenVerifyView
+)
+
+urlpatterns += [
+    path('auth/jwt/create/',  TokenObtainPairView.as_view(),  name='jwt-create'),
+    path('auth/jwt/refresh/', TokenRefreshView.as_view(),     name='jwt-refresh'),
+    path('auth/jwt/verify/',  TokenVerifyView.as_view(),      name='jwt-verify'),
+]
