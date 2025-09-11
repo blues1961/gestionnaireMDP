@@ -41,3 +41,5 @@ from api.views_jwt_whoami import jwt_whoami
 urlpatterns += [
     path("auth/whoami/", jwt_whoami, name="jwt-whoami"),
 ]
+
+urlpatterns += [ path('whoami/', jwt_whoami, name='api-whoami') ]
