@@ -56,3 +56,13 @@ frontend/.env.development.local
 !.env.prod
 !.env.dev.example
 !.env.prod.example
+# --- envs (secrets non commités) ---
+.env.*.local
+.env.local
+.envrc
+
+# --- on garde ces fichiers (non sensibles / templates secrets) ---
+!.env.dev
+!.env.prod
+!.env.dev.local.example
+!.env.prod.local.example
