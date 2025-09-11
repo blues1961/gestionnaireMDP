@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.http import HttpResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from api.views_logout import api_logout
@@ -15,4 +16,6 @@ urlpatterns = [
     path('api/login/', api_login, name='api-login'),
     path('api/csrf/', csrf_view, name='api-csrf'),
     path('api/', include('api.urls')),
-]
+
+    path('api/auth/jwt/create/', TokenObtainPairView.as_view(), name='jwt-create'),
+    path('api/auth/jwt/refresh/', TokenRefreshView.as_view(), name='jwt-refresh'),]
