@@ -32,7 +32,6 @@ services:
       - .env.dev
       - .env.dev.local
     environment:
-      # génère dynamiquement les origines à partir des ports DEV
       FRONT_ORIGIN: "http://localhost:${DEV_VITE_PORT:-5174}"
       CSRF_TRUSTED_ORIGINS: "http://localhost,http://127.0.0.1,http://localhost:${DEV_VITE_PORT:-5174},http://localhost:${DEV_API_PORT:-8002}"
       API_BASE: "${API_BASE}"
@@ -43,8 +42,14 @@ services:
         condition: service_healthy
     ports:
       - "${DEV_API_PORT:-8002}:8000"
+    command: >
+      sh -c "
+        python manage.py migrate &&
+        python manage.py runserver 0.0.0.0:8000
+      "
     networks:
       - appnet
+
 
   vite:
     image: node:20-alpine
@@ -55,7 +60,10 @@ services:
       - .env.dev
       - .env.dev.local
     environment:
-      VITE_API_BASE: "http://localhost:${DEV_API_PORT:-8002}${API_BASE}"
+      VITE_API_BASE: "/api"
+      VITE_APP_SLUG: "${APP_SLUG}"
+      VITE_APP_NAME: "${APP_NAME}"
+
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     volumes:
       - ./frontend:/app
