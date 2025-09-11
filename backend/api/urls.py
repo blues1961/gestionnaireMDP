@@ -35,3 +35,9 @@ urlpatterns += [
     path('auth/jwt/refresh/', TokenRefreshView.as_view(),     name='jwt-refresh'),
     path('auth/jwt/verify/',  TokenVerifyView.as_view(),      name='jwt-verify'),
 ]
+
+# --- JWT whoami ---
+from api.views_jwt_whoami import jwt_whoami
+urlpatterns += [
+    path("auth/whoami/", jwt_whoami, name="jwt-whoami"),
+]
