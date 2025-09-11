@@ -22,7 +22,7 @@ urlpatterns = [
     path("csrf/",   csrf,       name="api-csrf"),
     path("login/",  login_view, name="api-login"),
     path("logout/", logout_view, name="api-logout"),
-    path("whoami/",     name="api-whoami"),
+    path('whoami/', jwt_whoami,
 ]
 
 # --- SimpleJWT endpoints ---
@@ -42,4 +42,3 @@ urlpatterns += [
     path("auth/whoami/", jwt_whoami, name="jwt-whoami"),
 ]
 
-urlpatterns += [ path('whoami/', jwt_whoami, name='api-whoami') ]
