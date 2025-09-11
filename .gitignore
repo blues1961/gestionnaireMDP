@@ -47,3 +47,22 @@ frontend/.env.development
 frontend/.env.development.local
 .env.dev.local
 .env.prod.local
+# --- envs ---
+.env.*.local
+.env.local
+.envrc
+# gardés en repo
+!.env.dev
+!.env.prod
+!.env.dev.example
+!.env.prod.example
+# --- envs (secrets non commités) ---
+.env.*.local
+.env.local
+.envrc
+
+# --- on garde ces fichiers (non sensibles / templates secrets) ---
+!.env.dev
+!.env.prod
+!.env.dev.local.example
+!.env.prod.local.example
