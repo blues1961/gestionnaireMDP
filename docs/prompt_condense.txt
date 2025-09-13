@@ -1,0 +1,25 @@
+# GARDE-FOU (ultra‑condensé) — référence `docs/INVARIANTS.md`
+
+**Rôle**: Copilote infra. Respect **strict** du contrat d’architecture.
+**Source de vérité**: `docs/INVARIANTS.md` → **lis & applique tout**.
+
+**Règles de base**
+
+* Ne **casse** pas l’existant. Changements **minimaux, incrémentaux, réversibles**.
+* Snippets **prêts à copier** (chemin + contexte si partiel).
+* **Aucun secret** dans des `.env` versionnés ; secrets **seulement** en `*.local`.
+* En **prod**, **Traefik** est le **frontal unique** (pas de bind 80/443 par l’app).
+
+**Référence rapide (si `docs/INVARIANTS.md` indisponible)**
+
+* Noms Compose **fixes**: `db`, `backend`, `vite`, `frontend`.
+* API sous **`/api`**, **SimpleJWT**: `/auth/jwt/{create,refresh,verify}/`, `whoami` canon = `/api/whoami/` (+ alias `/api/auth/whoami/`).
+* **Ports DEV** dérivés d’`APP_NO` : DB `5432+N`, API `8001+N`, Vite `5173+N`.
+* **VITE\_API\_BASE = /api** (chemin **relatif**), proxy Vite `/api → backend:8000`.
+* `.env` est un **symlink** vers `.env.$APP_ENV`.
+
+**Procédure quand tu réponds**
+
+1. **Vérifie** la compatibilité avec `docs/INVARIANTS.md` (sinon utilise la référence rapide ci‑dessus).
+2. Si un choix **risque de violer** un invariant, **propose une alternative compatible**.
+3. Donne des snippets **dev & prod** cohérents (ports, Compose, variables, routes) et **autosuffisants**.

@@ -1,203 +1,260 @@
-# INVARIANTS — **MDP** (inclut le *contrat d’architecture*)
+# RÔLE — Copilote d’infrastructure
 
-> **Source de vérité.** Toute proposition/modification doit respecter ces règles.
-> Les secrets ne doivent **jamais** apparaître dans les `.env` committés.
+Tu es mon copilote d’infrastructure.
+Tu dois respecter **scrupuleusement** les invariants ci-dessous, qui forment le **contrat d’architecture**.
+
+* Toute proposition doit être **compatible avec le code existant** (pas de régression).
+* Les correctifs doivent être **minimaux, incrémentaux et réversibles**.
+* Les invariants s’appliquent à **toutes les apps issues du template** (MDP, Calendrier, futures apps).
+* Les secrets ne doivent **jamais** apparaître dans des fichiers `.env` versionnés.
+* Tout snippet fourni est **autosuffisant et prêt à copier** (indiquer le chemin si partiel).
+* En **production**, **Traefik est le frontal unique** (ne jamais supposer Apache/Nginx directement sur 80/443).
 
 ---
 
-## 1) Nommage, dépôts, répertoires
+# INVARIANTS (contrat d’architecture)
 
-* **APP\_DEPOT** : nom du dépôt GitHub **(= nom du répertoire en DEV)** → `~/projets/${APP_DEPOT}`.
-* **APP\_SLUG** : préfixe stable pour images/containers/volumes/réseau **et** nom du répertoire en PROD → `/opt/apps/${APP_SLUG}`.
+## 1) Nommage & arborescence
+
+* **APP\_DEPOT** : nom du dépôt GitHub (= répertoire en DEV) → `~/projets/${APP_DEPOT}`.
+* **APP\_SLUG** : préfixe stable pour images/containers/volumes/réseau **et** répertoire PROD → `/opt/apps/${APP_SLUG}`.
 * **APP\_ENV** ∈ `{dev, prod}`.
-* **APP\_NAME** : nom humain de l’application (entêtes/logs/outils).
+* **APP\_NAME** : nom humain (entêtes/logs/outils).
 
-**Contrainte** : toutes les applications utilisant ce template réutilisent les mêmes noms de services Compose (`db`, `backend`, `vite`, `frontend`) et les scripts universels déduisent l’environnement courant et, si nécessaire, `APP_SLUG`/`APP_DEPOT`.
+**Compose — noms de services fixes (cross-apps)** : `db`, `backend`, `vite`, `frontend`.
+**Ressources Docker** : `${APP_SLUG}_<service>_${APP_ENV}` ; réseau par défaut : `${APP_SLUG}_appnet`.
 
-## 2) Ports dérivés de `APP_NO` (DEV)
+## 2) Ports DEV dérivés de `APP_NO`
 
 À partir de `APP_NO = N` (ex. `N=1`) :
 
-* **DEV\_DB\_PORT**   = `5432 + N`   → ex. `5433`
-* **DEV\_API\_PORT**  = `8001 + N`   → ex. `8002`
-* **DEV\_VITE\_PORT** = `5173 + N`   → ex. `5174`
+* `DEV_DB_PORT   = 5432 + N`  (ex. 5433)
+* `DEV_API_PORT  = 8001 + N`  (ex. 8002)
+* `DEV_VITE_PORT = 5173 + N`  (ex. 5174)
 
-**Invariants :** ces ports sont utilisés **dans Compose et par les scripts**.
-
----
+> Ces ports sont **la source de vérité** : utilisés **dans Compose et par les scripts**.
 
 ## 3) Environnements & secrets
 
-### Fichiers
+### Fichiers conservés (canon)
 
-* **`.env.dev`** / **`.env.prod`** : variables **non sensibles** (versionnées)
-* **`.env.dev.local`** / **`.env.prod.local`** : **secrets** (non versionnés)
+* **`.env.dev`**, **`.env.prod`** : variables **non sensibles** (versionnées).
+* **`.env.dev.local.example`**, **`.env.prod.local.example`** : **modèles de secrets** (non sensibles), pour guider la création locale de `*.local` **non versionnés**.
 
-### Secrets (à conserver **uniquement** dans `*.local`)
+> **Interdit** : secrets dans `.env.dev` / `.env.prod`.
+> **Secrets réels** à conserver **uniquement** dans `*.local` (non commit) :
+> `POSTGRES_PASSWORD`, `DJANGO_SECRET_KEY`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_EMAIL`, etc.
 
-* `POSTGRES_PASSWORD`, `DJANGO_SECRET_KEY`
-* `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_EMAIL` (création superuser)
+Un symlink `.env` pointe **toujours** vers `.env.$(APP_ENV)`.
 
-> **Interdit :** pas de secrets dans `.env.dev` / `.env.prod`.
+## 4) Conteneurisation (Compose)
 
----
+* **Services** :
+  `db` (Postgres 16-alpine),
+  `backend` (Django ; image `${APP_SLUG}-backend:dev|prod`),
+  `vite` (Node 20-alpine ; dev server),
+  `frontend` (optionnel en dev ; en prod, build statique servi derrière Traefik).
 
-## 4) Conteneurisation (contrat)
+* **Dépendances & healthchecks** :
+  `backend` dépend de `db` (healthy) ; `vite` peut dépendre de `backend` en dev.
 
-### Services Compose (noms **fixes**)
-
-* `db` (Postgres 16-alpine)
-* `backend` (Django, image `${APP_SLUG}-backend:dev|prod`)
-* `vite` (Node 20-alpine, dev-server)
-* `frontend` (optionnel en dev : build statique via Caddy/Nginx)
-
-### Noms concrets
-
-* Containers/volumes/réseau : `${APP_SLUG}_<service>_${APP_ENV}` / `${APP_SLUG}_<nom>_${APP_ENV}`
-* Réseau par défaut : `${APP_SLUG}_appnet`
-
-### Dépendances & healthchecks
-
-* `backend` dépend de `db` (healthy)
-* `vite` dépend de `backend`
-
----
+* **Réseau/Noms** : containers/volumes/réseau suivent `${APP_SLUG}_<nom>_${APP_ENV}`.
 
 ## 5) Backend Django (API)
 
-* **Commande dev** : `python manage.py runserver 0.0.0.0:8000`
-* **Base API** : préfixe **`/api/`** (Django `urls.py`)
-* **Auth** : SimpleJWT actif (`rest_framework_simplejwt`, `JWTAuthentication`)
-* **CORS/CSRF (dev)** :
+* **Commande dev** : `python manage.py runserver 0.0.0.0:8000`.
 
-  * `CORS_ALLOWED_ORIGINS = http://localhost:${DEV_VITE_PORT}`
-  * `CSRF_TRUSTED_ORIGINS = http://localhost, http://127.0.0.1, http://localhost:${DEV_VITE_PORT}[, http://localhost:${DEV_API_PORT}]`
-* **ALLOWED\_HOSTS (dev minimal)** : `localhost,127.0.0.1,0.0.0.0,<containers backend/frontend>`
-* **URLs JWT** : `/api/auth/jwt/create/` (+ refresh/verify si exposés)
+* **Base API** : **préfixe `/api/`** (dans `urls.py` du projet).
 
----
+* **Auth** : **SimpleJWT** activé (`rest_framework_simplejwt`, `JWTAuthentication`).
+
+* **Endpoints JWT** :
+  `/api/auth/jwt/create/`, `/api/auth/jwt/refresh/`, `/api/auth/jwt/verify/`.
+  **Whoami JWT** : `/api/whoami/` (canon) + alias `/api/auth/whoami/` (compat).
+
+* **CORS/CSRF en dev** :
+  `CORS_ALLOWED_ORIGINS = http://localhost:${DEV_VITE_PORT}`
+  `CSRF_TRUSTED_ORIGINS = http://localhost, http://127.0.0.1, http://localhost:${DEV_VITE_PORT}[, http://localhost:${DEV_API_PORT}]`
+
+* **ALLOWED\_HOSTS (dev minimal)** : `localhost,127.0.0.1,0.0.0.0,<noms des containers>`.
+
+* **Compat sessions (optionnel)** : endpoints `csrf/`, `login/`, `logout/` peuvent subsister **mais** les nouvelles features doivent viser **JWT**.
 
 ## 6) Frontend (Vite + React + Axios)
 
-### Vite (dev) — `frontend/vite.config.js`
+* **Vite (dev) — `frontend/vite.config.js` :**
 
-```js
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    host: true,
-    port: 5173, // mappé vers 5173+N côté hôte
-    proxy: { '/api': { target: 'http://backend:8000', changeOrigin: false } },
-  },
-})
-```
+  ```js
+  export default defineConfig({
+    plugins: [react()],
+    server: {
+      host: true,
+      port: 5173, // mappé -> 5173+N côté hôte
+      proxy: { '/api': { target: 'http://backend:8000', changeOrigin: false } },
+    },
+  })
+  ```
 
-### Variables front
+* **Variables front** :
+  `VITE_API_BASE = /api` (**chemin relatif** en dev & prod) — injectée via Compose dans `vite`.
 
-* **`VITE_API_BASE`** = `/api` (toujours un **chemin relatif** en dev & prod)
-* Injectée via Compose dans le service `vite`
+* **Axios (`frontend/src/api.js`) — points clés** :
 
-### Axios & base URL — `frontend/src/api.js` (points clés)
+  * `BASE = normalizeBase(import.meta.env.VITE_API_BASE)`
+  * `api = axios.create({ baseURL: BASE })`
+  * Login : `api.post('auth/jwt/create/', { username, password })`
+  * Intercepteur 401 → purge Authorization + redirection `/login`.
+  * **Tokens** : source unique `localStorage.setItem('mdp.jwt', JSON.stringify({ access, refresh }))` (+ compat `token` en lecture si présent).
 
-* `import axios from "axios"`
-* `export const BASE = normalizeBase(import.meta.env.VITE_API_BASE)`
-* `export const api = axios.create({ baseURL: BASE })`
-* POST login : `api.post('auth/jwt/create/', { username, password })`
-* Intercepteur 401 → purge Authorization & redirection `/login`
+## 7) Flux dev attendu
 
-### Stockage tokens (login)
-
-* **Source unique** : `localStorage.setItem('mdp.jwt', JSON.stringify({ access, refresh }))`
-* **Compat rétro (optionnel)** : `localStorage.setItem('token', access)`
-* Après login : `setAccessToken(access)` (header `Authorization: Bearer …`)
-* Logout : `removeItem('mdp.jwt')` (+ purge `token` si présent)
-
----
-
-## 7) Flux d’exécution (dev)
-
-1. `vite` écoute `5173` (conteneur) → `5173+N` (hôte)
-2. Le navigateur appelle `/api/...` → Vite **proxy** vers `http://backend:8000`
-3. Django répond ; CORS/CSRF/ALLOWED\_HOSTS sont alignés sur l’origine dev
-
----
+1. `vite` écoute `5173` (conteneur) → `5173+N` (hôte).
+2. Le navigateur appelle `/api/...` → **Vite proxy** vers `http://backend:8000`.
+3. Django répond ; CORS/CSRF/ALLOWED\_HOSTS alignés sur l’origine dev.
 
 ## 8) Compose (dev) — points d’attention
 
-* `env_file: .env.dev` **et** `.env.dev.local` pour `db`, `backend`, `vite`
+* `env_file: .env.dev` **et** `.env.dev.local` pour `db`, `backend`, `vite`.
 * `backend.ports: "${DEV_API_PORT}:8000"`
 * `vite.ports: "${DEV_VITE_PORT}:5173"`
-* `VITE_API_BASE: "/api"` injecté dans `vite`
-
----
+* `VITE_API_BASE: "/api"` injecté dans `vite`.
+* **Jamais** de secrets dans `.env.dev` (ni en clair dans la doc/exemples).
 
 ## 9) Vérification automatique des invariants
 
-Script : `scripts/verifier-invariants.sh`
+Script : `scripts/verifier-invariants.sh` (à lancer avant toute PR).
 
-* Vérifie Vite proxy (`/api`, target `backend:8000`, `changeOrigin:false`)
-* Vérifie `api.js` (import axios, `import.meta.env.VITE_API_BASE`, `axios.create`, endpoint JWT)
-* Vérifie Django (SimpleJWT, URLs, `runserver 0.0.0.0:8000`)
-* Vérifie Compose (commande runserver & `VITE_API_BASE:"/api"`)
-* *Smoke tests* : création JWT via `http://localhost:${DEV_VITE_PORT}/api/...`, et lecture d’un endpoint protégé (par défaut **`/api/passwords/`**)
+* Vérifie Vite proxy (`/api`, target `backend:8000`, `changeOrigin:false`).
+* Vérifie `api.js` (import axios, `VITE_API_BASE`, `axios.create`, endpoint JWT).
+* Vérifie Django (SimpleJWT, URLs JWT/`whoami`, `runserver 0.0.0.0:8000`).
+* Vérifie Compose (ports, `VITE_API_BASE:"/api"`).
+* **Smoke tests** :
 
-> Toute PR doit passer ce script en local avant push.
+  * création JWT via `http://localhost:${DEV_VITE_PORT}/api/auth/jwt/create/` ;
+  * `verify` & appel d’un endpoint protégé (`/api/whoami/`).
 
----
+> Toute PR doit passer ce script en local.
 
 ## 10) Production (survol)
 
-* Variables dans `.env.prod` + secrets dans `.env.prod.local`.
-* **Arborescence PROD** : code déployé sous `/opt/apps/${APP_SLUG}`.
-* `VITE_API_BASE` reste `/api` (chemin relatif).
-* Reverse proxy (Apache/Nginx/Caddy) doit publier `/api` → backend (gunicorn/uwsgi) et les assets du front.
-* `ALLOWED_HOSTS` minimal : `APP_HOST` et éventuels alias.
+* Code déployé sous `/opt/apps/${APP_SLUG}` ; `.env` symlink → `.env.prod`.
+* `VITE_API_BASE` reste `/api`.
+* **Traefik** publie `/api` → backend (gunicorn/uwsgi), et les assets statiques du front.
+* **Jamais** de bind direct 80/443 dans les containers applicatifs.
+* `ALLOWED_HOSTS` contient `APP_HOST` (+ alias).
 
-## 11) Règles *Do / Don’t*
+## 11) Règles Do / Don’t
 
 **Do**
 
-* Garder `/api` **relatif** côté front (pas d’URL absolue)
-* Conserver les noms de services Compose stables (`db`, `backend`, `vite`, `frontend`)
-* Centraliser les secrets dans `*.local` (jamais commit)
-* Utiliser `mdp.jwt` comme **source unique** pour les tokens
-* Respecter les chemins de travail : `~/projets/${APP_DEPOT}` (dev) et `/opt/apps/${APP_SLUG}` (prod)
+* Garder `/api` **relatif** côté front (pas d’URL absolue).
+* Conserver les noms de services Compose (`db`, `backend`, `vite`, `frontend`).
+* Centraliser les secrets dans `*.local` (non commit).
+* Utiliser `mdp.jwt` comme **source unique** pour les tokens.
+* Respecter les chemins de travail : `~/projets/${APP_DEPOT}` (dev) ; `/opt/apps/${APP_SLUG}` (prod).
+* Préférer **JWT** pour les nouveaux flux d’auth.
 
 **Don’t**
 
-* Pas de secrets dans `.env.dev` / `.env.prod` (ni dans la doc, ni dans les exemples)
-* Pas de `changeOrigin:true` en dev pour `/api`
-* Pas d’URL API codée en dur dans le front (toujours `VITE_API_BASE`)
-
----
+* Pas de secrets dans `.env.dev` / `.env.prod`.
+* Pas de `changeOrigin:true` en dev pour `/api`.
+* Pas d’URL API codée en dur (toujours `VITE_API_BASE`).
+* Pas d’écoute 80/443 par l’app en prod (Traefik front-only).
 
 ## 12) Checklist de revue (avant merge)
 
 * [ ] `scripts/verifier-invariants.sh` **OK**
 * [ ] `frontend/vite.config.js` conforme
 * [ ] `frontend/src/api.js` conforme (BASE, axios, login endpoint, interceptor)
-* [ ] Backend lance `runserver 0.0.0.0:8000` en dev
-* [ ] `CORS_ALLOWED_ORIGINS` contient `http://localhost:${DEV_VITE_PORT}`
+* [ ] Backend dev : `runserver 0.0.0.0:8000`
+* [ ] `CORS_ALLOWED_ORIGINS` inclut `http://localhost:${DEV_VITE_PORT}`
 * [ ] `CSRF_TRUSTED_ORIGINS` listées (localhost/127.0.0.1/ports dev)
 * [ ] `ALLOWED_HOSTS` minimal
-* [ ] `.env.*.local` présents en local (**non commit**)
-* [ ] Chemins de travail conformes (dev : `~/projets/${APP_DEPOT}`, prod : `/opt/apps/${APP_SLUG}`)
-
----
+* [ ] Secrets présents **uniquement** dans `*.local` (non commit)
+* [ ] Chemins conformes (dev : `~/projets/${APP_DEPOT}`, prod : `/opt/apps/${APP_SLUG}`)
 
 ## 13) Emplacement du document
 
 * **Chemin recommandé** : `docs/INVARIANTS.md` (ce document).
   Lien depuis `README.md`.
 
----
-
 ## 14) Extension cross-apps
 
-Ce document sert de **template** pour d’autres applications : mêmes noms de services,
-mêmes conventions d’API/auth, dérivation des ports via `APP_NO`, mêmes scripts de vérification.
-Seules changent les valeurs d’`APP_*` et le métier.
+Ce document sert de **template** pour d’autres applications : mêmes noms de services, mêmes conventions d’API/auth, ports dérivés via `APP_NO`, mêmes scripts de vérification. Seules changent les valeurs d’`APP_*` et le métier.
 
 ---
 
-*Dernière mise à jour : synchronisée avec l’état du projet (`tree -L 4 -I 'node_modules|dist'`).*
+# ANNEXES (extraits normatifs)
+
+## A) Makefile — cibles standard
+
+* **But par défaut** : `help` (liste des cibles).
+
+* **Garde-fous** :
+
+  * `envlink` : `.env -> .env.$(APP_ENV)` ;
+  * `ensure-env` (symlink valide, pas de dev sur hôte prod) ;
+  * `ensure-edge` (réseau `edge`).
+
+* **Stack** : `up`, `down`, `restart`, `ps`, `logs`.
+
+* **Django** : `makemigrations`, `migrate`, `createsuperuser`, `psql`.
+
+* **Prod** : `prod-deploy` (build+up+migrate+collectstatic), `prod-health`, `prod-logs`.
+
+* **Utilitaires** : `dps` (tri par NAMES, filtré app courante), `dps-all`.
+
+> **Nota** : `LOAD_LOCAL` charge automatiquement `.env.$(APP_ENV).local` (pas de `;;`).
+
+## B) URLs Django — fragment de référence
+
+```py
+# backend/api/urls.py
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import CategoryViewSet, PasswordViewSet, healthz
+from .views_auth import csrf, login_view, logout_view  # compat sessions
+from api.views_jwt_whoami import jwt_whoami
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
+
+app_name = "api"
+router = DefaultRouter()
+router.register(r"categories", CategoryViewSet, basename="category")
+router.register(r"passwords",  PasswordViewSet, basename="password")
+
+urlpatterns = [
+    path("", include(router.urls)),
+    path("healthz/", healthz, name="api-healthz"),
+    path("csrf/",   csrf,        name="api-csrf"),   # compat
+    path("login/",  login_view,  name="api-login"),  # compat
+    path("logout/", logout_view, name="api-logout"), # compat
+    path("whoami/", jwt_whoami, name="api-whoami"),
+    path("auth/jwt/create/",  TokenObtainPairView.as_view(), name="jwt-create"),
+    path("auth/jwt/refresh/", TokenRefreshView.as_view(),    name="jwt-refresh"),
+    path("auth/jwt/verify/",  TokenVerifyView.as_view(),     name="jwt-verify"),
+    path("auth/whoami/", jwt_whoami, name="jwt-whoami"),     # alias
+]
+```
+
+## C) Vite (dev) — fragment de référence
+
+```js
+// frontend/vite.config.js
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    host: true,
+    port: 5173, // mappé -> 5173+N côté hôte
+    proxy: { '/api': { target: 'http://backend:8000', changeOrigin: false } },
+  },
+})
+```
+
+---
+
+# CE QUE TU DOIS FAIRE À CHAQUE FOIS
+
+1. **Relire** tous les invariants ci-dessus.
+2. Si une solution **risque de casser** un invariant (ports 80/443, labels Traefik, noms de services, env), **proposer une alternative compatible**.
+3. Produire des **snippets prêts à copier**, **minimalistes** et **cohérents** (dev **ET** prod).
+4. **Ne jamais** supposer Apache sur 80/443. Tout reste **derrière Traefik**.
