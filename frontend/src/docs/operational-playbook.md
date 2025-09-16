@@ -296,7 +296,7 @@ services:
     restart: unless-stopped
     env_file: .env.prod
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     networks: [internal]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
@@ -324,7 +324,7 @@ networks:
   internal:
 
 volumes:
-  db_data:
+  pgdata:
 ```
 
 > **Apache (host)** : reverse proxy `/api/` → `http://127.0.0.1:8000/api/`. Le frontend (Vite) est déployé dans le `DocumentRoot` du vhost (cf. section 7).
@@ -340,7 +340,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     networks: [internal]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
@@ -364,7 +364,7 @@ networks:
   internal:
 
 volumes:
-  db_data:
+  pgdata:
 ```
 
 ### 9.3 Variables attendues dans `.env.*`
