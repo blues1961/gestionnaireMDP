@@ -1,161 +1,160 @@
-# Makefile standard apps (MDP, CAL, App3…)
-# Invariants respectés:
-# - .env est un symlink vers .env.$(APP_ENV)
-# - secrets dans .env.$(APP_ENV).local
-# - jamais de stack dev en prod (sentinelle /opt/apps/.production_host)
-# - compose files: docker-compose.dev.yml / docker-compose.prod.yml
+# Makefile — Calendrier (aligné sur INVARIANTS)
+# - .env est un symlink vers .env.<env> (ex: .env.dev)
+# - Services Compose fixes: db, backend, vite
+# - Secrets seulement dans .env.<env>.local
+# - Front utilise /api (chemin relatif), Vite proxy -> backend:8000
 
 SHELL := /bin/bash
-
-# Lis APP_ENV / APP_SLUG depuis .env si possible (fallbacks sûrs)
-APP_ENV  ?= $(shell awk -F= '/^APP_ENV=/{print $$2}' .env 2>/dev/null || echo dev)
-APP_SLUG ?= $(shell awk -F= '/^APP_SLUG=/{print $$2}' .env 2>/dev/null || echo app)
-
-COMPOSE_FILE := docker-compose.$(APP_ENV).yml
-ENV_FILE     := .env
-
-# Charge automatiquement .env.$(APP_ENV).local (secrets) avant chaque commande compose
-LOAD_LOCAL := set -a; [ -f .env.$(APP_ENV).local ] && . .env.$(APP_ENV).local; set +a
-
-# --- Help par défaut ---
+.ONESHELL:
 .DEFAULT_GOAL := help
-HELP_COLS ?= 28
 
-.PHONY: help
-help: ## Affiche cette aide (liste les cibles disponibles)
-	@printf "\nCibles disponibles (make <cible>):\n\n"
-	@awk -F':.*##' '/^[a-zA-Z0-9_.-]+:.*##/ {printf "  \033[36m%-'$(HELP_COLS)'s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
-	@printf "\nAutres cibles (sans description) :\n\n"
-	@ALL=$$(grep -E '^[a-zA-Z0-9_.-]+:([^=]|$$)' $(MAKEFILE_LIST) | cut -d: -f1 | grep -v -E '^(help|\.PHONY)$$' | sort -u); \
-	 DESCR=$$(awk -F':.*##' '/^[a-zA-Z0-9_.-]+:.*##/ {print $$1}' $(MAKEFILE_LIST) | sort -u); \
-	 comm -23 <(printf "%s\n" "$$ALL") <(printf "%s\n" "$$DESCR") | sed 's/^/  /'
-	@printf "\nAstuce: ajoute une description après ta cible avec  \"## ...\" pour enrichir l’aide.\n\n"
+# Détecte l'environnement courant via le symlink .env
+APP_ENV := $(shell . ./.env; echo $$APP_ENV)
+COMPOSE := docker compose --env-file .env.$(APP_ENV) -f docker-compose.$(APP_ENV).yml
 
-# --- Symlink .env -> .env.$(APP_ENV)
-ENV_SRC := .env.$(APP_ENV)
+.PHONY: help env-check \
+ up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
+ backup-db restore-db reset-dev-db seed-dev psql \
+ up-backend up-db up-vite stop-backend stop-db stop-vite restart-backend restart-db restart-vite \
+ logs-backend logs-db logs-vite exec-backend exec-db exec-vite clean reseed rebuild
 
-.PHONY: envlink envlink-dev envlink-prod
+help: ## Liste les commandes disponibles
+	@echo -e "Usage: make <target>\n"
+	@grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) \
+	 | sed -E 's/^([a-zA-Z0-9_-]+):.*## (.*)$$/\1\t\2/' \
+	 | sort -f \
+	 | awk -F'\t' '{printf "  \033[36m%-24s\033[0m %s\n", $$1, $$2}'
 
-envlink: ## Crée/actualise .env -> .env.$(APP_ENV)
-	@if [ ! -f "$(ENV_SRC)" ]; then \
-	  echo "❌ $(ENV_SRC) introuvable."; \
-	  echo "   Fichiers trouvés:"; ls -1 .env.* 2>/dev/null || true; \
-	  exit 1; \
-	fi
-	@rm -f .env
-	@ln -s "$(ENV_SRC)" .env
-	@printf "→ "; ls -l .env
+env-check: ## Vérifie .env -> .env.$(APP_ENV) et docker-compose.$(APP_ENV).yml
+	test -L .env || { echo "Symlink .env manquant (ex: ln -snf .env.dev .env)"; exit 1; }
+	test -f .env.$(APP_ENV) || { echo ".env.$(APP_ENV) introuvable"; exit 1; }
+	test -f docker-compose.$(APP_ENV).yml || { echo "docker-compose.$(APP_ENV).yml introuvable"; exit 1; }
 
-envlink-dev:  ## Force .env -> .env.dev
-	@$(MAKE) -s envlink APP_ENV=dev
+up: env-check ## Démarre la stack (db, backend, vite)
+	$(COMPOSE) up -d --build
 
-envlink-prod: ## Force .env -> .env.prod
-	@$(MAKE) -s envlink APP_ENV=prod
+start: up ## Alias de up
 
+down: env-check ## Stoppe et supprime la stack
+	$(COMPOSE) down
 
-# ---------- Garde-fous ----------
-ensure-env:  ## garde-fous - s assure que symlink exste et pointe dans la bonne direction 
-	@[ -L .env ] || (echo "✖ Le symlink .env n'existe pas. Faites: ln -sfn .env.$(APP_ENV) .env" && exit 1)
-	@grep -q "^APP_ENV=$(APP_ENV)$$" .env || (echo "✖ .env ne pointe pas vers .env.$(APP_ENV)" && exit 1)
-	@if [ -f /opt/apps/.production_host ] && [ "$(APP_ENV)" = "dev" ]; then \
-		echo "✖ Garde-fou: impossible d'exécuter DEV sur l'hôte de PROD"; exit 2; \
-	fi
+stop: down ## Alias de down
 
-ensure-edge: ## s assure que l reseau edge existe
-	@docker network ls --format '{{.Name}}' | grep -qx edge || docker network create edge >/dev/null
+restart: env-check ## Redémarre les services
+	$(COMPOSE) restart
 
-# ---------- Stack ----------
-up: ensure-env ensure-edge   ## Démarre/rafraîchit la stack courante
-	$(LOAD_LOCAL); docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up -d --build --remove-orphans
+ps: env-check ## Statut des conteneurs
+	$(COMPOSE) ps
 
-down: ensure-env   ## Stoppe et supprime la stack
-	$(LOAD_LOCAL); docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) down --remove-orphans
+logs: env-check ## Logs suivis (tous les services)
+	$(COMPOSE) logs -f --tail=200
 
+sh: env-check ## Shell dans le backend
+	$(COMPOSE) exec backend bash || $(COMPOSE) run --rm backend bash
 
-restart: ensure-env ## Redémarre les services
-	$(LOAD_LOCAL); docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) restart
+migrate: env-check ## Django: migrations
+	$(COMPOSE) exec -T backend python manage.py migrate
 
+createsuperuser: env-check ## Crée/MAJ admin via ADMIN_* (.env.<env>.local)
+	set -a ; . ./.env ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
+	$(COMPOSE) exec -T \
+	  -e ADMIN_USERNAME="$$ADMIN_USERNAME" \
+	  -e ADMIN_EMAIL="$$ADMIN_EMAIL" \
+	  -e ADMIN_PASSWORD="$$ADMIN_PASSWORD" \
+	  backend python manage.py shell -c 'import os; from django.contrib.auth import get_user_model; U=get_user_model(); u=os.getenv("ADMIN_USERNAME") or "admin"; e=os.getenv("ADMIN_EMAIL") or "admin@example.com"; p=os.getenv("ADMIN_PASSWORD") or "changeme"; obj,_=U.objects.update_or_create(username=u, defaults={"email":e}); obj.set_password(p); obj.is_staff=True; obj.is_superuser=True; obj.save(); print(f"superuser OK: {obj.username}")'
 
+whoami: env-check ## Test /api/whoami (via port API)
+	PORT=$$(. ./.env; echo $$DEV_API_PORT); curl -sS "http://localhost:$$PORT/api/whoami/" | jq . || true
 
-ps: ensure-env	   ## État des services
-	$(LOAD_LOCAL); docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) ps
+token-test: env-check ## JWT create -> whoami (DEV)
+	set -a ; . ./.env ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
+	curl -sS "http://localhost:$$DEV_API_PORT/api/auth/jwt/create/" \
+	  -H 'Content-Type: application/json' \
+	  -d "$$(jq -n --arg u "$$ADMIN_USERNAME" --arg p "$$ADMIN_PASSWORD" '{username:$$u, password:$$p}')" \
+	  | tee /tmp/jwt.json >/dev/null ; \
+	ACC=$$(jq -r '.access // empty' /tmp/jwt.json) ; test -n "$$ACC" || { echo "Échec JWT"; exit 1; } ; \
+	curl -sS "http://localhost:$$DEV_API_PORT/api/whoami/" -H "Authorization: Bearer $$ACC" | jq .
 
-logs: ensure-env	    ## Logs backend (tail -200)
-	$(LOAD_LOCAL); docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f --tail=200
+# Sauvegarde / restauration DB (DEV)
+backups-dir:
+	mkdir -p backups
 
-# ---------- Dev utils ----------
-shell-backend: ## Accès au shell du backend
-	@docker exec -it $(APP_SLUG)_backend_$(APP_ENV) bash 2>/dev/null || \
-	 docker exec -it $(APP_SLUG)_backend_$(APP_ENV) sh
+backup-db: env-check backups-dir ## Sauvegarder la DB de dev -> backups/<ts>.dump (format custom pg_dump)
+	set -a ; . ./.env ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
+	TS=$$(date +%Y%m%d-%H%M%S) ; OUT=$${OUT:-backups/db-$$TS.dump} ; \
+	echo "Backup -> $$OUT" ; \
+	$(COMPOSE) exec -T db pg_dump -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -Fc > "$$OUT"
 
-migrate:	## applique les migrations
-	docker exec -it $(APP_SLUG)_backend_$(APP_ENV) python manage.py migrate
+restore-db: env-check ## Restaurer la DB depuis BACKUP=<fichier.{sql.gz,dump}> (dernier par défaut)
+	set -a ; . ./.env ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
+	FILE=$${BACKUP:-$$(ls -1t backups/*.sql.gz backups/*.dump 2>/dev/null | head -n1)} ; \
+	test -n "$$FILE" -a -f "$$FILE" || { echo "Aucun backup trouvé (backups/*.sql.gz|*.dump) ou BACKUP invalide"; exit 1; } ; \
+	echo "Restore <- $$FILE" ; \
+	$(COMPOSE) exec -T db psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' ; \
+	case "$$FILE" in \
+	  *.sql.gz) gunzip -c "$$FILE" | $(COMPOSE) exec -T db psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" ;; \
+	  *.sql)    $(COMPOSE) exec -T db psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" < "$$FILE" ;; \
+	  *.dump)   $(COMPOSE) exec -T db pg_restore -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" --no-owner --no-privileges < "$$FILE" ;; \
+	  *)        echo "Format de backup non supporté: $$FILE"; exit 1 ;; \
+	esac
 
-makemigrations: ## genere les fichiers de migration
-	docker exec -it $(APP_SLUG)_backend_$(APP_ENV) python manage.py makemigrations
+reset-dev-db: env-check ## Réinitialiser la DB de dev (drop/create/migrate)
+	bash scripts/dev/reset-dev-db.sh
 
-createsuperuser:	## creer django superuser 
-	docker exec -it $(APP_SLUG)_backend_$(APP_ENV) python manage.py createsuperuser
+seed-dev: env-check ## Injecter des données de test
+	bash scripts/dev/seed-dev.sh
 
-psql:	## shell psql du container
-	docker exec -it $(APP_SLUG)_db_$(APP_ENV) psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+psql: env-check ## psql dans le conteneur DB
+	$(COMPOSE) exec db psql -U $$(. ./.env; echo $$POSTGRES_USER) -d $$(. ./.env; echo $$POSTGRES_DB)
 
-# ---------- Backups ----------
-backup-db:		## dump de la bd courrante
-	APP_ENV=$(APP_ENV) APP_SLUG=$(APP_SLUG) ./scripts/backup-db.sh
+# --- Shortcuts courants
+reseed: env-check ## (db) Réinitialise puis ré-injecte les données de dev
+	$(MAKE) reset-dev-db
+	$(MAKE) seed-dev
 
-restore-db:		## restore la db corante
-	APP_ENV=$(APP_ENV) APP_SLUG=$(APP_SLUG) ./scripts/restore-db.sh
+rebuild: env-check ## (compose) Rebuild images (no-cache) puis relance en détaché
+	$(COMPOSE) build --no-cache
+	$(COMPOSE) up -d --build
 
-# ---------- Nettoyage ----------
-down-clean: ensure-env  ## arret des conteneurs préserve le data
-	$(LOAD_LOCAL); docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) down --remove-orphans
-	- docker ps -a --filter name='^/$(APP_SLUG)_.*_$(APP_ENV)$$' -q | xargs -r docker rm -f
-	- docker network rm $(APP_SLUG)_appnet 2>/dev/null || true
+# --- Aides par service (db | backend | vite)
+up-backend: env-check ## (svc) Démarrer backend uniquement
+	$(COMPOSE) up -d backend
+up-db: env-check ## (svc) Démarrer db uniquement
+	$(COMPOSE) up -d db
+up-vite: env-check ## (svc) Démarrer vite uniquement
+	$(COMPOSE) up -d vite
 
-# ATTENTION: supprime AUSSI le volume DB et node_modules de l'app courante (dev)
-nuke-dev: ensure-env  ## arret des conteneurs et suprime le data (ce n est pas ce que tu veux)
-	$(MAKE) down-clean
-	- docker volume rm $(APP_SLUG)_db_data_$(APP_ENV) 2>/dev/null || true
-	- docker volume rm $(APP_SLUG)_node_modules_$(APP_ENV) 2>/dev/null || true
-	- docker image prune -f
+stop-backend: env-check ## (svc) Stopper backend
+	$(COMPOSE) stop backend
+stop-db: env-check ## (svc) Stopper db
+	$(COMPOSE) stop db
+stop-vite: env-check ## (svc) Stopper vite
+	$(COMPOSE) stop vite
 
-# ---------- Affichages ----------
-dps:  ## docker ps (filtré app courante) trié par NAMES
-	@APP_SLUG='$(APP_SLUG)'; APP_ENV='$(APP_ENV)'; \
-	{ \
-	  printf 'ID\tNAMES\tservice\tSTATUS\tPORTS\n'; \
-	  docker ps --format '{{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}' \
-	  | awk -F'\t' -v slug="^"$$APP_SLUG"_" -v env="_"$$APP_ENV"$$" 'BEGIN{OFS="\t"} \
-	      $$2 ~ slug".*"env { \
-	        split($$2, a, "_"); svc=(length(a)>=3?a[2]:""); \
-	        print $$1,$$2,svc,$$3,$$4 \
-	      }'; \
-	} | LC_ALL=C sort -t $$'\t' -k2,2 | column -t -s $$'\t'
+restart-backend: env-check ## (svc) Redémarrer backend
+	$(COMPOSE) restart backend
+restart-db: env-check ## (svc) Redémarrer db
+	$(COMPOSE) restart db
+restart-vite: env-check ## (svc) Redémarrer vite
+	$(COMPOSE) restart vite
 
-dps-all: ## docker ps (toutes apps) trié par NAMES
-	@{ \
-	  printf 'ID\tNAMES\tservice\tSTATUS\tPORTS\n'; \
-	  docker ps --format '{{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}' \
-	  | awk -F'\t' 'BEGIN{OFS="\t"} {split($$2, a, "_"); svc=(length(a)>=3?a[2]:""); print $$1,$$2,svc,$$3,$$4}'; \
-	} | LC_ALL=C sort -t $$'\t' -k2,2 | column -t -s $$'\t'
+logs-backend: env-check ## (svc) Logs backend (suivis)
+	$(COMPOSE) logs -f --tail=200 backend
+logs-db: env-check ## (svc) Logs db (suivis)
+	$(COMPOSE) logs -f --tail=200 db
+logs-vite: env-check ## (svc) Logs vite (suivis)
+	$(COMPOSE) logs -f --tail=200 vite
 
+exec-backend: env-check ## (svc) Shell dans backend
+	$(COMPOSE) exec backend bash || $(COMPOSE) run --rm backend bash
+exec-db: env-check ## (svc) Shell dans db
+	$(COMPOSE) exec db bash || true
+exec-vite: env-check ## (svc) Shell dans vite
+	$(COMPOSE) exec vite bash || true
 
-APP_HOST := $(shell grep -E '^APP_HOST=' .env.prod | cut -d= -f2)
-PROD     := docker compose -f docker-compose.prod.yml --env-file .env.prod
-
-.PHONY: prod-deploy prod-health prod-logs
-
-prod-deploy:	## en production - reconstruit les conteneurs applique les migration
-	@$(PROD) up -d --build
-	@$(PROD) run --rm backend python manage.py migrate --noinput
-	@$(PROD) run --rm backend python manage.py collectstatic --noinput
-	@echo "✅ Déploiement prod OK"
-
-# Suit automatiquement la redirection et utilise le Host correct
-prod-health: ## en production - verifier la bonne sanré de l api
-	@curl -sSL -H "Host: $(APP_HOST)" http://127.0.0.1/api/healthz/ -o - -w "\nHTTP %{http_code}\n" || true
-
-prod-logs:  ## en production - affiche la fin du logs 
-	@$(PROD) ps
-	@$(PROD) logs --tail=120 backend
+clean: env-check ## Stop + suppression volumes nommés (pgdata, node_modules)
+	set -a ; . ./.env ; set +a ; \
+	VOL1="$$APP_SLUG_$${APP_ENV}_pgdata" ; VOL2="$$APP_SLUG_$${APP_ENV}_node_modules" ; \
+	$(COMPOSE) down -v || true ; \
+	docker volume rm -f "$$VOL1" "$$VOL2" 2>/dev/null || true ; \
+	echo "Volumes supprimés: $$VOL1 $$VOL2"
