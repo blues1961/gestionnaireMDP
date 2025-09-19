@@ -79,16 +79,17 @@ token-test: env-check ## JWT create -> whoami (DEV)
 backups-dir:
 	mkdir -p backups
 
-backup-db: env-check backups-dir ## Sauvegarder la DB de dev -> backups/<ts>.dump (format custom pg_dump)
+backup-db: env-check backups-dir ## Sauvegarder la DB de dev -> backups/<app_slug>_db-<ts>.sql.gz
 	set -a ; . ./.env ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
-	TS=$$(date +%Y%m%d-%H%M%S) ; OUT=$${OUT:-backups/db-$$TS.dump} ; \
+	SLUG=$${APP_SLUG:-mdp} ; TS=$$(date +%Y%m%d-%H%M%S) ; OUT=$${OUT:-backups/$${SLUG}_db-$$TS.sql.gz} ; \
 	echo "Backup -> $$OUT" ; \
-	$(COMPOSE) exec -T db pg_dump -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -Fc > "$$OUT"
+	$(COMPOSE) exec -T db pg_dump -U "$$POSTGRES_USER" "$$POSTGRES_DB" | gzip > "$$OUT"
 
 restore-db: env-check ## Restaurer la DB depuis BACKUP=<fichier.{sql.gz,dump}> (dernier par défaut)
 	set -a ; . ./.env ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
-	FILE=$${BACKUP:-$$(ls -1t backups/*.sql.gz backups/*.dump 2>/dev/null | head -n1)} ; \
-	test -n "$$FILE" -a -f "$$FILE" || { echo "Aucun backup trouvé (backups/*.sql.gz|*.dump) ou BACKUP invalide"; exit 1; } ; \
+	SLUG=$${APP_SLUG:-mdp} ; PATTERN_DESC=backups/$${SLUG}_db-<timestamp>.sql.gz ; \
+	FILE=$${BACKUP:-$$(ls -1t backups/$${SLUG}_db-*.sql.gz backups/$${SLUG}_db-*.sql backups/$${SLUG}_db.*.dump backups/db-*.dump backups/*.dump 2>/dev/null | head -n1)} ; \
+	test -n "$$FILE" -a -f "$$FILE" || { echo "Aucun backup trouvé ($$PATTERN_DESC) ou BACKUP invalide"; exit 1; } ; \
 	echo "Restore <- $$FILE" ; \
 	$(COMPOSE) exec -T db psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' ; \
 	case "$$FILE" in \

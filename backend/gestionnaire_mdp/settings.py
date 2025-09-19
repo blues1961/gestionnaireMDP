@@ -34,7 +34,7 @@ if DEBUG:
 else:
     # en prod on force par défaut vos domaines; surcharge possible via env
     ALLOWED_HOSTS = list(set(
-        env_list("DJANGO_ALLOWED_HOSTS", "mon-site.ca,api.mon-site.ca,app.mon-site.ca")
+        env_list("DJANGO_ALLOWED_HOSTS", "mon-site.ca,mdp.mon-site.ca")
     ))
 
 # ───────────────────────── Apps ─────────────────────────
@@ -141,7 +141,7 @@ else:
 
 
 # ───────────────────────── HTTPS/Proxy ─────────────────────────
-# Apache/Nginx gère TLS; on évite la redirection ici pour ne pas boucler
+# Traefik gère TLS; on évite la redirection ici pour ne pas boucler
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = False
 
@@ -176,10 +176,10 @@ if DEBUG:
         "http://127.0.0.1:5275",
     ]
 else:
-    CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "https://app.mon-site.ca")
+    CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "https://mdp.mon-site.ca")
     CSRF_TRUSTED_ORIGINS = env_list(
         "CSRF_TRUSTED_ORIGINS",
-        "https://app.mon-site.ca,https://mon-site.ca"
+        "https://mdp.mon-site.ca,https://mon-site.ca"
     )
 
 # === Overrides from environment (standardisation prod/dev) ===
@@ -187,12 +187,12 @@ def _split_env(name: str, default: str = ""):
     import os
     return [x.strip() for x in os.environ.get(name, default).split(",") if x.strip()]
 
-# Autorise hosts depuis .env (ex: 127.0.0.1,localhost,mdp-api.mon-site.ca)
+# Autorise hosts depuis .env (ex: 127.0.0.1,localhost,mdp.mon-site.ca)
 _env_allowed = _split_env("ALLOWED_HOSTS")
 if _env_allowed:
     ALLOWED_HOSTS = _env_allowed
 
-# CSRF / CORS depuis .env (ex: https://mdp.mon-site.ca,https://mdp-api.mon-site.ca)
+# CSRF / CORS depuis .env (ex: https://mdp.mon-site.ca)
 _env_csrf = _split_env("CSRF_TRUSTED_ORIGINS")
 if _env_csrf:
     CSRF_TRUSTED_ORIGINS = _env_csrf
