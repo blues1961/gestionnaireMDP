@@ -1,16 +1,14 @@
 # Guide pas à pas : pull & déploiement en **production**
 
-Ce guide standardise le processus pour mettre à jour l’application de gestion de mots de passe sur le serveur **Ubuntu** (Apache + Docker). Il intègre l’usage de `.env.prod`, `docker-compose.prod.yml`, et le déploiement des pages **statiques** via **Vite** servi par **Apache**.
+Ce guide standardise le processus pour mettre à jour l’application de gestion de mots de passe sur un serveur **Ubuntu** (Docker Compose + Traefik). Il s’appuie sur `.env.prod`, `docker-compose.prod.yml` et publie automatiquement l’application derrière Traefik (terminaison TLS + routage `/api → backend`).
 
 > Hypothèses (modifiez si besoin) :
 >
 > * Répertoire du projet : `/opt/apps/mdp`
 > * Fichier d’environnement prod : `.env.prod` (permissions strictes `600`)
 > * Compose : `docker-compose.prod.yml`
-> * Domaine d’app : `app.mon-site.ca`
-> * API exposée via `api.mon-site.ca`
-> * Dossier de déploiement Apache du front : `/var/www/app.mon-site.ca/` (docroot)
-> * Le backend écoute sur le conteneur `backend` (port exposé via compose)
+> * Traefik publie le domaine applicatif `mdp.mon-site.ca` (resolver TLS `le`)
+> * Le backend écoute sur le conteneur `backend` (port interne 8000)
 > * La base Postgres est le service `db`.
 
 ---
@@ -18,15 +16,12 @@ Ce guide standardise le processus pour mettre à jour l’application de gestion
 ## 0) Pré-vol (à faire **une fois** ou à vérifier avant chaque mise à jour)
 
 * Vérifier la présence de `.env.prod` à la racine du projet (non versionné, permissions `600`).
-* **Clés requises** pour le front : définir **au moins l’une** des deux variables suivantes dans `.env.prod` :
-
-  * `VITE_API_BASE=https://api.mon-site.ca/api` **ou**
-  * `API_BASE=https://api.mon-site.ca/api` (le script l’utilisera pour définir `VITE_API_BASE`).
+* Vérifier que `.env.prod` contient :
+  * `APP_HOST=mdp.mon-site.ca` (ou votre domaine Traefik)
+  * `VITE_API_BASE=/api` (chemin relatif injecté dans le build Vite)
 * Si une valeur contient des espaces, la mettre entre guillemets (ex. `BACKUP_CRON="0 3 * * *"`).
 * Vérifier que `docker-compose.prod.yml` est bien présent.
 * Créer le dossier de sauvegarde local au projet : `mkdir -p ./backups`.
-* Vérifier que le docroot Apache existe et a les bons droits (ex. `/var/www/app.mon-site.ca/`).
-* Vérifier que `rsync` est installé (`sudo apt-get install -y rsync`).
 * Préparer un espace disque suffisant pour stocker les dumps.
 
 ---
@@ -49,18 +44,20 @@ set +a
 
 TS=$(date +"%Y%m%d-%H%M%S")
 mkdir -p ./backups
+SLUG=${APP_SLUG:-mdp}
+OUT="./backups/${SLUG}_db-$TS.sql.gz"
 
 docker compose -f docker-compose.prod.yml exec -T \
   -e PGPASSWORD="$POSTGRES_PASSWORD" \
   db pg_dump \
     -h 127.0.0.1 -p 5432 \
     -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-  > "./backups/db-$TS.sql"
+  | gzip > "$OUT"
 
-ls -lh "./backups/db-$TS.sql"
+ls -lh "$OUT"
 ```
 
-Optionnel : `gzip ./backups/db-$TS.sql`
+> Le fichier est compressé en gzip par défaut (`*.sql.gz`).
 
 ### Vérification rapide du contenu
 
@@ -91,24 +88,19 @@ git pull --ff-only origin main
 
 ---
 
-## 5) Build & déploiement **frontend**
+## 5) Build des images & redémarrage
 
 ```bash
-./scripts/deploy-frontend.sh
-```
+# Build backend + frontend (pull dernières bases d'images)
+docker compose -f docker-compose.prod.yml --env-file .env.prod build --pull backend frontend
 
-Voir `scripts/deploy-frontend.sh` : charge `.env.prod`, construit via Vite, et déploie dans `/var/www/app.mon-site.ca/`.
-
----
-
-## 6) Build des images & redémarrage
-
-```bash
-docker compose -f docker-compose.prod.yml --env-file .env.prod build --pull
+# Redémarre la base puis applique les migrations
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d db
 docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm backend \
   python manage.py migrate --noinput
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend
+
+# Relance backend + frontend (Traefik se charge du routage)
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend frontend
 ```
 
 ---
@@ -116,41 +108,41 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend
 ## 7) Smoke tests
 
 ```bash
-# Déduire la base API
+# Charge l'environnement pour dériver l'hôte public
 test -f .env.prod && set -a && source <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' ./.env.prod | sed 's/\r$//') && set +a
-API_BASE_EFFECTIVE="${VITE_API_BASE:-${API_BASE:-https://api.mon-site.ca/api}}"
+
+APP_URL="https://${APP_HOST}"
+API_BASE_REL="${VITE_API_BASE:-${API_BASE:-/api}}"
+API_URL="${APP_URL}${API_BASE_REL%/}"
 
 # Tester /health
-curl -i "$API_BASE_EFFECTIVE/health"  | head -n 10 || true
-curl -i "$API_BASE_EFFECTIVE/health/" | head -n 10 || true
+curl -i "${API_URL}/health"  | head -n 10 || true
+curl -i "${API_URL}/health/" | head -n 10 || true
 
-# Vérifier front
-curl -I https://app.mon-site.ca/ | head -n 1
+# Vérifier le front (Traefik -> frontend)
+curl -I "${APP_URL}/" | head -n 1
 ```
 
 > ⚠️ Si 404 :
 >
-> * Vérifier que `VITE_API_BASE` pointe sur `https://api.mon-site.ca/api`.
+> * Vérifier que `VITE_API_BASE` vaut `/api` (chemin relatif).
 > * Vérifier que la route `/api/health/` est bien définie dans `urls.py`.
-> * Vérifier que le port `8000` est exposé et que le vhost Apache de `api.mon-site.ca` redirige vers `127.0.0.1:8000`.
-> * **Dans l’onglet Réseau du navigateur** : si les appels partent vers `/login/` (sans `/api/`) au lieu de `/api/login/`, alors `VITE_API_BASE` est probablement mal défini.
+> * Confirmer que Traefik publie bien le service `backend` (`docker compose ps` et `docker compose logs traefik`).
+> * **Dans l’onglet Réseau du navigateur** : si les appels partent vers `/login/` (sans `/api/`), alors `VITE_API_BASE` est probablement mal défini.
 
 ---
 
-## 8) Config Apache pour l’API (exemple)
+## 8) Traefik (rappel)
 
-```
-<VirtualHost *:80>
-  ServerName api.mon-site.ca
-  ProxyPreserveHost On
-  ProxyPass        / http://127.0.0.1:8000/
-  ProxyPassReverse / http://127.0.0.1:8000/
-</VirtualHost>
-```
+* Le fichier `docker-compose.prod.yml` déclare les labels Traefik nécessaires :
+  * `/api/*` et `/admin/*` → service `backend` (port interne 8000)
+  * le reste (`/`) → service `frontend` (port interne 80)
+  * redirection HTTP → HTTPS via le middleware `mdp-redirect-https`
+* Le réseau externe `edge` doit exister (`docker network ls | grep edge`).
+* Pour vérifier la configuration dynamique :
 
 ```bash
-sudo a2enmod proxy proxy_http
-sudo apachectl configtest && sudo systemctl reload apache2
+docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f traefik
 ```
 
 ---
@@ -177,13 +169,17 @@ cd /opt/apps/mdp
 
 TS=$(date +"%Y%m%d-%H%M%S")
 source .env.prod
+SLUG=${APP_SLUG:-mdp}
+OUT="./backups/${SLUG}_db-$TS.sql.gz"
 
 # Backup
 mkdir -p ./backups
 docker compose -f docker-compose.prod.yml exec -T \
   -e PGPASSWORD="$POSTGRES_PASSWORD" db \
   pg_dump -h 127.0.0.1 -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-  > ./backups/db-$TS.sql
+  | gzip > "$OUT"
+
+ls -lh "$OUT"
 
 # Down
 docker compose -f docker-compose.prod.yml --env-file .env.prod down
@@ -193,17 +189,14 @@ git fetch --all
 git checkout main
 git pull --ff-only origin main
 
-# Frontend
-./scripts/deploy-frontend.sh
-
-# Backend
-docker compose -f docker-compose.prod.yml --env-file .env.prod build --pull
+# Compose : rebuild + restart
+docker compose -f docker-compose.prod.yml --env-file .env.prod build --pull backend frontend
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d db
 docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm backend python manage.py migrate --noinput
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend frontend
 
-# Smoke test
-curl -fsS https://api.mon-site.ca/api/health/ || true
+# Smoke test (Traefik)
+curl -fsS "https://${APP_HOST}/api/health/" || true
 ```
 
 ---
@@ -211,12 +204,12 @@ curl -fsS https://api.mon-site.ca/api/health/ || true
 ## 11) Dépannage rapide
 
 * Passer `--env-file .env.prod` aux commandes Docker.
-* Vérifier droits `/var/www/app.mon-site.ca/` si `rsync` échoue.
 * Vérifier `API_BASE`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`.
-* Logs backend :
+* Vérifier que Traefik voit les services (`docker compose -f docker-compose.prod.yml --env-file .env.prod ps`).
+* Logs backend / Traefik :
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f backend
+docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f backend traefik
 ```
 
 ---
@@ -226,19 +219,22 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f backend
 ```bash
 cd /opt/apps/mdp
 TS=$(date +"%Y%m%d-%H%M%S")
+SLUG=${APP_SLUG:-mdp}
+OUT="./backups/${SLUG}_db-$TS.sql.gz"
 docker compose -f docker-compose.prod.yml exec -T \
   -e PGPASSWORD="$POSTGRES_PASSWORD" db \
   pg_dump -h 127.0.0.1 -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-  > ./backups/db-$TS.sql
+  | gzip > "$OUT"
+
+ls -lh "$OUT"
 
 docker compose -f docker-compose.prod.yml --env-file .env.prod down
 git fetch --all && git checkout main && git pull --ff-only origin main
-./scripts/deploy-frontend.sh
-docker compose -f docker-compose.prod.yml --env-file .env.prod build --pull
+docker compose -f docker-compose.prod.yml --env-file .env.prod build --pull backend frontend
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d db
 docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm backend python manage.py migrate --noinput
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend
-curl -fsS https://api.mon-site.ca/api/health/ || true
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend frontend
+curl -fsS "https://${APP_HOST}/api/health/" || true
 ```
 
 ---
@@ -247,16 +243,10 @@ curl -fsS https://api.mon-site.ca/api/health/ || true
 
 ## Annexe A — Résolution de l’enfer des paths
 
-* **Option A** :
+* Invariant : `.env.prod` doit définir `VITE_API_BASE=/api` (chemin relatif)
+* Les appels front restent relatifs : `api.post('/login/', data)` (pas de `/api` codé en dur)
 
-  * `.env.prod` : `VITE_API_BASE=https://api.mon-site.ca/api`
-  * Code front : appels comme `api.post('/login/', data)` (pas de `/api` en dur).
-* **Option B** :
-
-  * `.env.prod` : `VITE_API_BASE=https://api.mon-site.ca`
-  * Code front : appels comme `api.post('/api/login/', data)`.
-
-👉 Le problème typique est `POST /api/api/login/` → cela signifie que la base ET le chemin ajoutent `/api`. Corriger en choisissant UNE seule des deux options.
+👉 Le problème typique est `POST /api/api/login/` → cela signifie que le code a préfixé `/api` **et** que `VITE_API_BASE` n’est pas relatif. Remettre `VITE_API_BASE=/api` et retirer le `/api` superflu dans les appels.
 
 Vérifier avec DevTools → Network → onglet XHR/fetch → filtrer sur `login`.
 

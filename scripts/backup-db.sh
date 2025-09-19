@@ -40,21 +40,19 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$DB_CONT"; then
   exit 3
 fi
 
-# 4) Préparer le chemin de sortie conforme: <repo>/backups/<app_slug>_db.YYYYMMDD-HHMMSS.dump
+# 4) Préparer le chemin de sortie conforme: <repo>/backups/<app_slug>_db-YYYYMMDD-HHMMSS.sql.gz
 STAMP="$(date +%Y%m%d-%H%M%S)"
 OUT_DIR="$ROOT_DIR/backups"
 mkdir -p "$OUT_DIR"
-FILE="$OUT_DIR/${APP_SLUG}_db.${STAMP}.dump"
+FILE="$OUT_DIR/${APP_SLUG}_db-${STAMP}.sql.gz"
 
 echo "[*] ENV=${APP_ENV}  CONTAINER=${DB_CONT}  ${APP_SLUG_UP}_DB=${POSTGRES_DB}  USER=${POSTGRES_USER}"
 echo "[*] Dump -> ${FILE}"
 
-# 5) pg_dump dans le conteneur (format custom), copie locale, nettoyage
+# 5) pg_dump dans le conteneur (format SQL) + compression gzip côté hôte
 docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" "$DB_CONT" \
-  pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -F c -f /tmp/backup.dump
-
-docker cp "$DB_CONT:/tmp/backup.dump" "$FILE"
-docker exec "$DB_CONT" rm -f /tmp/backup.dump
+  pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  | gzip > "$FILE"
 
 # 6) Validation du fichier
 if [[ ! -s "$FILE" ]]; then

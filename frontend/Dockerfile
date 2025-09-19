@@ -2,8 +2,8 @@
 FROM node:20-bookworm-slim AS build
 WORKDIR /app
 
-ARG VITE_API_BASE="https://mdp-api.mon-site.ca"
-ARG VITE_APP_SLUG="mdp"
+ARG VITE_API_BASE=/api
+ARG VITE_APP_SLUG=mdp
 ENV VITE_API_BASE=${VITE_API_BASE}
 ENV VITE_APP_SLUG=${VITE_APP_SLUG}
 
@@ -11,10 +11,6 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
-ARG VITE_API_BASE=/api
-ARG VITE_APP_SLUG=mdp
-ENV VITE_API_BASE=${VITE_API_BASE}
-ENV VITE_APP_SLUG=${VITE_APP_SLUG}
 RUN VITE_API_BASE=${VITE_API_BASE} VITE_APP_SLUG=${VITE_APP_SLUG} npm run build
 
 # --- Runtime Nginx (statique) ---

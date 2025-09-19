@@ -4,7 +4,7 @@
 
 * Les **fichiers d’environnement** sont désormais : **`.env.dev`** (développement) et **`.env.prod`** (production).
 * Les fichiers **Docker Compose** utilisés sont : **`docker-compose.dev.yml`** (DEV) et **`docker-compose.prod.yml`** (PROD).
-* Les **fichiers statiques du frontend** sont **servis par Apache** en production et **déployés via Vite** (build `frontend/dist/`).
+* Les **fichiers statiques du frontend** sont servis par le conteneur **frontend (Nginx)** derrière **Traefik** en production (build Vite → image Docker).
 * Les fichiers Compose **référencent explicitement** leur fichier d’environnement via `env_file:` (pas besoin de `--env-file` à la ligne de commande).
 
 ---
@@ -39,7 +39,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 5. Se connecter à l’admin Django (`/admin/`).
 6. Importer la clé RSA via “Sauvegarde clé” → Importer (JSON + passphrase).
 7. Tester `/key-check` (API) et un parcours utilisateur minimal.
-8. **PROD uniquement :** vérifier que les fichiers **frontend** sont bien **servis par Apache** (voir section **7 - Frontend statique**).
+8. **PROD uniquement :** vérifier que Traefik publie bien le frontend (`https://${APP_HOST}` → 200) et l’API (`/api/health/`).
 
 ---
 
@@ -80,8 +80,14 @@ docker compose -f docker-compose.dev.yml restart backend
 
 ```bash
 mkdir -p backups
-BACKUP_FILE="backups/backup_$(date +%F_%H%M%S).sql"
-docker compose -f docker-compose.dev.yml exec -T db sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$BACKUP_FILE"
+SLUG=${APP_SLUG:-mdp}
+TS=$(date +"%Y%m%d-%H%M%S")
+BACKUP_FILE="backups/${SLUG}_db-$TS.sql.gz"
+docker compose -f docker-compose.dev.yml exec -T db \
+  sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  | gzip > "$BACKUP_FILE"
+
+ls -lh "$BACKUP_FILE"
 ```
 
 * Sauvegardes stockées dans `backups/` (mettre dans `.gitignore`).
@@ -90,15 +96,18 @@ docker compose -f docker-compose.dev.yml exec -T db sh -lc 'pg_dump -U "$POSTGRE
 ### Vérification :
 
 ```bash
-ls -lh backups/
-head -n 5 backups/backup_*.sql
+SLUG=${APP_SLUG:-mdp}
+ls -lh backups/${SLUG}_db-*.sql.gz
+gunzip -c backups/${SLUG}_db-*.sql.gz | head -n 5
 ```
 
 ### Restauration :
 
 ```bash
-FILE=backups/backup_YYYY-MM-DD_HHMMSS.sql
-cat "$FILE" | docker compose -f docker-compose.dev.yml exec -T db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+SLUG=${APP_SLUG:-mdp}
+FILE=backups/${SLUG}_db-YYYYMMDD-HHMMSS.sql.gz
+gunzip -c "$FILE" | docker compose -f docker-compose.dev.yml exec -T db \
+  sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 ```
 
 ### Bonnes pratiques :
@@ -113,7 +122,7 @@ cat "$FILE" | docker compose -f docker-compose.dev.yml exec -T db sh -lc 'psql -
 * Pour exporter hors serveur :
 
 ```bash
-scp backups/backup_YYYY-MM-DD_HHMMSS.sql user@serveur:/chemin/de/sauvegarde/
+scp backups/${SLUG}_db-YYYYMMDD-HHMMSS.sql.gz user@serveur:/chemin/de/sauvegarde/
 ```
 
 ### Backups automatiques :
@@ -144,7 +153,7 @@ scp backups/backup_YYYY-MM-DD_HHMMSS.sql user@serveur:/chemin/de/sauvegarde/
 ```bash
 git status
 git add .
-git commit -m "docs: playbook révisé (env_file + statiques Apache/Vite)"
+git commit -m "docs: playbook révisé (env_file + Traefik)"
 git push origin main
 ```
 
@@ -175,61 +184,50 @@ git push origin --tags
 * **403 Forbidden** : vérifier login admin, CORS/CSRF, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` et cookies côté navigateur.
 * **Déchiffrement impossible** : clé ou passphrase incorrecte.
 * **Admin KO** : vérifier `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, cookies, logs backend.
-* **Frontend non servi** : vérifier la conf Apache (DocumentRoot), la présence des fichiers `frontend/dist/` déployés, et les droits (`chown`/`chmod`).
+* **Frontend non servi** : vérifier les labels Traefik (`docker compose -f docker-compose.prod.yml config --services`), les logs `traefik`, puis que le conteneur `frontend` répond sur le port 80 interne (`docker compose exec frontend wget -qO- http://localhost/`).
 
 ---
 
-## 7) Frontend statique (Vite + Apache)
+## 7) Frontend statique (Vite + Traefik)
 
 ### 7.1 Principe
 
-* En **PROD**, le frontend (React) est **buildé avec Vite** et **servi par Apache** depuis le contenu de `frontend/dist/`.
-* Le backend Django reste derrière (ex. via un proxy ou une route `/api/`).
+* En **PROD**, le build Vite est empaqueté dans l’image Docker `frontend` (Nginx).
+* Traefik publie `https://${APP_HOST}` vers `frontend` et route `/api/*` / `/admin/*` vers `backend`.
+* Aucun fichier n’est copié sur l’hôte : tout est servi depuis le conteneur.
 
-### 7.2 Build Vite (exemple de script)
+### 7.2 Build Vite (exemple)
 
 ```bash
-# 1) Build frontend
-say "Build du frontend avec VITE_API_BASE=${API_BASE}"
-pushd "${FRONT_DIR}" >/dev/null
-export VITE_API_BASE="${API_BASE}"
+# Option locale (débogage)
+say "Build du frontend (VITE_API_BASE=${API_BASE:-/api})"
+pushd frontend >/dev/null
 npm ci
-npm run build
+VITE_API_BASE="${API_BASE:-/api}" npm run build
 popd >/dev/null
+
+# Via Docker Compose (recommandé)
+docker compose -f docker-compose.prod.yml --env-file .env.prod build frontend
 ```
 
-> `VITE_API_BASE` doit pointer vers l’URL publique de l’API (ex. `https://app.mon-site.ca/api`).
-
-### 7.3 Déploiement vers Apache
-
-* Copier/rsync le contenu de `frontend/dist/` vers le **DocumentRoot** du vhost Apache (ex. `/var/www/app.mon-site.ca/`).
+### 7.3 Relance du conteneur frontend
 
 ```bash
-rsync -av --delete frontend/dist/ /var/www/app.mon-site.ca/
+# Redéploiement (rebuild + restart)
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build frontend
+
+# Vérifier les logs
+docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f frontend
 ```
-
-* Vérifier la conf Apache (minimal) :
-
-```apache
-<VirtualHost *:80>
-    ServerName app.mon-site.ca
-    DocumentRoot /var/www/app.mon-site.ca
-    <Directory "/var/www/app.mon-site.ca">
-        Options FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-    # ProxyPass /api http://127.0.0.1:8000/api
-    # ProxyPassReverse /api http://127.0.0.1:8000/api
-</VirtualHost>
-```
-
-> Adapter le vhost (HTTPS recommandé), activer les modules nécessaires (`a2enmod rewrite proxy proxy_http headers`), puis `systemctl reload apache2`.
 
 ### 7.4 Variables et CORS côté backend
 
-* Mettre à jour `ALLOWED_HOSTS` et `CORS_ALLOWED_ORIGINS` pour le domaine (ex. `https://app.mon-site.ca`).
-* Redémarrer le backend après modification de `.env.prod`.
+* `.env.prod` :
+  * `APP_HOST=mdp.mon-site.ca`
+  * `VITE_API_BASE=/api`
+  * `CORS_ALLOWED_ORIGINS=https://${APP_HOST}`
+  * `CSRF_TRUSTED_ORIGINS=https://${APP_HOST}`
+* Redémarrer `backend` et `frontend` après modification de `.env.prod`.
 
 ---
 
@@ -252,7 +250,6 @@ rsync -av --delete frontend/dist/ /var/www/app.mon-site.ca/
 COMPOSE_FILE=docker-compose.prod.yml \
 BACKUP_DIR=/var/backups/gestionnaire_mdp \
 RETENTION_DAYS=30 \
-GZIP=1 \
 ./scripts/backup-db.sh
 ```
 
@@ -262,10 +259,10 @@ GZIP=1 \
 
 ```bash
 # DEV
-./scripts/restore-db.sh backups/backup_2025-08-12_031500.sql.gz
+./scripts/restore-db.sh backups/mdp_db-20250812-031500.sql.gz
 
 # PROD (spécifie le compose prod)
-COMPOSE_FILE=docker-compose.prod.yml ./scripts/restore-db.sh /var/backups/gestionnaire_mdp/backup_2025-08-12_031500.sql.gz
+COMPOSE_FILE=docker-compose.prod.yml ./scripts/restore-db.sh /var/backups/gestionnaire_mdp/mdp_db-20250812-031500.sql.gz
 ```
 
 ### 8.3 Cron d’automatisation (prod)
@@ -275,7 +272,6 @@ COMPOSE_FILE=docker-compose.prod.yml ./scripts/restore-db.sh /var/backups/gestio
   COMPOSE_FILE=docker-compose.prod.yml \
   BACKUP_DIR=/var/backups/gestionnaire_mdp \
   RETENTION_DAYS=30 \
-  GZIP=1 \
   /bin/bash scripts/backup-db.sh >> logs/backup.log 2>&1
 ```
 
@@ -313,12 +309,22 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Expose uniquement en localhost : Apache reverse-proxie vers 127.0.0.1:8000
-    ports:
-      - "127.0.0.1:8000:8000"
+    # Traefik route /api/* vers ce service (voir labels ci-dessous)
+    expose:
+      - "8000"
     networks: [internal]
     # Si le Dockerfile ne définit pas déjà le CMD/entrypoint :
     # command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "edge"
+      traefik.http.middlewares.mdp-redirect-https.redirectscheme.scheme: "https"
+      traefik.http.routers.mdp-api.rule: "Host(`${APP_HOST}`) && PathPrefix(`/api/`)"
+      traefik.http.routers.mdp-api.entrypoints: "websecure"
+      traefik.http.routers.mdp-api.tls: "true"
+      traefik.http.routers.mdp-api.tls.certresolver: "le"
+      traefik.http.routers.mdp-api.service: "mdp-api"
+      traefik.http.services.mdp-api.loadbalancer.server.port: "8000"
 
 networks:
   internal:
@@ -327,7 +333,7 @@ volumes:
   pgdata:
 ```
 
-> **Apache (host)** : reverse proxy `/api/` → `http://127.0.0.1:8000/api/`. Le frontend (Vite) est déployé dans le `DocumentRoot` du vhost (cf. section 7).
+> **Traefik** : route `/api/*` et `/admin/*` vers `backend`, et le reste vers `frontend` (cf. section 7).
 
 ### 9.2 `docker-compose.dev.yml` (extrait minimal)
 
@@ -380,11 +386,11 @@ DB_PORT=5432
 # Django
 DJANGO_SECRET_KEY=change-me
 DJANGO_DEBUG=false            # true en DEV
-ALLOWED_HOSTS=app.mon-site.ca # en DEV: localhost,127.0.0.1
-CORS_ALLOWED_ORIGINS=https://app.mon-site.ca
+ALLOWED_HOSTS=mdp.mon-site.ca       # en DEV: localhost,127.0.0.1
+CORS_ALLOWED_ORIGINS=https://mdp.mon-site.ca
 
-# (Optionnel) URL complète côté frontend pour l'API
-API_BASE=https://app.mon-site.ca/api
+# Chemin relatif injecté côté frontend
+API_BASE=/api/
 ```
 
 > En **DEV**, adaptez `ALLOWED_HOSTS`/`CORS_ALLOWED_ORIGINS` (ex. `http://localhost:5173`).
@@ -393,7 +399,7 @@ API_BASE=https://app.mon-site.ca/api
 
 ## 10) Dockerfile backend (prod)
 
-> Dockerfile placé dans **`backend/Dockerfile`** (contexte de build = `./backend`). Multi‑stage non requis ici; image **python:3.12-slim** + Gunicorn. L’entrypoint attend la DB, applique les migrations et lance Gunicorn. Les statiques Django sont collectés dans `/app/staticfiles` (voir §11 pour publication sous Apache).
+> Dockerfile placé dans **`backend/Dockerfile`** (contexte de build = `./backend`). Multi‑stage non requis ici; image **python:3.12-slim** + Gunicorn. L’entrypoint attend la DB, applique les migrations et lance Gunicorn. Les statiques Django sont collectés dans `/app/staticfiles` (cf. §11 pour distribution via Traefik).
 
 ```dockerfile
 # backend/Dockerfile
@@ -493,13 +499,11 @@ node_modules/
 
 ---
 
-## 11) Publication des statiques Django sous Apache
+## 11) Statiques Django (admin)
 
-**Objectif :** Apache sert `/static/` pour le backend (ex : Django admin). Le build Vite gère le frontend (DocumentRoot), cf. §7.
+### 11.1 Pré-requis côté Django
 
-### 11.1 Pré‑requis côté Django
-
-Dans `settings.py`, prévoir :
+Dans `settings.py`, conserver :
 
 ```python
 import os
@@ -509,32 +513,31 @@ STATIC_URL = "/static/"
 STATIC_ROOT = os.environ.get("STATIC_ROOT", BASE_DIR / "staticfiles")
 ```
 
-En **prod**, l’entrypoint exécute `collectstatic` et remplit `/app/staticfiles` (ou `STATIC_ROOT`).
+En **prod**, l’entrypoint exécute `collectstatic` et remplit `/app/staticfiles`.
 
-### 11.2 Copie vers Apache (host)
+### 11.2 Servir les statiques via Traefik
 
-Option simple via `docker cp` après build/démarrage :
+* Par défaut, Traefik route `/admin/*` vers `backend` qui sait répondre aux fichiers `/static/` collectés.
+* Pour déléguer les statiques à `frontend`, partagez un volume :
+
+```yaml
+volumes:
+  staticfiles:
+
+services:
+  backend:
+    volumes:
+      - staticfiles:/app/staticfiles
+  frontend:
+    volumes:
+      - staticfiles:/usr/share/nginx/html/static:ro
+```
+
+### 11.3 Relancer `collectstatic`
 
 ```bash
-# Copie les statiques collectés hors du conteneur backend
-CID=$(docker compose -f docker-compose.prod.yml ps -q backend)
-mkdir -p /var/www/app.mon-site.ca/static/
-docker cp "$CID":/app/staticfiles/. /var/www/app.mon-site.ca/static/
-# Droits (Ubuntu/Apache)
-sudo chown -R www-data:www-data /var/www/app.mon-site.ca/static/
+docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm backend python manage.py collectstatic --noinput
 ```
-
-Vhost Apache (complément) :
-
-```apache
-Alias /static/ /var/www/app.mon-site.ca/static/
-<Directory "/var/www/app.mon-site.ca/static/">
-    Require all granted
-    Options FollowSymLinks
-</Directory>
-```
-
-> Alternative : montez un **volume bind** vers `/var/www/app.mon-site.ca/static/` et pointez `STATIC_ROOT` dessus; le `collectstatic` écrira directement dans le dossier servi par Apache.
 
 ---
 
@@ -557,81 +560,47 @@ services:
     # Pas besoin de 'command:' si le Dockerfile définit déjà CMD (Gunicorn)
 ```
 
-> Après un déploiement/upgrade : `docker compose -f docker-compose.prod.yml up -d --build` puis **copier les statiques Django** (\§11.2) et **déployer le build Vite** (\§7.3).
+> Après un déploiement/upgrade : `docker compose -f docker-compose.prod.yml up -d --build` puis **vérifier les statiques Django** (\§11) et **confirmer le routage Traefik** (\§7.3).
 
 ---
 
-## 13) Script de déploiement frontend — référence
+## 13) Déploiement via Docker Compose
 
-Un script existe déjà :
-
-* **Emplacement** : `scripts/deploy-frontend.sh`
-* **Structure** : `scripts/` et `frontend/` sont des **répertoires frères** à la racine du projet; le script s'exécute **depuis la racine**.
-
-### 13.1 Usage rapide
+### 13.1 Commandes standard (prod)
 
 ```bash
-# Depuis la racine du projet
-VITE_API_BASE="https://app.mon-site.ca/api" \
-HOST="user@mon-serveur" \
-REMOTE_DEST="/var/www/app.mon-site.ca" \
-./scripts/deploy-frontend.sh
+# Build images à jour
+docker compose -f docker-compose.prod.yml --env-file .env.prod build --pull backend frontend
+
+# Appliquer les migrations
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d db
+docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm backend python manage.py migrate --noinput
+
+# Relancer backend + frontend derrière Traefik
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend frontend
+
+# Vérifier les logs (backend + Traefik)
+docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f backend traefik
 ```
 
-### 13.2 Variables d’environnement supportées (avec valeurs par défaut)
+### 13.2 Intégration CI/CD (pseudocode)
 
-* `HOST` : alias SSH ou `user@host` (défaut : `linode-ca`)
-* `REMOTE_TMP` : répertoire tampon côté serveur (défaut : `/tmp/app-mon-site.ca-dist`)
-* `REMOTE_DEST` : destination finale côté serveur (défaut : `/var/www/app.mon-site.ca`)
-* `FRONT_DIR` : dossier du frontend (défaut : `frontend`)
-* `VITE_API_BASE` : base URL de l’API injectée dans le build Vite (défaut : `/api`)
-
-### 13.3 Ce que fait le script
-
-1. **Build** du frontend via Vite avec `VITE_API_BASE`.
-2. **Upload** du dossier `dist/` vers `REMOTE_TMP` (SSH/rsync).
-3. **Bascule atomique** de `REMOTE_TMP` → `REMOTE_DEST` côté serveur.
-4. **Vérifications HTTP** via `curl` :
-
-   * `GET /` (code 200 attendu)
-   * `GET /api/csrf/` (code 200 attendu)
-
-> Prérequis : accès SSH au serveur, Apache configuré avec `DocumentRoot` sur `REMOTE_DEST` (cf. §7), certificats TLS valides.
-
-### 13.4 Bonnes pratiques
-
-* Lancer le script depuis CI/CD avec un tag/sha clair.
-* Forcer `--delete` lors de la synchro (déjà géré par le script si applicable) pour éviter les reliquats.
-* Conserver un **backup du précédent déploiement** (snapshot ou dossier daté) si besoin de rollback rapide.
-
-### 13.5 Arborescence type
-
-```text
-project-root/
-├─ backend/
-│  ├─ Dockerfile
-│  └─ ...
-├─ frontend/
-│  ├─ src/
-│  ├─ dist/        # généré par Vite
-│  └─ ...
-├─ scripts/
-│  └─ deploy-frontend.sh
-├─ docker-compose.dev.yml
-├─ docker-compose.prod.yml
-├─ .env.dev
-└─ .env.prod
+```bash
+docker login registry
+docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+docker compose -f docker-compose.prod.yml --env-file .env.prod build backend frontend
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build db backend frontend
 ```
 
 ---
 
 ## 14) Checklist de déploiement PROD (front + back)
 
-1. **Backend** : `docker compose -f docker-compose.prod.yml up -d --build`
-2. **Statiques Django** : copier vers `/var/www/app.mon-site.ca/static/` (\§11.2)
-3. **Frontend** : `./scripts/deploy-frontend.sh` (\§13)
-4. **Tests santé** :
-
-   * `https://app.mon-site.ca/` renvoie 200
-   * `https://app.mon-site.ca/api/csrf/` renvoie 200
-5. **Journalisation** : vérifier `journalctl -u apache2` et `docker compose logs backend`.
+1. `docker compose -f docker-compose.prod.yml --env-file .env.prod build --pull backend frontend`
+2. `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d db`
+3. `docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm backend python manage.py migrate --noinput`
+4. `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend frontend`
+5. **Vérifications** :
+   * `curl -If https://${APP_HOST}/` → 200
+   * `curl -If https://${APP_HOST}/api/health/` → 200
+6. **Logs** : `docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f backend traefik`
