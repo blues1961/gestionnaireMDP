@@ -81,7 +81,7 @@ Planification à adapter via crontab ou un service dédié.
 ---
 
 ## 6) Développement local
-- Copiez `.env.example` -> `.env` et adaptez (mettez `DJANGO_DEBUG=True` et `CORS_ALLOWED_ORIGINS=http://localhost`)
+- Copiez `.env.example` -> `.env` et adaptez (mettez `DJANGO_DEBUG=1` et `FRONT_ORIGIN=http://localhost:${DEV_VITE_PORT}`)
 - Lancer :
 ```bash
 docker compose -f docker-compose.dev.yml up --build
