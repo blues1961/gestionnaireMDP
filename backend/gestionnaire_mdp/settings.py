@@ -160,21 +160,28 @@ SESSION_COOKIE_DOMAIN = None if DEBUG else COOKIE_PARENT_DOMAIN
 CSRF_COOKIE_DOMAIN    = None if DEBUG else COOKIE_PARENT_DOMAIN
 
 # ───────────── CORS / CSRF ─────────────
+CORS_ALLOWED_ORIGINS = []
+CSRF_TRUSTED_ORIGINS = []
 CORS_ALLOW_CREDENTIALS = True
+
 if DEBUG:
-    # Par défaut, colle à ton dev: Vite=5274, Front nginx=5275
-    CORS_ALLOWED_ORIGINS = [
-        "http://localhost:5274",
-        "http://127.0.0.1:5274",
-        "http://localhost:5275",
-        "http://127.0.0.1:5275",
-    ]
-    CSRF_TRUSTED_ORIGINS = [
-        "http://localhost:5274",
-        "http://127.0.0.1:5274",
-        "http://localhost:5275",
-        "http://127.0.0.1:5275",
-    ]
+    vite_port = os.environ.get("DEV_VITE_PORT", "5174")
+    front_origin = os.environ.get("FRONT_ORIGIN", f"http://localhost:{vite_port}")
+    front_origin_alt = front_origin.replace("localhost", "127.0.0.1")
+
+    api_port = os.environ.get("DEV_API_PORT", "8000")
+    backend_origin = f"http://localhost:{api_port}"
+    backend_origin_alt = backend_origin.replace("localhost", "127.0.0.1")
+
+    if not CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS = [front_origin, front_origin_alt]
+    if not CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS = [
+            front_origin,
+            front_origin_alt,
+            backend_origin,
+            backend_origin_alt,
+        ]
 else:
     CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "https://mdp.mon-site.ca")
     CSRF_TRUSTED_ORIGINS = env_list(

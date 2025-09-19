@@ -16,9 +16,7 @@ Ce guide standardise le processus pour mettre à jour l’application de gestion
 ## 0) Pré-vol (à faire **une fois** ou à vérifier avant chaque mise à jour)
 
 * Vérifier la présence de `.env.prod` à la racine du projet (non versionné, permissions `600`).
-* Vérifier que `.env.prod` contient :
-  * `APP_HOST=mdp.mon-site.ca` (ou votre domaine Traefik)
-  * `VITE_API_BASE=/api` (chemin relatif injecté dans le build Vite)
+* Vérifier que `.env.prod` contient notamment `APP_HOST=mdp.mon-site.ca`, `VITE_API_BASE=/api` (chemin relatif) et, si besoin d’accès locaux, ajuster `PROD_DB_PORT` / `PROD_API_PORT` / `PROD_FRONT_PORT` (bind 127.0.0.1 par défaut).
 * Si une valeur contient des espaces, la mettre entre guillemets (ex. `BACKUP_CRON="0 3 * * *"`).
 * Vérifier que `docker-compose.prod.yml` est bien présent.
 * Créer le dossier de sauvegarde local au projet : `mkdir -p ./backups`.
@@ -112,8 +110,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend fro
 test -f .env.prod && set -a && source <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' ./.env.prod | sed 's/\r$//') && set +a
 
 APP_URL="https://${APP_HOST}"
-API_BASE_REL="${VITE_API_BASE:-${API_BASE:-/api}}"
-API_URL="${APP_URL}${API_BASE_REL%/}"
+API_URL="${APP_URL}${VITE_API_BASE%/}"
 
 # Tester /health
 curl -i "${API_URL}/health"  | head -n 10 || true
@@ -204,7 +201,7 @@ curl -fsS "https://${APP_HOST}/api/health/" || true
 ## 11) Dépannage rapide
 
 * Passer `--env-file .env.prod` aux commandes Docker.
-* Vérifier `API_BASE`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`.
+* Vérifier `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`.
 * Vérifier que Traefik voit les services (`docker compose -f docker-compose.prod.yml --env-file .env.prod ps`).
 * Logs backend / Traefik :
 
