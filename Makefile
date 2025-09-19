@@ -46,6 +46,11 @@ restart: env-check ## Redémarre les services
 ps: env-check ## Statut des conteneurs
 	$(COMPOSE) ps
 
+ps-ports: env-check ## Conteneurs (nom → ports, triés)
+	docker ps --format '{{.Names}}\t{{.Ports}}' \
+	  | sort \
+	  | column -t -s $$'\t'
+
 logs: env-check ## Logs suivis (tous les services)
 	$(COMPOSE) logs -f --tail=200
 
