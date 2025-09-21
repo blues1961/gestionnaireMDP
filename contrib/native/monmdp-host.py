@@ -1,26 +1,6 @@
 #!/usr/bin/env python3
-# monmdp-host.py - Native messaging host with docker-compose path detection
-import sys, json, struct, os, base64, traceback, time, subprocess
-from pathlib import Path
-from typing import Optional
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives import constant_time
-from cryptography.hazmat.backends import default_backend
-import secrets
-
-STORE_PATH = Path(__file__).resolve().parent / "store.json"
-_session_key_path = Path.home() / ".local" / "share" / "monmdp" / "session_privkey.b64"
-
-# In-memory master key (None if locked) - not used for wrap; we use session key file
-_master_key: Optional[bytes] = None
-_unlocked_at = None
-UNLOCK_TIMEOUT = 60 * 30
-
-KDF_ITERATIONS = 300_000
-KDF_SALT_LEN = 16
-AES_KEY_LEN = 32
+# monmdp-host.py  -- POC native messaging host
+import sys, json, struct, os, traceback
 
 def read_message():
     raw_len = sys.stdin.buffer.read(4)
@@ -36,221 +16,31 @@ def send_message(obj):
     sys.stdout.buffer.write(encoded)
     sys.stdout.buffer.flush()
 
-def load_store():
-    if not STORE_PATH.exists():
-        return []
-    with STORE_PATH.open("r", encoding="utf-8") as f:
-        try:
-            return json.load(f)
-        except Exception:
-            return []
-
-# NEW: try to find docker-compose.dev.yml in likely locations and return absolute path or None
-def find_docker_compose_file():
-    candidates = []
-    # 1) relative to current working dir
-    candidates.append(Path("docker-compose.dev.yml"))
-    # 2) relative to script location parent hierarchy (if contrib/native is inside the repo)
-    try:
-        repo_root_guess = Path(__file__).resolve().parents[2]  # ../../../contrib/native -> repo root
-        candidates.append(repo_root_guess / "docker-compose.dev.yml")
-    except Exception:
-        pass
-    # 3) user's home default path used in this session
-    candidates.append(Path.home() / "projets" / "gestionnaireMDP" / "docker-compose.dev.yml")
-    # 4) explicit env override
-    envp = os.environ.get("MONMDP_DOCKER_COMPOSE")
-    if envp:
-        candidates.insert(0, Path(envp))
-    for p in candidates:
-        try:
-            if p and p.exists():
-                return str(p)
-        except Exception:
-            continue
-    return None
-
-# fetch ciphertext rows; use absolute compose file when possible
-def fetch_all_ciphertexts():
-    compose_file = find_docker_compose_file()
-    if not compose_file:
-        print("DB query skipped: docker-compose.dev.yml not found in known locations", file=sys.stderr)
-        return []
-    # Build command using the absolute compose file path
-    cmd = (
-        f"docker compose -f {compose_file} exec -T db "
-        f'psql -U mdp_pg_user -d mdp_pg_db -Atc "SELECT id, title, created_at, ciphertext FROM api_passwordentry;"'
-    )
-    try:
-        out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, text=True)
-    except subprocess.CalledProcessError as e:
-        print("DB query failed (cmd):", cmd, file=sys.stderr)
-        print("DB output:", e.output, file=sys.stderr)
-        return []
-    rows = []
-    for line in out.splitlines():
-        if not line.strip():
-            continue
-        parts = line.split("|", 3)
-        if len(parts) != 4:
-            continue
-        id_s, title, created_at, ctext = parts
-        try:
-            cjson = json.loads(ctext)
-        except Exception:
-            try:
-                cjson = json.loads(ctext.replace("''", "'"))
-            except Exception:
-                cjson = None
-        rows.append({"id": int(id_s), "title": title, "created_at": created_at, "ciphertext": cjson})
-    return rows
-
-# load session private key bytes (or None)
-def load_session_privkey():
-    if not _session_key_path.exists():
-        return None
-    b64 = _session_key_path.read_text(encoding='utf-8').strip()
-    try:
-        return base64.b64decode(b64)
-    except Exception:
-        return None
-
-# attempt unwrap and decrypt one record given private key bytes
-def decrypt_record_with_privkey(priv_bytes, record):
-    try:
-        from cryptography.hazmat.primitives import serialization, hashes
-        from cryptography.hazmat.primitives.asymmetric import padding
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        from cryptography.hazmat.backends import default_backend
-    except Exception as e:
-        print("cryptography import failed:", e, file=sys.stderr)
-        return None
-    # load private key (DER or PEM)
-    try:
-        priv_key = serialization.load_der_private_key(priv_bytes, password=None, backend=default_backend())
-    except Exception:
-        try:
-            priv_key = serialization.load_pem_private_key(priv_bytes, password=None, backend=default_backend())
-        except Exception:
-            return None
-    cjson = record.get("ciphertext") or {}
-    iv_b64 = cjson.get("iv")
-    key_b64 = cjson.get("key")
-    data_b64 = cjson.get("data")
-    if not (iv_b64 and key_b64 and data_b64):
-        return None
-    try:
-        enc_key = base64.b64decode(key_b64)
-        # RSA OAEP SHA-256 unwrap
-        try:
-            sym_key = priv_key.decrypt(enc_key, padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
-        except Exception:
-            try:
-                sym_key = priv_key.decrypt(enc_key, padding.PKCS1v15())
-            except Exception:
-                return None
-        iv = base64.b64decode(iv_b64)
-        ct = base64.b64decode(data_b64)
-        aes = AESGCM(sym_key)
-        pt = aes.decrypt(iv, ct, None)
-        try:
-            pdata = json.loads(pt.decode('utf-8'))
-        except Exception:
-            pdata = {"_raw": pt}
-        return pdata
-    except Exception:
-        return None
-
-def native_loop():
-    priv_bytes = load_session_privkey()
-    if priv_bytes is None:
-        msg = read_message()
-        if not msg:
-            return
-        send_message({"status":"locked", "reason":"session_not_unlocked"})
-        return
-    # ready to serve requests
-    while True:
-        msg = read_message()
-        if msg is None:
-            break
-        action = msg.get("action")
-        if action == "getLogins":
-            origin = msg.get("origin", "")
-            rows = fetch_all_ciphertexts()
-            results = []
-            for rec in rows:
-                dec = decrypt_record_with_privkey(priv_bytes, rec)
-                if dec is None:
-                    continue
-                username = dec.get("login") or dec.get("username") or dec.get("user")
-                password = dec.get("password") or dec.get("pass") or dec.get("secret")
-                score = 0
-                if origin:
-                    sorigin = origin.lower()
-                    for v in dec.values():
-                        try:
-                            if isinstance(v, str) and sorigin in v.lower():
-                                score += 2
-                        except Exception:
-                            pass
-                results.append((score, {"id": rec.get("id"), "title": rec.get("title"), "username": username, "password": password, "created_at": rec.get("created_at")}))
-            results_sorted = [r for s,r in sorted(results, key=lambda x: x[0], reverse=True)]
-            send_message({"status":"ok", "logins": results_sorted})
-        else:
-            send_message({"status":"error","reason":"unknown action"})
-    return
-
-# CLI unlock (unchanged, minimal)
-def cli_unlock():
-    try:
-        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-        from cryptography.hazmat.primitives import hashes
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    except Exception:
-        print("Missing 'cryptography' module. Install: python3 -m pip install --user cryptography", file=sys.stderr)
-        return 3
-    KEYBUNDLE = Path.home() / ".config" / "gestionnaireMDP" / "vault-key.json"
-    if not KEYBUNDLE.exists():
-        print("Keybundle not found:", KEYBUNDLE, file=sys.stderr)
-        return 2
-    jb = json.loads(KEYBUNDLE.read_text(encoding='utf-8'))
-    kdf = jb.get("kdf", {})
-    enc = jb.get("enc", {})
-    salt_b64 = kdf.get("salt")
-    iv_b64 = enc.get("iv")
-    data_b64 = jb.get("data")
-    iterations = int(kdf.get("iterations", 200000))
-    if not (salt_b64 and iv_b64 and data_b64):
-        print("Keybundle missing required fields (salt/iv/data).", file=sys.stderr)
-        return 3
-    passwd = getpass.getpass("Saisis ta passphrase pour déverrouiller le keybundle : ")
-    salt = base64.b64decode(salt_b64)
-    iv = base64.b64decode(iv_b64)
-    ct = base64.b64decode(data_b64)
-    PBKDF2HMAC_local = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=iterations, backend=default_backend())
-    try:
-        key = PBKDF2HMAC_local.derive(passwd.encode('utf-8'))
-    except Exception as e:
-        print("Derivation failed:", e, file=sys.stderr); return 4
-    AESGCM_local = AESGCM(key)
-    try:
-        priv = AESGCM_local.decrypt(iv, ct, None)
-    except Exception as e:
-        print("Decrypt keybundle failed (bad passphrase or incompatible params):", e, file=sys.stderr); return 5
-    SESSION_DIR = Path.home() / ".local" / "share" / "monmdp"
-    SESSION_DIR.mkdir(parents=True, exist_ok=True)
-    SESSION_FILE = SESSION_DIR / "session_privkey.b64"
-    SESSION_FILE.write_text(base64.b64encode(priv).decode('ascii'), encoding='utf-8')
-    os.chmod(SESSION_FILE, 0o600)
-    print("Unlocked and stored session key at", SESSION_FILE, file=sys.stderr)
-    return 0
-
 def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "--unlock":
-        return cli_unlock()
+    # Exemple : on peut initialiser ici la connexion à la DB chiffrée
     try:
-        native_loop()
+        while True:
+            msg = read_message()
+            if msg is None:
+                break
+            # Debug : log dans stderr (visible via journal ou processus parent)
+            print("DEBUG host received:", msg, file=sys.stderr)
+            action = msg.get('action')
+            if action == 'getLogins':
+                origin = msg.get('origin')
+                # >>> ICI : faire lookup sécurisé dans ta DB chiffrée
+                # POC : renvoie un login factice si origin contient "example"
+                # Remplace par ta logique (vérifier origine, policy, déverrouillage, etc.)
+                # Exemple de réponse :
+                resp = {
+                    "status": "ok",
+                    "logins": [
+                        {"username": "sylvain", "password": "motdepasse_exemple"}
+                    ]
+                }
+                send_message(resp)
+            else:
+                send_message({"status": "error", "reason": "unknown action"})
     except Exception as e:
         tb = traceback.format_exc()
         print("Host exception: " + str(e) + "\n" + tb, file=sys.stderr)
