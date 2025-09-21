@@ -1,0 +1,32 @@
+{
+  "manifest_version": 2,
+  "name": "MonMDP Autofill POC",
+  "version": "0.1",
+  "description": "Extension POC : demande le login au host natif et remplit les formulaires de connexion.",
+  "permissions": [
+    "nativeMessaging",
+    "<all_urls>",
+    "storage"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content_script.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "applications": {
+    "gecko": {
+      "id": "monmdp@example.org"
+    }
+  }
+}

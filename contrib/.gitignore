@@ -1,0 +1,3 @@
+contrib/native/*.pyc
+contrib/native/*.db
+contrib/test/*~

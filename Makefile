@@ -11,8 +11,10 @@ SHELL := /bin/bash
 # Détecte l'environnement courant via le symlink .env
 APP_ENV := $(shell . ./.env; echo $$APP_ENV)
 COMPOSE := docker compose --env-file .env.$(APP_ENV) -f docker-compose.$(APP_ENV).yml
+TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.venv|backups|project-tree-*.txt|*.py[co]|*.sqlite3|*.log|*.cache|*.cookies|*.sql|*.sql.gz|*.dump|*.bak
 
 .PHONY: help env-check \
+ tree \
  up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
  backup-db restore-db reset-dev-db seed-dev psql \
  up-backend up-db up-vite stop-backend stop-db stop-vite restart-backend restart-db restart-vite \
@@ -24,6 +26,9 @@ help: ## Liste les commandes disponibles
 	 | sed -E 's/^([a-zA-Z0-9_-]+):.*## (.*)$$/\1\t\2/' \
 	 | sort -f \
 	 | awk -F'\t' '{printf "  \033[36m%-24s\033[0m %s\n", $$1, $$2}'
+
+tree: ## Arborescence du projet (4 niveaux, ignore les artefacts courants)
+	@tree -L 4 --dirsfirst --prune -I "$(TREE_IGNORE)"
 
 env-check: ## Vérifie .env -> .env.$(APP_ENV) et docker-compose.$(APP_ENV).yml
 	test -L .env || { echo "Symlink .env manquant (ex: ln -snf .env.dev .env)"; exit 1; }
