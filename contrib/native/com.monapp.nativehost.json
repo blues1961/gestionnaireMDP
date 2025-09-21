@@ -1,0 +1,9 @@
+{
+  "name": "com.monapp.nativehost",
+  "description": "MonMDP native messaging host (POC)",
+  "path": "/usr/local/bin/monmdp-host",
+  "type": "stdio",
+  "allowed_extensions": [
+    "monmdp@example.org"
+  ]
+}

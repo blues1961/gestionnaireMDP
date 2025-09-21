@@ -17,10 +17,21 @@ backups/**
 *.tar.gz
 *.dump
 
-# Secrets & env (ne jamais versionner, sauf l'exemple)
+# Secrets & env (ne jamais versionner, sauf les templates)
 .env
 .env.*
+!.env.dev
+!.env.prod
 !.env.example
+!.env.dev.example
+!.env.prod.example
+.env.dev.local
+.env.prod.local
+.env.*.local
+.env.local
+.envrc
+!.env.dev.local.example
+!.env.prod.local.example
 
 # Cookies / tokens
 *.cookies
@@ -45,24 +56,3 @@ frontend/nginx.dev.conf
 frontend/nginx.resolver.conf
 frontend/.env.development
 frontend/.env.development.local
-.env.dev.local
-.env.prod.local
-# --- envs ---
-.env.*.local
-.env.local
-.envrc
-# gardés en repo
-!.env.dev
-!.env.prod
-!.env.dev.example
-!.env.prod.example
-# --- envs (secrets non commités) ---
-.env.*.local
-.env.local
-.envrc
-
-# --- on garde ces fichiers (non sensibles / templates secrets) ---
-!.env.dev
-!.env.prod
-!.env.dev.local.example
-!.env.prod.local.example

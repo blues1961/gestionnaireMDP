@@ -92,7 +92,7 @@ docker compose -f docker-compose.dev.yml up --build
 ---
 
 ## 7) Autofill (navigateur + Android)
-- Un dossier `webextension/` fournit une ébauche d'extension Manifest V3 (content script simple) pour autofill.
+- Le dossier `contrib/extension/` fournit un proof-of-concept d'extension navigateur (manifest v2) avec content script et background script.
 - Android (Chrome/Firefox mobile) : chargez l'extension en mode développeur ou utilisez le PWA + clipboard sécurisé en attendant une intégration plus poussée.
 - Le frontend fournit un bouton "Remplir" sur la page d'un site enregistré (détection d’URL).
 
