@@ -3,6 +3,7 @@
 import sys, json, struct, os, base64, traceback, time, subprocess
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -79,7 +80,7 @@ def fetch_all_ciphertexts():
     # Build command using the absolute compose file path
     cmd = (
         f"docker compose -f {compose_file} exec -T db "
-        f'psql -U mdp_pg_user -d mdp_pg_db -Atc "SELECT id, title, created_at, ciphertext FROM api_passwordentry;"'
+        f'psql -U mdp_pg_user -d mdp_pg_db -Atc "SELECT id, title, url, created_at, ciphertext FROM api_passwordentry;"'
     )
     try:
         out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, text=True)
@@ -91,10 +92,10 @@ def fetch_all_ciphertexts():
     for line in out.splitlines():
         if not line.strip():
             continue
-        parts = line.split("|", 3)
-        if len(parts) != 4:
+        parts = line.split("|", 4)
+        if len(parts) != 5:
             continue
-        id_s, title, created_at, ctext = parts
+        id_s, title, url, created_at, ctext = parts
         try:
             cjson = json.loads(ctext)
         except Exception:
@@ -102,7 +103,13 @@ def fetch_all_ciphertexts():
                 cjson = json.loads(ctext.replace("''", "'"))
             except Exception:
                 cjson = None
-        rows.append({"id": int(id_s), "title": title, "created_at": created_at, "ciphertext": cjson})
+        rows.append({
+            "id": int(id_s),
+            "title": title,
+            "url": url,
+            "created_at": created_at,
+            "ciphertext": cjson
+        })
     return rows
 
 # load session private key bytes (or None)
@@ -161,6 +168,23 @@ def decrypt_record_with_privkey(priv_bytes, record):
     except Exception:
         return None
 
+def normalize_origin_from_url(url_value):
+    if not url_value or not isinstance(url_value, str):
+        return None
+    candidate = url_value.strip()
+    if not candidate:
+        return None
+    if '://' not in candidate:
+        candidate = f"https://{candidate}"
+    try:
+        parsed = urlparse(candidate)
+    except Exception:
+        return None
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
+
+
 def native_loop():
     priv_bytes = load_session_privkey()
     if priv_bytes is None:
@@ -185,16 +209,41 @@ def native_loop():
                     continue
                 username = dec.get("login") or dec.get("username") or dec.get("user")
                 password = dec.get("password") or dec.get("pass") or dec.get("secret")
+                url_field = (
+                    dec.get("url") or dec.get("website") or dec.get("site") or dec.get("uri")
+                    or rec.get("url")
+                )
+                entry_origin = normalize_origin_from_url(url_field)
+
                 score = 0
                 if origin:
                     sorigin = origin.lower()
+                    if entry_origin:
+                        if entry_origin == sorigin:
+                            score += 50
+                        elif entry_origin in sorigin or sorigin in entry_origin:
+                            score += 15
                     for v in dec.values():
                         try:
                             if isinstance(v, str) and sorigin in v.lower():
                                 score += 2
                         except Exception:
                             pass
-                results.append((score, {"id": rec.get("id"), "title": rec.get("title"), "username": username, "password": password, "created_at": rec.get("created_at")}))
+                if username and isinstance(username, str):
+                    uname = username.strip().lower()
+                    if uname in {"user", "username", "utilisateur", "default", "admin"}:
+                        score -= 5
+
+                results.append((score, {
+                    "id": rec.get("id"),
+                    "title": rec.get("title"),
+                    "username": username,
+                    "password": password,
+                    "created_at": rec.get("created_at"),
+                    "url": url_field,
+                    "origin": entry_origin,
+                    "score": score
+                }))
             results_sorted = [r for s,r in sorted(results, key=lambda x: x[0], reverse=True)]
             send_message({"status":"ok", "logins": results_sorted})
         else:

@@ -10,6 +10,7 @@
   ],
   "background": {
     "scripts": [
+      "site_rules.js",
       "background.js"
     ]
   },
@@ -19,6 +20,7 @@
         "<all_urls>"
       ],
       "js": [
+        "site_rules.js",
         "content_script.js"
       ],
       "run_at": "document_idle"
