@@ -56,3 +56,4 @@ frontend/nginx.dev.conf
 frontend/nginx.resolver.conf
 frontend/.env.development
 frontend/.env.development.local
+dist/
