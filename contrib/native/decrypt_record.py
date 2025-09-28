@@ -7,7 +7,7 @@ DB_SERVICE = "db"
 DB_USER = "mdp_pg_user"
 DB_NAME = "mdp_pg_db"
 TABLE = "api_passwordentry"
-RECORD_ID = 59  # id du record à tester (tel que fourni)
+RECORD_ID = 63 # id du record à tester (tel que fourni)
 
 KEYBUNDLE_PATH = Path.home() / ".config" / "gestionnaireMDP" / "vault-key.json"
 if not KEYBUNDLE_PATH.exists():
