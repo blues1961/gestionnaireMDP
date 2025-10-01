@@ -15,9 +15,10 @@ import KeyCheck from "./components/KeyCheck";
 import KeyBackup from "./components/KeyBackup";
 import CategoryGuide from "./components/CategoryGuide";
 import { setAccessToken } from "./api";
+import monSiteLogo from "./assets/mon-site-logo.png";
 
-// Slug d'application injecté via Vite/env
-const APP_SLUG_LABEL = String(import.meta?.env?.VITE_APP_SLUG || import.meta?.env?.APP_SLUG || 'mdp').toUpperCase();
+// Nom d'application injecté via Vite/env
+const APP_NAME = String(import.meta?.env?.APP_NAME || import.meta?.env?.VITE_APP_NAME || '').trim() || 'Gestionnaire MDP';
 
 // Source unique de vérité pour l'access token
 function getStoredAccessToken() {
@@ -50,7 +51,14 @@ function NavBar() {
   return (
     <header style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
       <div className="container" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px' }}>
-        <Link to="/vault" style={{ fontWeight: 700, color: 'var(--text)', textDecoration: 'none' }}>{APP_SLUG_LABEL}</Link>
+        <Link
+          to="/vault"
+          style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)', textDecoration: 'none', fontWeight: 700 }}
+          aria-label={`Accueil ${APP_NAME}`}
+        >
+          <img src={monSiteLogo} alt="mon-site.ca" style={{ height: 28 }} />
+          <span>{APP_NAME}</span>
+        </Link>
         <nav className="row" style={{ gap: 12 }}>
           <Link to="/vault/categories" className="link">Catégories</Link>
           <Link to="/vault/key-check" className="link">Vérif clé</Link>
@@ -120,9 +128,8 @@ function PasswordEditPage() {
 
 function LoginPage() {
   return (
-    <div className="p-6 max-w-md mx-auto">
-      <h1 className="text-xl font-semibold mb-4" style={{ margin: 0 }}>{APP_SLUG_LABEL}</h1>
-      <LoginForm />
+    <div className="page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: 24 }}>
+      <LoginForm appName={APP_NAME} />
     </div>
   );
 }
