@@ -112,15 +112,84 @@ def fetch_all_ciphertexts():
         })
     return rows
 
-# load session private key bytes (or None)
 def load_session_privkey():
-    if not _session_key_path.exists():
-        return None
-    b64 = _session_key_path.read_text(encoding='utf-8').strip()
+    """
+    Source de vérité (dans l'ordre) :
+    1) MONMDP_KEY_PATH (par défaut: ~/.config/gestionnaireMDP/vault-key.json)
+       - si .json : chercher des champs clé (b64 ou PEM)
+       - sinon : traiter le fichier comme PEM ou Base64 direct
+    2) Fallback legacy: ~/.local/share/monmdp/session_privkey.b64 (Base64)
+    Retourne des bytes (DER ou PEM), ou None si introuvable.
+    """
     try:
-        return base64.b64decode(b64)
+        from pathlib import Path
+        import os, json, base64
     except Exception:
         return None
+
+    # 1) Chemin priorité: env ou défaut JSON
+    key_path = os.environ.get(
+        "MONMDP_KEY_PATH",
+        str(Path.home() / ".config" / "gestionnaireMDP" / "vault-key.json")
+    )
+    p = Path(os.path.expanduser(key_path))
+
+    def _maybe_decode(s: str):
+        s = (s or "").strip()
+        if not s:
+            return None
+        if s.startswith("-----BEGIN"):
+            # PEM en clair
+            return s.encode("utf-8")
+        # sinon tenter Base64 -> bytes (DER)
+        try:
+            return base64.b64decode(s)
+        except Exception:
+            return None
+
+    # 1a) Si le fichier spécifié existe
+    if p.exists():
+        if p.suffix.lower() == ".json":
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                data = None
+            if isinstance(data, dict):
+                # Priorité des champs (surchargeable via env)
+                field_list = os.environ.get(
+                    "MONMDP_KEY_JSON_FIELD",
+                    "private_key_b64,private_key,session_privkey_b64,session_privkey,key_b64,key"
+                )
+                for field in [f.strip() for f in field_list.split(",") if f.strip()]:
+                    v = data.get(field)
+                    if not v:
+                        continue
+                    b = _maybe_decode(str(v))
+                    if b:
+                        return b
+        else:
+            # Fichier non-JSON → PEM ou Base64 direct
+            try:
+                s = p.read_text(encoding="utf-8")
+            except Exception:
+                s = None
+            b = _maybe_decode(s or "")
+            if b:
+                return b
+
+    # 2) Fallback legacy (~/.local/share/monmdp/session_privkey.b64)
+    legacy = Path.home() / ".local" / "share" / "monmdp" / "session_privkey.b64"
+    if legacy.exists():
+        try:
+            s = legacy.read_text(encoding="utf-8").strip()
+            b = _maybe_decode(s)
+            if b:
+                return b
+        except Exception:
+            pass
+
+    return None
+
 
 # attempt unwrap and decrypt one record given private key bytes
 def decrypt_record_with_privkey(priv_bytes, record):
