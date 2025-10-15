@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>GestionnaireMDP</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 12px;
+      font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: #1f2532;
+      background: #f5f7fb;
+      min-width: 280px;
+    }
+    h1 {
+      font-size: 16px;
+      margin: 0 0 8px 0;
+      font-weight: 600;
+    }
+    .status {
+      background: #fff;
+      border-radius: 6px;
+      padding: 10px;
+      box-shadow: 0 1px 4px rgba(17, 22, 34, 0.08);
+      margin-bottom: 10px;
+    }
+    .status ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .status li {
+      margin: 4px 0;
+    }
+    .status .ok {
+      color: #1f7a4d;
+      font-weight: 600;
+    }
+    .status .warn {
+      color: #b95000;
+      font-weight: 600;
+    }
+    .matches {
+      background: #fff;
+      border-radius: 6px;
+      padding: 10px;
+      box-shadow: 0 1px 4px rgba(17, 22, 34, 0.08);
+      margin-bottom: 10px;
+    }
+    .matches h2 {
+      font-size: 14px;
+      margin: 0 0 6px 0;
+    }
+    .matches ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 140px;
+      overflow-y: auto;
+    }
+    .matches li {
+      padding: 4px 0;
+      border-bottom: 1px solid #e1e5f0;
+    }
+    .matches li:last-child {
+      border-bottom: none;
+    }
+    .matches .title {
+      font-weight: 600;
+    }
+    .buttons {
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      flex: 1;
+      border: none;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #2f4cdd;
+      color: #fff;
+    }
+    button.secondary {
+      background: #e1e5f0;
+      color: #182036;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .message {
+      margin-top: 8px;
+      color: #b95000;
+    }
+  </style>
+</head>
+<body>
+  <h1>GestionnaireMDP</h1>
+  <section class="status">
+    <ul id="status-list"></ul>
+  </section>
+  <section class="matches">
+    <h2>Identifiants détectés</h2>
+    <ul id="match-list"></ul>
+    <div id="match-empty" style="display:none;color:#555;">Aucun résultat pour cet onglet.</div>
+  </section>
+  <div class="buttons">
+    <button type="button" id="open-options">Options</button>
+    <button type="button" class="secondary" id="refresh">Rafraîchir</button>
+  </div>
+  <div class="message" id="message"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

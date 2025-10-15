@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>GestionnaireMDP — Options</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #f0f2f8;
+      color: #1f2532;
+    }
+    main {
+      max-width: 720px;
+      margin: 24px auto;
+      background: #fff;
+      border-radius: 10px;
+      padding: 24px;
+      box-shadow: 0 12px 32px rgba(17, 22, 34, 0.12);
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 24px;
+      font-weight: 700;
+    }
+    h2 {
+      font-size: 18px;
+      margin-bottom: 12px;
+      margin-top: 28px;
+      font-weight: 600;
+    }
+    form {
+      display: grid;
+      gap: 10px;
+    }
+    label {
+      font-weight: 600;
+      display: block;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="file"],
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 6px;
+      border: 1px solid #c7ccdd;
+      padding: 10px;
+      font: inherit;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+    button {
+      background: #2f4cdd;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #e1e5f0;
+      color: #182036;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .row button {
+      flex: 0 0 auto;
+    }
+    .status-card {
+      background: #f6f8ff;
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid #d9def2;
+    }
+    .status-card ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+    .message {
+      margin-top: 16px;
+      font-weight: 600;
+    }
+    .message.ok {
+      color: #1f7a4d;
+    }
+    .message.err {
+      color: #b95000;
+    }
+    .small {
+      font-size: 12px;
+      color: #555;
+    }
+    .inline {
+      display: inline-flex;
+      gap: 12px;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>GestionnaireMDP — Options</h1>
+
+    <section class="status-card">
+      <strong>État actuel</strong>
+      <ul id="status-info"></ul>
+    </section>
+
+    <section>
+      <h2>Serveur &amp; API</h2>
+      <form id="config-form">
+        <div>
+          <label for="api-base">URL de base de l’API (ex&nbsp;: https://vault.exemple.tld/api/)</label>
+          <input id="api-base" type="text" placeholder="https://…" autocomplete="off" required>
+        </div>
+        <div class="row">
+          <button type="submit" id="save-config">Enregistrer</button>
+        </div>
+        <div class="small">Créez d’abord un compte sur l’application web puis fournissez ici l’URL exacte.</div>
+      </form>
+    </section>
+
+    <section>
+      <h2>Authentification</h2>
+      <form id="login-form">
+        <div>
+          <label for="username">Nom d’utilisateur</label>
+          <input id="username" type="text" autocomplete="username">
+        </div>
+        <div>
+          <label for="password">Mot de passe</label>
+          <input id="password" type="password" autocomplete="current-password">
+        </div>
+        <div class="row">
+          <button type="submit" id="login-btn">Se connecter</button>
+          <button type="button" class="secondary" id="logout-btn">Se déconnecter</button>
+        </div>
+        <div class="small">Les jetons JWT sont stockés dans l’extension pour récupérer le coffre chiffré.</div>
+      </form>
+    </section>
+
+    <section>
+      <h2>Clé privée (vault-key.json)</h2>
+      <form id="key-form">
+        <div>
+          <label for="key-file">Fichier exporté depuis l’application (vault-key.json)</label>
+          <input id="key-file" type="file" accept=".json,application/json">
+        </div>
+        <div>
+          <label for="key-passphrase">Passphrase du keybundle</label>
+          <input id="key-passphrase" type="password" placeholder="Passphrase utilisée lors de l’export" autocomplete="off">
+        </div>
+        <div class="row">
+          <button type="submit" id="import-key-btn">Importer</button>
+          <button type="button" class="secondary" id="forget-key-btn">Oublier la clé</button>
+        </div>
+        <div class="small">L’extension utilise cette clé pour déchiffrer localement les logins.</div>
+      </form>
+    </section>
+
+    <section>
+      <h2>Maintenance</h2>
+      <div class="inline">
+        <button type="button" id="force-refresh">Rafraîchir le coffre maintenant</button>
+        <span class="small">Force la synchronisation depuis l’API.</span>
+      </div>
+    </section>
+
+    <div class="message" id="status-message"></div>
+  </main>
+
+  <script src="options.js"></script>
+</body>
+</html>

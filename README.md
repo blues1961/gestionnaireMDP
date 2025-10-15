@@ -92,7 +92,8 @@ docker compose -f docker-compose.dev.yml up --build
 ---
 
 ## 7) Autofill (navigateur + Android)
-- Le dossier `contrib/extension/` fournit un proof-of-concept d'extension navigateur (manifest v2) avec content script et background script.
+- Le dossier `contrib/firefox-extension/` contient l’extension Firefox complète (manifest v2) avec popup/options + autofill. Voir `contrib/README_AUTOFILL.md`.
+- L’ancien proof-of-concept basé sur host natif reste disponible dans `contrib/extension/`.
 - Android (Chrome/Firefox mobile) : chargez l'extension en mode développeur ou utilisez le PWA + clipboard sécurisé en attendant une intégration plus poussée.
 - Le frontend fournit un bouton "Remplir" sur la page d'un site enregistré (détection d’URL).
 
