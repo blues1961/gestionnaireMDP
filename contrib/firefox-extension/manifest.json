@@ -1,0 +1,43 @@
+{
+  "manifest_version": 2,
+  "name": "GestionnaireMDP Autofill",
+  "version": "0.1.0",
+  "description": "Extension Firefox pour récupérer les identifiants chiffrés depuis GestionnaireMDP et remplir automatiquement les formulaires de connexion.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": [
+      "crypto.js",
+      "background.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "site_rules.js",
+        "content_script.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_action": {
+    "default_title": "GestionnaireMDP",
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "applications": {
+    "gecko": {
+      "id": "gestionnairemdp-autofill@example.org"
+    }
+  }
+}

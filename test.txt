@@ -1,0 +1,465 @@
+{
+  "status": "ok",
+  "logins": [
+    {
+      "id": 43,
+      "title": "linode ubuntu backend django superuser",
+      "username": "sylvain",
+      "password": "12M@ison12",
+      "created_at": "2025-08-15 09:33:03.318954+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    },
+    {
+      "id": 47,
+      "title": "GMF Azur",
+      "username": "blues1961@gmail.com",
+      "password": "ad7SjF?ScEN]!kY",
+      "created_at": "2025-08-20 12:04:54.146311+00",
+      "url": "https://gmfrazur.portail.medfarsolutions.com/fr/login",
+      "origin": "https://gmfrazur.portail.medfarsolutions.com",
+      "score": 0
+    },
+    {
+      "id": 44,
+      "title": "hydro-quebec espace client",
+      "username": "blues1961@gmail.com",
+      "password": "P2aantUN65vPvBH",
+      "created_at": "2025-08-15 21:35:21.046412+00",
+      "url": "https://www.hydroquebec.com/residentiel/espace-clients/",
+      "origin": "https://www.hydroquebec.com",
+      "score": 0
+    },
+    {
+      "id": 48,
+      "title": "OUTLOOK -sylvainarbour",
+      "username": "sylvainarbour@outlook.com",
+      "password": "5XS4wsezztn5CjR",
+      "created_at": "2025-08-20 12:43:15.497321+00",
+      "url": "https://outlook.com",
+      "origin": "https://outlook.com",
+      "score": 0
+    },
+    {
+      "id": 10,
+      "title": "clé ssh thinkpad",
+      "username": "blues1961",
+      "password": "Jemesouviens101",
+      "created_at": "2025-08-12 18:44:12.546304+00",
+      "url": "https://github.com",
+      "origin": "https://github.com",
+      "score": 0
+    },
+    {
+      "id": 23,
+      "title": "Desktop System76 Thelio",
+      "username": "sylvain",
+      "password": "Jemesouviens101",
+      "created_at": "2025-08-13 08:10:48.189972+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    },
+    {
+      "id": 14,
+      "title": "Jejouedelaguitare",
+      "username": "blues1961@gmail.com",
+      "password": "b=L%#,t-\"ZJYn5;",
+      "created_at": "2025-08-12 19:31:25.659392+00",
+      "url": "https://www.jejouedelaguitare.com",
+      "origin": "https://www.jejouedelaguitare.com",
+      "score": 0
+    },
+    {
+      "id": 20,
+      "title": "Synology",
+      "username": "blues1961@gmail.com",
+      "password": "Dv75JHsZeg/]}7Sn",
+      "created_at": "2025-08-13 02:14:18.652553+00",
+      "url": "https://www.synology.com/en-ca",
+      "origin": "https://www.synology.com",
+      "score": 0
+    },
+    {
+      "id": 9,
+      "title": "fichier clé rsa",
+      "username": "RSA - navigateur",
+      "password": "jemesouviens",
+      "created_at": "2025-08-12 13:22:22.726366+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    },
+    {
+      "id": 11,
+      "title": "Dropbox",
+      "username": "blues1961@gmail.com",
+      "password": "GitrqMEcd3b6V5c",
+      "created_at": "2025-08-12 18:59:04.215965+00",
+      "url": "https://dropbox.com",
+      "origin": "https://dropbox.com",
+      "score": 0
+    },
+    {
+      "id": 15,
+      "title": "WIFI BELL211",
+      "username": "BELL211",
+      "password": "A3C59626AC33",
+      "created_at": "2025-08-12 19:37:44.323049+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    },
+    {
+      "id": 16,
+      "title": "WIFI BELL211-V",
+      "username": "BELL211-V",
+      "password": "514-715-3013",
+      "created_at": "2025-08-12 19:39:01.523979+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    },
+    {
+      "id": 17,
+      "title": "Linode ubuntu root",
+      "username": "root",
+      "password": "Jemesouviens101",
+      "created_at": "2025-08-13 00:39:46.984655+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    },
+    {
+      "id": 19,
+      "title": "PAYPAL",
+      "username": "blues1961@gmail.com",
+      "password": "vt63SNGsBQpPR8h",
+      "created_at": "2025-08-13 02:04:07.599479+00",
+      "url": "https://www.paypal.com/ca/home",
+      "origin": "https://www.paypal.com",
+      "score": 0
+    },
+    {
+      "id": 21,
+      "title": "Linode Ubuntu Sylvain",
+      "username": "sylvain",
+      "password": "12M@ison12",
+      "created_at": "2025-08-13 05:59:28.10054+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    },
+    {
+      "id": 22,
+      "title": "Laptop System76 lemur10",
+      "username": "sylvain",
+      "password": "12M@ison12",
+      "created_at": "2025-08-13 08:09:50.197428+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    },
+    {
+      "id": 24,
+      "title": "Laptop Lenovo Thinkpad",
+      "username": "sylvain",
+      "password": "12M@ison12",
+      "created_at": "2025-08-13 08:11:37.669178+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    },
+    {
+      "id": 18,
+      "title": "Linode",
+      "username": "blues1961",
+      "password": "5m{0tBi]W1/f&sO4$S!Z",
+      "created_at": "2025-08-13 01:00:37.208335+00",
+      "url": "https://login.linode.com/login",
+      "origin": "https://login.linode.com",
+      "score": 0
+    },
+    {
+      "id": 29,
+      "title": "DISCORD",
+      "username": "blues1961@gmail.com",
+      "password": "RdO^v1P8;ZZsW[=s#{GY",
+      "created_at": "2025-08-13 14:08:50.18504+00",
+      "url": "https://discord.com",
+      "origin": "https://discord.com",
+      "score": 0
+    },
+    {
+      "id": 30,
+      "title": "PrimeVideo",
+      "username": "blues1961@gmail.com",
+      "password": "XXjrZuRa5Hu6t4m",
+      "created_at": "2025-08-13 19:31:12.620931+00",
+      "url": "https://primevideo.com",
+      "origin": "https://primevideo.com",
+      "score": 0
+    },
+    {
+      "id": 33,
+      "title": "Gestionnaire MDP Django Sylvain",
+      "username": "sylvain",
+      "password": "12M@ison12",
+      "created_at": "2025-08-14 00:44:57.843352+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    },
+    {
+      "id": 32,
+      "title": "Gestionnaire MDP Django root",
+      "username": "root",
+      "password": "Jemesouviens101",
+      "created_at": "2025-08-14 00:43:36.226482+00",
+      "url": "https://localhost:8000/admin",
+      "origin": "https://localhost:8000",
+      "score": 0
+    },
+    {
+      "id": 40,
+      "title": "CAA-QUEBEC",
+      "username": "blues1961@gmail.com",
+      "password": "fmJuWMJO]s:Md4};0*(N",
+      "created_at": "2025-08-14 19:02:59.970909+00",
+      "url": "https://www.caaquebec.com/fr",
+      "origin": "https://www.caaquebec.com",
+      "score": 0
+    },
+    {
+      "id": 41,
+      "title": "Ricardo Cuisine",
+      "username": "blues1961@gmail.com",
+      "password": "2JKz2zJKDy67jCj",
+      "created_at": "2025-08-14 19:32:38.39471+00",
+      "url": "https://ricardocuisine.com",
+      "origin": "https://ricardocuisine.com",
+      "score": 0
+    },
+    {
+      "id": 31,
+      "title": "Amazon canada",
+      "username": "blues1961@gmail.com",
+      "password": "XXjrZuRa5Hu6t4m",
+      "created_at": "2025-08-13 19:32:27.128424+00",
+      "url": "https://www.amazon.ca",
+      "origin": "https://www.amazon.ca",
+      "score": 0
+    },
+    {
+      "id": 42,
+      "title": "GoDaddy",
+      "username": "blues1961@gmail.com",
+      "password": "=17o:@),-^y[%XS*hy=}",
+      "created_at": "2025-08-15 02:56:58.54228+00",
+      "url": "https://goddady.com",
+      "origin": "https://goddady.com",
+      "score": 0
+    },
+    {
+      "id": 49,
+      "title": "GIT PUSH GIT PULL THINKAD",
+      "username": "GIT-PULL",
+      "password": "jemesouviens",
+      "created_at": "2025-08-25 05:13:49.787434+00",
+      "url": "https://github.com",
+      "origin": "https://github.com",
+      "score": 0
+    },
+    {
+      "id": 52,
+      "title": "GITHUB",
+      "username": "blues1961@gmail.com",
+      "password": "AU6M75isMSNcUp5o",
+      "created_at": "2025-08-27 20:02:21.990466+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    },
+    {
+      "id": 54,
+      "title": "Retraite Québec",
+      "username": "blues1961",
+      "password": "K8KNr9D)Ce9/efD{",
+      "created_at": "2025-08-28 11:23:53.479693+00",
+      "url": "https://www.retraitequebec.gouv.qc.ca/fr/services-en-ligne-outils/Pages/connexion.aspx",
+      "origin": "https://www.retraitequebec.gouv.qc.ca",
+      "score": 0
+    },
+    {
+      "id": 53,
+      "title": "Service d'Authentification Gouvernementale (Québec)",
+      "username": "blues1961",
+      "password": "K8KNr9D)Ce9/efD{",
+      "created_at": "2025-08-28 11:04:47.335715+00",
+      "url": "https://www.quebec.ca/gouvernement/identite-numerique/authentification-gouvernementale/acceder-service-authentification-gouvernementale",
+      "origin": "https://www.quebec.ca",
+      "score": 0
+    },
+    {
+      "id": 55,
+      "title": "Application Calendrier POSTGRES_PASSWORD",
+      "username": "mdpuser",
+      "password": "Ycb3LprflZTpn5v5nwRr",
+      "created_at": "2025-08-29 07:49:02.521763+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    },
+    {
+      "id": 56,
+      "title": "Application Calendrier DJANGO_SECRET_KEY",
+      "username": "DJANGO_SECRET_KEY",
+      "password": "YOsEjH7gbdH50seZCFKN",
+      "created_at": "2025-08-29 07:55:44.188498+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    },
+    {
+      "id": 57,
+      "title": "Application Calendrier Django superutilisateur",
+      "username": "sylvain",
+      "password": "12M@ison12",
+      "created_at": "2025-08-29 09:56:03.185365+00",
+      "url": "https://localhost:8002",
+      "origin": "https://localhost:8002",
+      "score": 0
+    },
+    {
+      "id": 45,
+      "title": "Spotify",
+      "username": "blues1961@gmail.com",
+      "password": "O;\\ufL>1AY4.",
+      "created_at": "2025-08-15 21:58:45.665638+00",
+      "url": "https://spotify.com",
+      "origin": "https://spotify.com",
+      "score": 0
+    },
+    {
+      "id": 61,
+      "title": "EBAY CANADA",
+      "username": "blues1961@gmail.com",
+      "password": "v56BsHxcl3Ft2yaNgndF",
+      "created_at": "2025-09-22 02:03:27.349365+00",
+      "url": "https://ebay.ca",
+      "origin": "https://ebay.ca",
+      "score": 0
+    },
+    {
+      "id": 59,
+      "title": "MON - BELL",
+      "username": "blues1961@gmail.com",
+      "password": "A^/1s!Kw]=p#ni@j.Y1N",
+      "created_at": "2025-09-09 11:21:44.909892+00",
+      "url": "https://mybell.bell.ca",
+      "origin": "https://mybell.bell.ca",
+      "score": 0
+    },
+    {
+      "id": 60,
+      "title": "QIDIGO",
+      "username": "blues1961@gmail.com",
+      "password": "V6WaN3}.kI_RlC:2)XAb",
+      "created_at": "2025-09-14 23:59:16.402893+00",
+      "url": "https://qidigo.com",
+      "origin": "https://qidigo.com",
+      "score": 0
+    },
+    {
+      "id": 13,
+      "title": "wnba - leaguepass",
+      "username": "153lz7l1j@mozmail.com",
+      "password": "3awVEAaH.,b&hki",
+      "created_at": "2025-08-12 19:27:38.606204+00",
+      "url": "https://leaguepass.wnba.com/home",
+      "origin": "https://leaguepass.wnba.com",
+      "score": 0
+    },
+    {
+      "id": 62,
+      "title": "SYNOLOGY-NAS",
+      "username": "sylvain",
+      "password": "12M@ison12",
+      "created_at": "2025-09-23 00:28:15.044763+00",
+      "url": "https://sylvainarbour.us5.quickconnect.to/#/signin",
+      "origin": "https://sylvainarbour.us5.quickconnect.to",
+      "score": 0
+    },
+    {
+      "id": 63,
+      "title": "SSH – id_ed25519 (ThinkPad)",
+      "username": "sylvain",
+      "password": "Jemesouviens101",
+      "created_at": "2025-09-25 00:59:48.136308+00",
+      "url": "https://192.46.222.52",
+      "origin": "https://192.46.222.52",
+      "score": 0
+    },
+    {
+      "id": 64,
+      "title": "pharmacie proxym",
+      "username": "blues1961@gmail.com",
+      "password": "E+CKzk56w;{WYdOPM3&l",
+      "created_at": "2025-09-26 01:45:43.000131+00",
+      "url": "https://app.groupeproxim.ca/",
+      "origin": "https://app.groupeproxim.ca",
+      "score": 0
+    },
+    {
+      "id": 66,
+      "title": "CAL.MON-SITE.CA",
+      "username": "sylvain",
+      "password": "12M@ison12",
+      "created_at": "2025-09-27 23:23:50.008104+00",
+      "url": "https://cal.mon-site.ca",
+      "origin": "https://cal.mon-site.ca",
+      "score": 0
+    },
+    {
+      "id": 67,
+      "title": "A30 Transpondeur",
+      "username": "sylvainarbour@outlook.com",
+      "password": "!QX0ExtcAdF-Ai4",
+      "created_at": "2025-09-28 14:35:38.427311+00",
+      "url": "https://www.a30secure.com",
+      "origin": "https://www.a30secure.com",
+      "score": 0
+    },
+    {
+      "id": 65,
+      "title": "MDP.MON-SITE.CA",
+      "username": "sylvain",
+      "password": "12M@ison12",
+      "created_at": "2025-09-27 21:43:33.091836+00",
+      "url": "https://mdp.mon-site.ca",
+      "origin": "https://mdp.mon-site.ca",
+      "score": 0
+    },
+    {
+      "id": 12,
+      "title": "BANQUE SCOTIA",
+      "username": "4536007117060400",
+      "password": "%'7T7wU~qs#Y",
+      "created_at": "2025-08-12 19:03:07.347424+00",
+      "url": "https://banquescotia.com",
+      "origin": "https://banquescotia.com",
+      "score": 0
+    },
+    {
+      "id": 69,
+      "title": "samsung  A32 5g",
+      "username": "5147153013",
+      "password": "12M@ison12",
+      "created_at": "2025-09-30 12:07:32.883546+00",
+      "url": "",
+      "origin": null,
+      "score": 0
+    }
+  ]
+}

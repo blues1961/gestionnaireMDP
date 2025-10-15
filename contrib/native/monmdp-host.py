@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # monmdp-host.py - Native messaging host with docker-compose path detection
-import sys, json, struct, os, base64, traceback, time, subprocess
+import sys, json, struct, os, base64, traceback, time, subprocess, re
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -254,6 +254,142 @@ def normalize_origin_from_url(url_value):
     return f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
 
 
+def _hostname_from_url(url_value):
+    if not url_value or not isinstance(url_value, str):
+        return None
+    candidate = url_value.strip()
+    if not candidate:
+        return None
+    if '://' not in candidate:
+        candidate = f"https://{candidate}"
+    try:
+        parsed = urlparse(candidate)
+    except Exception:
+        return None
+    host = parsed.hostname or parsed.netloc
+    if not host:
+        return None
+    return host.lower()
+
+
+COMMON_SECOND_LEVEL_TLDS = {
+    "co.uk", "org.uk", "gov.uk", "ac.uk",
+    "co.jp", "ne.jp", "or.jp", "go.jp",
+    "com.au", "net.au", "org.au", "edu.au",
+    "com.br", "com.ar", "com.mx", "com.cn",
+    "com.hk", "com.sg", "com.tr", "com.sa",
+    "com.pl", "com.ru", "com.za", "co.za",
+}
+
+
+GENERIC_TOKEN_PARTS = {
+    "www", "web", "login", "logins", "signin", "sign", "auth", "secure", "sso",
+    "account", "accounts", "client", "clients", "customer", "customers",
+    "portal", "portail", "portals", "portails", "service", "services",
+    "app", "apps", "prod", "stage", "staging", "test", "uat", "dev", "beta",
+    "mobile", "online", "secure2", "connect", "connexion", "identity",
+    "default", "home", "my", "mon", "the", "id", "ids",
+    "fr", "en", "ca", "us", "qc", "uk", "br", "mx", "cn",
+    "com", "net", "org", "gov", "edu", "info", "biz", "io",
+    "bank", "banks", "banque", "banques", "compte", "comptes",
+    "group", "groupe", "cloud", "api", "apis", "static", "cdn"
+}
+
+
+GENERIC_TOKEN_PREFIXES = {
+    "secure", "login", "signin", "auth", "sso", "www", "portal", "portail",
+    "service", "services", "client", "customer", "app", "apps", "prod", "stage",
+    "staging", "test", "uat", "beta", "dev", "mobile", "my", "mon", "the",
+    "api", "cdn"
+}
+
+
+GENERIC_TOKEN_SUFFIXES = {
+    "secure", "login", "signin", "auth", "sso", "portal", "portail", "service",
+    "services", "client", "clients", "customer", "customers", "app", "apps",
+    "prod", "stage", "staging", "test", "uat", "beta", "dev", "mobile",
+    "online", "connect", "connexion", "account", "accounts", "compte", "comptes",
+    "bank", "banks", "banque", "banques", "group", "groupe"
+}
+
+
+def _registrable_domain(hostname):
+    if not hostname:
+        return None
+    host = hostname.split(':', 1)[0]
+    if not host:
+        return None
+    labels = host.split('.')
+    if len(labels) < 2:
+        return host
+    last_two = '.'.join(labels[-2:])
+    if last_two in COMMON_SECOND_LEVEL_TLDS and len(labels) >= 3:
+        return '.'.join(labels[-3:])
+    return last_two
+
+
+def _origin_tokens(origin):
+    host = _hostname_from_url(origin)
+    if not host:
+        return []
+    collected = set()
+
+    def _expand_token(raw):
+        out = set()
+        if not raw or not isinstance(raw, str):
+            return out
+        cleaned = raw.lower().strip().strip('-_.')
+        if not cleaned:
+            return out
+        cleaned = re.sub(r"[^a-z0-9]", "", cleaned)
+        if not cleaned or cleaned.isdigit() or len(cleaned) < 3:
+            return out
+
+        segments = re.findall(r"[a-z0-9]+", cleaned)
+        for seg in segments:
+            if seg.isdigit() or len(seg) < 3:
+                continue
+            out.add(seg)
+
+        def _strip_generic(value):
+            if not value:
+                return value
+            changed = True
+            result = value
+            while changed and result:
+                changed = False
+                for prefix in GENERIC_TOKEN_PREFIXES:
+                    if result.startswith(prefix) and len(result) - len(prefix) >= 3:
+                        result = result[len(prefix):]
+                        changed = True
+                for suffix in GENERIC_TOKEN_SUFFIXES:
+                    if result.endswith(suffix) and len(result) - len(suffix) >= 3:
+                        result = result[:-len(suffix)]
+                        changed = True
+            return result
+
+        stripped = _strip_generic(cleaned)
+        if stripped and len(stripped) >= 3:
+            out.add(stripped)
+
+        final = set()
+        for candidate in out:
+            if not candidate or len(candidate) < 3:
+                continue
+            if candidate.isdigit():
+                continue
+            if candidate in GENERIC_TOKEN_PARTS:
+                continue
+            final.add(candidate)
+        return final
+
+    for part in re.split(r"[.\-_/]+", host):
+        for token in _expand_token(part):
+            collected.add(token)
+
+    return sorted(collected)
+
+
 def native_loop():
     priv_bytes = load_session_privkey()
     if priv_bytes is None:
@@ -283,6 +419,17 @@ def native_loop():
                     or rec.get("url")
                 )
                 entry_origin = normalize_origin_from_url(url_field)
+                origin_host = _hostname_from_url(origin)
+                entry_host = _hostname_from_url(entry_origin or url_field)
+                origin_domain = _registrable_domain(origin_host)
+                entry_domain = _registrable_domain(entry_host)
+                origin_tokens = _origin_tokens(origin)
+
+                same_origin = False
+                same_host = False
+                host_overlap = False
+                same_domain = False
+                token_match = False
 
                 score = 0
                 if origin:
@@ -290,8 +437,50 @@ def native_loop():
                     if entry_origin:
                         if entry_origin == sorigin:
                             score += 50
+                            same_origin = True
                         elif entry_origin in sorigin or sorigin in entry_origin:
                             score += 15
+                    if origin_host and entry_host:
+                        if origin_host == entry_host:
+                            score += 40
+                            same_host = True
+                        elif origin_host.endswith(f".{entry_host}") or entry_host.endswith(f".{origin_host}"):
+                            score += 20
+                            host_overlap = True
+                    if origin_domain and entry_domain and origin_domain == entry_domain:
+                        score += 35
+                        same_domain = True
+                    if origin_tokens:
+                        seen_tokens = set()
+                        candidate_strings = []
+                        title = rec.get("title")
+                        if isinstance(title, str):
+                            candidate_strings.append(title.lower())
+                        if isinstance(url_field, str):
+                            candidate_strings.append(url_field.lower())
+                        alt_url = rec.get("url")
+                        if isinstance(alt_url, str):
+                            candidate_strings.append(alt_url.lower())
+                        for v in dec.values():
+                            if isinstance(v, str):
+                                candidate_strings.append(v.lower())
+                        for token in origin_tokens:
+                            if token in seen_tokens:
+                                continue
+                            token_hit = False
+                            if entry_host and token in entry_host:
+                                token_hit = True
+                            elif entry_domain and token in entry_domain:
+                                token_hit = True
+                            else:
+                                for cand in candidate_strings:
+                                    if token in cand:
+                                        token_hit = True
+                                        break
+                            if token_hit:
+                                seen_tokens.add(token)
+                                score += 8
+                                token_match = True
                     for v in dec.values():
                         try:
                             if isinstance(v, str) and sorigin in v.lower():
@@ -311,9 +500,27 @@ def native_loop():
                     "created_at": rec.get("created_at"),
                     "url": url_field,
                     "origin": entry_origin,
-                    "score": score
+                    "score": score,
+                    "match_flags": {
+                        "same_origin": same_origin,
+                        "same_host": same_host,
+                        "host_overlap": host_overlap,
+                        "same_domain": same_domain,
+                        "token_match": token_match
+                    }
                 }))
             results_sorted = [r for s,r in sorted(results, key=lambda x: x[0], reverse=True)]
+            if origin:
+                prioritized = None
+                for key in ("same_origin", "same_host", "same_domain", "token_match", "host_overlap"):
+                    subset = [r for r in results_sorted if r.get("match_flags", {}).get(key)]
+                    if subset:
+                        prioritized = subset
+                        break
+                if prioritized is not None:
+                    results_sorted = prioritized
+            for r in results_sorted:
+                r.pop("match_flags", None)
             send_message({"status":"ok", "logins": results_sorted})
         else:
             send_message({"status":"error","reason":"unknown action"})
