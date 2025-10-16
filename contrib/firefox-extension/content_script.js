@@ -17,8 +17,8 @@
       el = document.createElement("div");
       el.id = id;
       el.style.position = "fixed";
-      el.style.top = "12px";
-      el.style.right = "12px";
+      el.style.bottom = "16px";
+      el.style.right = "16px";
       el.style.zIndex = "2147483647";
       el.style.background = "rgba(34,51,102,0.88)";
       el.style.color = "#fff";
@@ -30,6 +30,9 @@
       el.style.pointerEvents = "none";
       document.body.appendChild(el);
     }
+    el.style.top = "";
+    el.style.bottom = "16px";
+    el.style.right = "16px";
     el.textContent = message;
   }
 
