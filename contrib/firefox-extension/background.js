@@ -16,6 +16,8 @@
     cache: { entries: null, fetchedAt: 0 }
   };
 
+  const NATIVE_HOST_NAME = 'com.monapp.nativehost';
+
   const COMMON_SECOND_LEVEL_TLDS = new Set([
     'co.uk', 'org.uk', 'gov.uk', 'ac.uk',
     'co.jp', 'ne.jp', 'or.jp', 'go.jp',
@@ -60,6 +62,90 @@
       console.debug('[GestionnaireMDP background]', ...args);
     } catch (_) {
       // ignore logging failures
+    }
+  }
+
+  function normalizeNativeResponse(resp) {
+    if (!resp) return { ok: false, error: 'native_no_response' };
+    if (resp.ok === true) return resp;
+    if (resp.status && String(resp.status).toLowerCase() === 'ok') {
+      return { ok: true, ...resp };
+    }
+    if (typeof resp.username === 'string' && typeof resp.password === 'string') {
+      return { ok: true, ...resp };
+    }
+    const reason = resp.error || resp.reason || resp.status || 'native_invalid_response';
+    return { ok: false, error: String(reason) };
+  }
+
+  async function fetchFromNativeHost(origin, url) {
+    if (!B.runtime || typeof B.runtime.sendNativeMessage !== 'function') {
+      return { ok: false, error: 'native_unsupported' };
+    }
+    try {
+      const response = await B.runtime.sendNativeMessage(NATIVE_HOST_NAME, {
+        action: 'getLogins',
+        origin: origin || '',
+        url: url || ''
+      });
+      const normalized = normalizeNativeResponse(response);
+      if (!normalized.ok) {
+        return { ok: false, error: normalized.error || 'native_error' };
+      }
+      const logins = Array.isArray(normalized.logins)
+        ? normalized.logins
+            .filter((entry) => entry && typeof entry.username === 'string' && typeof entry.password === 'string')
+            .map((entry) => ({
+              id: entry.id,
+              title: entry.title || '',
+              username: entry.username,
+              password: entry.password,
+              url: entry.url || '',
+              origin: entry.origin || '',
+              score: typeof entry.score === 'number' ? entry.score : 0
+            }))
+        : [];
+      let best = null;
+      if (logins.length) {
+        best = logins[0];
+      } else if (typeof normalized.username === 'string' && typeof normalized.password === 'string') {
+        best = {
+          id: normalized.id,
+          title: normalized.title || '',
+          username: normalized.username,
+          password: normalized.password,
+          url: normalized.url || '',
+          origin: normalized.origin || '',
+          score: typeof normalized.score === 'number' ? normalized.score : 0
+        };
+      }
+      if (!best) {
+        return { ok: false, error: 'native_no_credentials' };
+      }
+      const remember =
+        typeof normalized.remember !== 'undefined'
+          ? !!normalized.remember
+          : typeof best.remember !== 'undefined'
+            ? !!best.remember
+            : false;
+      const autosubmit =
+        typeof normalized.autosubmit !== 'undefined'
+          ? !!normalized.autosubmit
+          : typeof best.autosubmit !== 'undefined'
+            ? !!best.autosubmit
+            : false;
+      const payloadLogins = logins.length ? logins : [best];
+      return {
+        ok: true,
+        username: best.username,
+        password: best.password,
+        remember,
+        autosubmit,
+        logins: payloadLogins
+      };
+    } catch (err) {
+      log('native host error', err);
+      return { ok: false, error: err && err.message ? err.message : 'native_error' };
     }
   }
 
@@ -594,6 +680,45 @@
       hasTokens: !!state.tokens?.access || !!state.tokens?.refresh,
       hasKey: !!(state.keyPair && state.keyPair.privateKeyJwk)
     };
+    let matches = [];
+    let apiError = null;
+
+    if (status.hasConfig && status.hasTokens && status.hasKey) {
+      try {
+        const entries = await fetchEntries(false);
+        matches = scoreEntries(entries, {
+          origin,
+          originHost: hostnameFromUrl(origin),
+          originDomain: registrableDomain(hostnameFromUrl(origin)),
+          originTokens: originTokens(origin),
+          senderUrl: url
+        }) || [];
+        if (matches.length) {
+          const best = matches[0];
+          return {
+            ok: true,
+            username: best.username,
+            password: best.password,
+            remember: false,
+            autosubmit: false,
+            logins: matches
+          };
+        }
+      } catch (err) {
+        apiError = err;
+        log('getCredentials api error', err);
+      }
+    }
+
+    const nativeResult = await fetchFromNativeHost(origin, url);
+    if (nativeResult && nativeResult.ok) {
+      return nativeResult;
+    }
+
+    if (matches && matches.length === 0) {
+      return { ok: true, logins: [] };
+    }
+
     if (!status.hasConfig) {
       return { ok: false, error: 'config_missing' };
     }
@@ -603,26 +728,14 @@
     if (!status.hasKey) {
       return { ok: false, error: 'key_missing' };
     }
-    const entries = await fetchEntries(false);
-    const matches = scoreEntries(entries, {
-      origin,
-      originHost: hostnameFromUrl(origin),
-      originDomain: registrableDomain(hostnameFromUrl(origin)),
-      originTokens: originTokens(origin),
-      senderUrl: url
-    });
-    if (!matches.length) {
-      return { ok: true, logins: [] };
+
+    if (apiError) {
+      return { ok: false, error: apiError && apiError.message ? apiError.message : 'api_error' };
     }
-    const best = matches[0];
-    return {
-      ok: true,
-      username: best.username,
-      password: best.password,
-      remember: false,
-      autosubmit: false,
-      logins: matches
-    };
+
+    return nativeResult && nativeResult.error
+      ? { ok: false, error: nativeResult.error }
+      : { ok: true, logins: [] };
   }
 
   async function getState() {

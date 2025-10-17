@@ -7,6 +7,7 @@
     "storage",
     "tabs",
     "activeTab",
+    "nativeMessaging",
     "<all_urls>"
   ],
   "background": {
@@ -24,7 +25,8 @@
         "site_rules.js",
         "content_script.js"
       ],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "browser_action": {

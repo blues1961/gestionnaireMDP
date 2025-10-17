@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # monmdp-host.py - Native messaging host with docker-compose path detection
-import sys, json, struct, os, base64, traceback, time, subprocess, re
+import sys, json, struct, os, base64, traceback, time, subprocess, re, getpass
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse

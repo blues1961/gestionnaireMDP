@@ -264,26 +264,35 @@
         'input[type="text"][id*="ident" i], input[type="text"][name*="ident" i], ' +
         'input[type="text"][id*="card" i], input[type="text"][name*="card" i], ' +
         'input[type="text"][id*="login" i], input[type="text"][name*="login" i], ' +
+        'input[type="text"][name*="digital" i], input[type="text"][id*="digital" i], ' +
         'input:not([type])[id*="user" i], input:not([type])[name*="user" i], ' +
         'input:not([type])[id*="ident" i], input:not([type])[name*="ident" i], ' +
         'input:not([type])[id*="login" i], input:not([type])[name*="login" i], ' +
-        'input:not([type])[id*="card" i], input:not([type])[name*="card" i], ' +
-        'input[type="email"], input:not([type])'
+        'input:not([type])[name*="digital" i], input:not([type])[id*="digital" i], ' +
+        'input[type="email"], input[autocomplete="username"], input:not([type])'
       ) ||
       root.querySelector(
         '#usernameInput-input, input[data-bc="usernameInput"], input[name="usernameInput"], ' +
-        'input[type="text"][name*="user" i], input[type="text"][name*="login" i], input[type="email"], ' +
-        'input:not([type])[name*="user" i], input:not([type])[name*="login" i], input:not([type])'
+        'input[type="text"][name*="user" i], input[type="text"][name*="login" i], input[type="text"][name*="digital" i], input[type="email"], ' +
+        'input[autocomplete="username"], input:not([type])[name*="user" i], input:not([type])[name*="login" i], input:not([type])[name*="digital" i], input:not([type])'
       );
 
     if (!username && form) {
       username = form.querySelector('input:not([type]):not([disabled]), input[type="text"]:not([disabled]), input[type="email"]:not([disabled])');
     }
+    if (!username) {
+      const autoSelector = 'input[autocomplete="username"], input[autocomplete="email"], input[autocomplete="organization"], input[aria-label*="user" i], input[aria-label*="compte" i], input[aria-label*="ident" i]';
+      username = form?.querySelector(autoSelector) || root.querySelector(autoSelector);
+    }
 
     // 3) password heuristique
-    const password =
-      form?.querySelector('#password-input, input[data-bc="password"], input[name="password"], input[type="password"]') ||
-      root.querySelector('#password-input, input[data-bc="password"], input[name="password"], input[type="password"]');
+    let password =
+      form?.querySelector('#password-input, input[data-bc="password"], input[name="password"], input[type="password"], input[autocomplete="current-password"]') ||
+      root.querySelector('#password-input, input[data-bc="password"], input[name="password"], input[type="password"], input[autocomplete="current-password"]');
+    if (!password) {
+      const pwdSelector = 'input[type="password"], input[autocomplete="current-password"], input[aria-label*="pass" i]';
+      password = form?.querySelector(pwdSelector) || root.querySelector(pwdSelector);
+    }
 
     // 4) remember me optionnel
     const remember =
