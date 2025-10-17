@@ -4,6 +4,7 @@
   "path": "/usr/local/bin/monmdp-host",
   "type": "stdio",
   "allowed_extensions": [
-    "monmdp@example.org"
+    "monmdp@example.org",
+    "gestionnairemdp-autofill@example.org"
   ]
 }
