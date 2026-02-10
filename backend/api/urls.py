@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
-from .views import CategoryViewSet, PasswordViewSet, healthz
+from .views import CategoryViewSet, PasswordViewSet, SecretsView, healthz
 from .views_auth import csrf, login_view, logout_view
 from api.views_jwt_whoami import jwt_whoami
 from rest_framework_simplejwt.views import (
@@ -20,6 +20,7 @@ urlpatterns = [
 
     # Santé
     path("healthz/", healthz, name="api-healthz"),
+    path("secrets/", SecretsView.as_view(), name="api-secrets"),
 
     # Auth (sessions legacy — conservé pour compat)
     path("csrf/",   csrf,        name="api-csrf"),
