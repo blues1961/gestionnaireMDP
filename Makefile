@@ -16,7 +16,7 @@ TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.ven
 .PHONY: help env-check \
  tree \
  up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
- backup-db restore-db reset-dev-db seed-dev psql \
+ backup-db restore-db push-secret push-secret-all-remote pull-secret backup-env restore-env reset-dev-db seed-dev psql \
  up-backend up-db up-vite stop-backend stop-db stop-vite restart-backend restart-db restart-vite \
  logs-backend logs-db logs-vite exec-backend exec-db exec-vite clean reseed rebuild
 
@@ -108,6 +108,24 @@ restore-db: env-check ## Restaurer la DB depuis BACKUP=<fichier.{sql.gz,dump}> (
 	  *.dump)   $(COMPOSE) exec -T db pg_restore -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" --no-owner --no-privileges < "$$FILE" ;; \
 	  *)        echo "Format de backup non supporté: $$FILE"; exit 1 ;; \
 	esac
+
+push-secret: env-check ## Sauvegarder .env.<env> + .env.<env>.local vers /api/secrets (chiffre local)
+	./scripts/push-secret.sh $${SECRET_ENV:-$(APP_ENV)}
+
+push-secret-all-remote: env-check ## Sauvegarder dev+prod vers une API distante unique (/api/secrets)
+	: "$${PULL_SECRET:-$${PULL_ROOT_SECRET:?PULL_SECRET ou PULL_ROOT_SECRET requis}}"
+	PROD_HOST="$$(set -a; . ./.env.prod; set +a; echo "$$APP_HOST")"
+	API_BASE_URL="$${API_BASE_URL:-https://$${PROD_HOST}/api}"
+	echo "Push secret bundles vers: $$API_BASE_URL"
+	API_BASE_URL="$$API_BASE_URL" ./scripts/push-secret.sh dev
+	API_BASE_URL="$$API_BASE_URL" ./scripts/push-secret.sh prod
+
+pull-secret: env-check ## Restaurer .env.<env> + .env.<env>.local depuis /api/secrets (FORCE=1 pour ecraser)
+	./scripts/pull-secret.sh $${SECRET_ENV:-$(APP_ENV)}
+
+backup-env: push-secret ## Alias de push-secret
+
+restore-env: pull-secret ## Alias de pull-secret
 
 reset-dev-db: env-check ## Réinitialiser la DB de dev (drop/create/migrate)
 	bash scripts/dev/reset-dev-db.sh

@@ -110,26 +110,106 @@ Voir `frontend/src/utils/crypto.js`.
 
 ## 9) API
 - Endpoints JWT :
-  - `POST /api/token/` (obtenir `access`/`refresh`)
-  - `POST /api/token/refresh/`
+  - `POST /api/auth/jwt/create/` (obtenir `access`/`refresh`)
+  - `POST /api/auth/jwt/refresh/`
+  - `POST /api/auth/jwt/verify/`
+  - `GET /api/whoami/`
 - Ressources :
   - `GET/POST /api/categories/`
   - `GET/POST /api/passwords/` (CRUD)
+  - `GET /api/secrets/` (liste des bundles de l'utilisateur, sans payload)
+  - `GET /api/secrets/?app=<app>&env=<env>` (retourne le payload stocke pour l'utilisateur courant)
+  - `POST|PUT /api/secrets/` (upsert d'un bundle chiffre)
+  - `DELETE /api/secrets/?app=<app>&env=<env>`
 - Tous les payloads de mots de passe sont **déjà chiffrés** côté client.
+
+Exemple d'upsert d'un bundle (payload chiffre):
+
+```bash
+curl -X POST "https://mdp.mon-site.ca/api/secrets/" \
+  -H "Authorization: Bearer <JWT_ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "app": "openweather",
+    "env": "dev",
+    "payload": {
+      "ciphertext": "BASE64...",
+      "iv": "BASE64...",
+      "tag": "BASE64...",
+      "salt": "BASE64..."
+    }
+  }'
+```
+
+Exemple de recuperation pour `pull-secrets`:
+
+```bash
+curl -H "Authorization: Bearer <JWT_ACCESS_TOKEN>" \
+  "https://mdp.mon-site.ca/api/secrets/?app=openweather&env=dev"
+```
 
 ---
 
-## 10) Mises à jour & maintenance
+## 10) Backup/restore des fichiers d'environnement (pull-secret)
+Objectif: sauvegarder/restaurer les paires suivantes par environnement:
+- `.env.dev` + `.env.dev.local`
+- `.env.prod` + `.env.prod.local`
+
+Le chiffrement est fait **localement** via `PULL_SECRET` avant envoi vers `/api/secrets/`.
+
+Variables utiles:
+- `PULL_SECRET` (optionnel): passphrase de chiffrement/dechiffrement directe.
+- `PULL_ROOT_SECRET` (optionnel): secret racine pour dériver automatiquement `PULL_SECRET`.
+- `PULL_SECRET_APP_ID` (optionnel): identifiant stable de dérivation (défaut: `APP_SLUG`).
+- `PULL_SECRET_VERSION` (optionnel): version de dérivation (défaut: `v1`).
+- `SECRET_ENV` (optionnel): `dev` ou `prod` (defaut = `APP_ENV` courant).
+- `API_BASE_URL` (optionnel): override de l'API (sinon auto: dev `http://localhost:${DEV_API_PORT}/api`, prod `https://${APP_HOST}/api`).
+- `JWT_ACCESS_TOKEN` (optionnel): token deja genere; sinon script tente `ADMIN_USERNAME`/`ADMIN_PASSWORD`.
+- `BUNDLE_APP` et `BUNDLE_ENV` (optionnels): cle logique du bundle distant.
+- `FORCE=1` (pull uniquement): autorise l'ecrasement des fichiers existants.
+
+Exemples:
+```bash
+# Backup des env de dev vers /api/secrets/
+PULL_SECRET='mot-de-passe-long' make push-secret SECRET_ENV=dev
+
+# Restore des env de dev depuis /api/secrets/
+PULL_SECRET='mot-de-passe-long' make pull-secret SECRET_ENV=dev FORCE=1
+
+# Variante recommandee multi-apps (derive automatiquement un secret par app/env)
+PULL_ROOT_SECRET='secret-racine-long' PULL_SECRET_APP_ID='gestionnaireMDP' \
+  make push-secret SECRET_ENV=dev
+
+PULL_ROOT_SECRET='secret-racine-long' PULL_SECRET_APP_ID='gestionnaireMDP' \
+  make pull-secret SECRET_ENV=dev FORCE=1
+```
+
+Commandes directes:
+```bash
+PULL_SECRET='mot-de-passe-long' ./scripts/push-secret.sh dev
+PULL_SECRET='mot-de-passe-long' FORCE=1 ./scripts/pull-secret.sh dev
+```
+
+Backup distant en une commande (dev + prod vers l'API de prod):
+```bash
+PULL_ROOT_SECRET='secret-racine-long' PULL_SECRET_APP_ID='gestionnaireMDP' \
+  make push-secret-all-remote
+```
+`API_BASE_URL` est optionnelle (defaut: `https://${APP_HOST_de_.env.prod}/api`).
+
+---
+
+## 11) Mises à jour & maintenance
 - Certificats Let's Encrypt : **auto-renew** via Traefik
 - Migrations :
 ```bash
 docker compose exec backend python manage.py migrate
 ```
-- Sauvegardes : voir `scripts/backup.sh`
+- Sauvegardes DB : voir `scripts/backup-db.sh` et `scripts/restore-db.sh`
 
 ---
 
-## 11) Tests rapides
+## 12) Tests rapides
 - Ajouter une catégorie, créer une entrée chiffrée, recharger la page, vérifier persistance.
 - Tester depuis un téléphone en 4G pour valider HTTPS public.
 
