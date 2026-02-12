@@ -157,45 +157,52 @@ Objectif: sauvegarder/restaurer les paires suivantes par environnement:
 
 Le chiffrement est fait **localement** via `PULL_SECRET` avant envoi vers `/api/secrets/`.
 
+Par défaut, `make push-secret` et `make pull-secret` traitent **dev + prod en une seule commande** et ciblent l'API de prod.
+Les scripts chargent automatiquement `PULL_ROOT_SECRET` depuis `.env.root.local` (si présent).
+
 Variables utiles:
 - `PULL_SECRET` (optionnel): passphrase de chiffrement/dechiffrement directe.
 - `PULL_ROOT_SECRET` (optionnel): secret racine pour dériver automatiquement `PULL_SECRET`.
+- `PULL_ROOT_SECRET_FILE` (optionnel): chemin du fichier local contenant `PULL_ROOT_SECRET` (défaut: `.env.root.local`).
 - `PULL_SECRET_APP_ID` (optionnel): identifiant stable de dérivation (défaut: `APP_SLUG`).
 - `PULL_SECRET_VERSION` (optionnel): version de dérivation (défaut: `v1`).
-- `SECRET_ENV` (optionnel): `dev` ou `prod` (defaut = `APP_ENV` courant).
-- `API_BASE_URL` (optionnel): override de l'API (sinon auto: dev `http://localhost:${DEV_API_PORT}/api`, prod `https://${APP_HOST}/api`).
+- `API_BASE_URL` (optionnel): override de l'API cible (défaut: `https://${APP_HOST_de_.env.prod}/api`).
 - `JWT_ACCESS_TOKEN` (optionnel): token deja genere; sinon script tente `ADMIN_USERNAME`/`ADMIN_PASSWORD`.
-- `BUNDLE_APP` et `BUNDLE_ENV` (optionnels): cle logique du bundle distant.
+- `BUNDLE_APP` (optionnel): cle logique applicative du bundle distant.
+- `BUNDLE_ENV` (optionnel): utile en mode unitaire; en mode groupé, la valeur est forcée à `dev` puis `prod`.
 - `FORCE=1` (pull uniquement): autorise l'ecrasement des fichiers existants.
 
 Exemples:
 ```bash
-# Backup des env de dev vers /api/secrets/
-PULL_SECRET='mot-de-passe-long' make push-secret SECRET_ENV=dev
+# Initialiser une fois le secret racine local (fichier .env.root.local)
+make init-root-secret
 
-# Restore des env de dev depuis /api/secrets/
-PULL_SECRET='mot-de-passe-long' make pull-secret SECRET_ENV=dev FORCE=1
+# Backup des env dev + prod vers l'API de prod
+make push-secret
+
+# Restore des env dev + prod depuis l'API de prod
+make pull-secret FORCE=1
 
 # Variante recommandee multi-apps (derive automatiquement un secret par app/env)
 PULL_ROOT_SECRET='secret-racine-long' PULL_SECRET_APP_ID='gestionnaireMDP' \
-  make push-secret SECRET_ENV=dev
+  make push-secret
 
 PULL_ROOT_SECRET='secret-racine-long' PULL_SECRET_APP_ID='gestionnaireMDP' \
-  make pull-secret SECRET_ENV=dev FORCE=1
+  make pull-secret FORCE=1
 ```
 
-Commandes directes:
+Mode unitaire (legacy, un seul environnement):
+```bash
+make push-secret-single SECRET_ENV=dev
+make pull-secret-single SECRET_ENV=dev FORCE=1
+```
+
+Commandes directes scripts:
 ```bash
 PULL_SECRET='mot-de-passe-long' ./scripts/push-secret.sh dev
 PULL_SECRET='mot-de-passe-long' FORCE=1 ./scripts/pull-secret.sh dev
 ```
-
-Backup distant en une commande (dev + prod vers l'API de prod):
-```bash
-PULL_ROOT_SECRET='secret-racine-long' PULL_SECRET_APP_ID='gestionnaireMDP' \
-  make push-secret-all-remote
-```
-`API_BASE_URL` est optionnelle (defaut: `https://${APP_HOST_de_.env.prod}/api`).
+Compatibilite: `make push-secret-all-remote` et `make pull-secret-all-remote` sont des alias des nouvelles commandes groupées.
 
 ---
 

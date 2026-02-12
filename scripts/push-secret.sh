@@ -63,6 +63,14 @@ BUNDLE_APP="${BUNDLE_APP:-${APP_SLUG_SAFE}-env}"
 BUNDLE_ENV="${BUNDLE_ENV:-$TARGET_ENV}"
 PULL_SECRET_VERSION="${PULL_SECRET_VERSION:-v1}"
 PULL_SECRET_APP_ID="${PULL_SECRET_APP_ID:-${APP_SLUG_SAFE}}"
+PULL_ROOT_SECRET_FILE="${PULL_ROOT_SECRET_FILE:-$ROOT_DIR/.env.root.local}"
+
+if [[ -z "${PULL_ROOT_SECRET:-}" && -f "$PULL_ROOT_SECRET_FILE" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  . "$PULL_ROOT_SECRET_FILE"
+  set +a
+fi
 
 if [[ -z "${PULL_SECRET:-}" ]]; then
   if [[ -n "${PULL_ROOT_SECRET:-}" ]]; then
@@ -73,6 +81,7 @@ if [[ -z "${PULL_SECRET:-}" ]]; then
     )"
   else
     echo "[ERR] PULL_SECRET manquant (ou fournir PULL_ROOT_SECRET pour derivation)." >&2
+    echo "      Astuce: initialiser $PULL_ROOT_SECRET_FILE via ./scripts/init-pull-root-secret.sh" >&2
     exit 2
   fi
 fi

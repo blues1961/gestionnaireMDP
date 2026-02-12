@@ -16,7 +16,7 @@ TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.ven
 .PHONY: help env-check \
  tree \
  up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
- backup-db restore-db push-secret push-secret-all-remote pull-secret backup-env restore-env reset-dev-db seed-dev psql \
+ backup-db restore-db push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
  up-backend up-db up-vite stop-backend stop-db stop-vite restart-backend restart-db restart-vite \
  logs-backend logs-db logs-vite exec-backend exec-db exec-vite clean reseed rebuild
 
@@ -109,19 +109,34 @@ restore-db: env-check ## Restaurer la DB depuis BACKUP=<fichier.{sql.gz,dump}> (
 	  *)        echo "Format de backup non supporté: $$FILE"; exit 1 ;; \
 	esac
 
-push-secret: env-check ## Sauvegarder .env.<env> + .env.<env>.local vers /api/secrets (chiffre local)
-	./scripts/push-secret.sh $${SECRET_ENV:-$(APP_ENV)}
-
-push-secret-all-remote: env-check ## Sauvegarder dev+prod vers une API distante unique (/api/secrets)
-	: "$${PULL_SECRET:-$${PULL_ROOT_SECRET:?PULL_SECRET ou PULL_ROOT_SECRET requis}}"
+push-secret: env-check ## Sauvegarder dev+prod vers l'API de prod (/api/secrets)
 	PROD_HOST="$$(set -a; . ./.env.prod; set +a; echo "$$APP_HOST")"
 	API_BASE_URL="$${API_BASE_URL:-https://$${PROD_HOST}/api}"
-	echo "Push secret bundles vers: $$API_BASE_URL"
-	API_BASE_URL="$$API_BASE_URL" ./scripts/push-secret.sh dev
-	API_BASE_URL="$$API_BASE_URL" ./scripts/push-secret.sh prod
+	echo "Push secret bundles vers: $$API_BASE_URL (dev + prod)"
+	API_BASE_URL="$$API_BASE_URL" BUNDLE_ENV=dev ./scripts/push-secret.sh dev
+	API_BASE_URL="$$API_BASE_URL" BUNDLE_ENV=prod ./scripts/push-secret.sh prod
 
-pull-secret: env-check ## Restaurer .env.<env> + .env.<env>.local depuis /api/secrets (FORCE=1 pour ecraser)
+push-secret-all-remote: push-secret ## Alias de compatibilite (dev+prod vers API de prod)
+
+push-secret-single: env-check ## Sauvegarder un seul env (SECRET_ENV=dev|prod, mode legacy)
+	./scripts/push-secret.sh $${SECRET_ENV:-$(APP_ENV)}
+
+pull-secret: env-check ## Restaurer dev+prod depuis l'API de prod (/api/secrets)
+	PROD_HOST="$$(set -a; . ./.env.prod; set +a; echo "$$APP_HOST")"
+	API_BASE_URL="$${API_BASE_URL:-https://$${PROD_HOST}/api}"
+	echo "Pull secret bundles depuis: $$API_BASE_URL (dev + prod)"
+	API_BASE_URL="$$API_BASE_URL" BUNDLE_ENV=dev FORCE="$${FORCE:-0}" ./scripts/pull-secret.sh dev
+	API_BASE_URL="$$API_BASE_URL" BUNDLE_ENV=prod FORCE="$${FORCE:-0}" ./scripts/pull-secret.sh prod
+	ln -snf ".env.$(APP_ENV)" ./.env
+	echo ".env -> .env.$(APP_ENV)"
+
+pull-secret-all-remote: pull-secret ## Alias de compatibilite (dev+prod depuis API de prod)
+
+pull-secret-single: env-check ## Restaurer un seul env (SECRET_ENV=dev|prod, mode legacy)
 	./scripts/pull-secret.sh $${SECRET_ENV:-$(APP_ENV)}
+
+init-root-secret: ## Générer PULL_ROOT_SECRET dans .env.root.local (FORCE=1 pour régénérer)
+	./scripts/init-pull-root-secret.sh
 
 backup-env: push-secret ## Alias de push-secret
 
