@@ -97,6 +97,32 @@ else
   fi
 fi
 
+normalize_path() {
+  local p="${1#/}"
+  [[ "$p" == */ ]] || p="${p}/"
+  printf '%s' "$p"
+}
+
+SECRETS_PATH="${SECRETS_PATH:-secrets/}"
+SECRETS_FALLBACK_PATHS="${SECRETS_FALLBACK_PATHS:-secret-bundles/,secretbundle/,secret-bundle/}"
+PRIMARY_PATH="$(normalize_path "$SECRETS_PATH")"
+
+declare -a SECRETS_PATH_CANDIDATES=("$PRIMARY_PATH")
+IFS=',' read -r -a EXTRA_PATHS <<< "$SECRETS_FALLBACK_PATHS"
+for raw_path in "${EXTRA_PATHS[@]}"; do
+  raw_path="${raw_path//[[:space:]]/}"
+  [[ -z "$raw_path" ]] && continue
+  candidate="$(normalize_path "$raw_path")"
+  already=0
+  for existing in "${SECRETS_PATH_CANDIDATES[@]}"; do
+    if [[ "$existing" == "$candidate" ]]; then
+      already=1
+      break
+    fi
+  done
+  [[ "$already" -eq 1 ]] || SECRETS_PATH_CANDIDATES+=("$candidate")
+done
+
 if [[ -n "${JWT_ACCESS_TOKEN:-}" ]]; then
   ACCESS_TOKEN="$JWT_ACCESS_TOKEN"
 else
@@ -177,20 +203,42 @@ jq -n \
     payload: $payload[0]
   }' > "$POST_FILE"
 
-HTTP_CODE="$(
-  curl -sS -o "$TMP_DIR/response.json" -w "%{http_code}" \
-    -X POST "${API_BASE}/secrets/" \
-    -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-    -H "Content-Type: application/json" \
-    -d @"$POST_FILE"
-)"
+SUCCESS_ENDPOINT=""
+declare -a ATTEMPTED_ENDPOINTS=()
 
-if [[ "$HTTP_CODE" != "200" && "$HTTP_CODE" != "201" ]]; then
-  echo "[ERR] Échec upload secret bundle (HTTP ${HTTP_CODE})." >&2
+for path_candidate in "${SECRETS_PATH_CANDIDATES[@]}"; do
+  endpoint="${API_BASE}/${path_candidate}"
+  ATTEMPTED_ENDPOINTS+=("$endpoint")
+
+  HTTP_CODE="$(
+    curl -sS -o "$TMP_DIR/response.json" -w "%{http_code}" \
+      -X POST "$endpoint" \
+      -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d @"$POST_FILE"
+  )"
+
+  if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "201" ]]; then
+    SUCCESS_ENDPOINT="$endpoint"
+    break
+  fi
+
+  if [[ "$HTTP_CODE" != "404" ]]; then
+    echo "[ERR] Échec upload secret bundle (HTTP ${HTTP_CODE}) endpoint=${endpoint}." >&2
+    cat "$TMP_DIR/response.json" >&2 || true
+    exit 3
+  fi
+done
+
+if [[ -z "$SUCCESS_ENDPOINT" ]]; then
+  echo "[ERR] Endpoint secrets introuvable (HTTP 404)." >&2
+  printf '      endpoints testés:\n' >&2
+  printf '      - %s\n' "${ATTEMPTED_ENDPOINTS[@]}" >&2
+  echo "      Vérifiez le déploiement backend (route /api/secrets/) ou définissez SECRETS_PATH." >&2
   cat "$TMP_DIR/response.json" >&2 || true
   exit 3
 fi
 
 echo "[OK] Backup des env poussé."
 echo "     app=${BUNDLE_APP} env=${BUNDLE_ENV} files=${FILES[*]}"
-echo "     endpoint=${API_BASE}/secrets/"
+echo "     endpoint=${SUCCESS_ENDPOINT}"

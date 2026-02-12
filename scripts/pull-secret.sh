@@ -98,6 +98,32 @@ else
   fi
 fi
 
+normalize_path() {
+  local p="${1#/}"
+  [[ "$p" == */ ]] || p="${p}/"
+  printf '%s' "$p"
+}
+
+SECRETS_PATH="${SECRETS_PATH:-secrets/}"
+SECRETS_FALLBACK_PATHS="${SECRETS_FALLBACK_PATHS:-secret-bundles/,secretbundle/,secret-bundle/}"
+PRIMARY_PATH="$(normalize_path "$SECRETS_PATH")"
+
+declare -a SECRETS_PATH_CANDIDATES=("$PRIMARY_PATH")
+IFS=',' read -r -a EXTRA_PATHS <<< "$SECRETS_FALLBACK_PATHS"
+for raw_path in "${EXTRA_PATHS[@]}"; do
+  raw_path="${raw_path//[[:space:]]/}"
+  [[ -z "$raw_path" ]] && continue
+  candidate="$(normalize_path "$raw_path")"
+  already=0
+  for existing in "${SECRETS_PATH_CANDIDATES[@]}"; do
+    if [[ "$existing" == "$candidate" ]]; then
+      already=1
+      break
+    fi
+  done
+  [[ "$already" -eq 1 ]] || SECRETS_PATH_CANDIDATES+=("$candidate")
+done
+
 if [[ -n "${JWT_ACCESS_TOKEN:-}" ]]; then
   ACCESS_TOKEN="$JWT_ACCESS_TOKEN"
 else
@@ -125,14 +151,35 @@ ENCRYPTED="$TMP_DIR/env-files.enc"
 ARCHIVE="$TMP_DIR/env-files.tar.gz"
 RESTORE_DIR="$TMP_DIR/restore"
 
-HTTP_CODE="$(
-  curl -sS -o "$PAYLOAD_FILE" -w "%{http_code}" \
-    -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-    "${API_BASE}/secrets/?app=${BUNDLE_APP}&env=${BUNDLE_ENV}"
-)"
+SUCCESS_ENDPOINT=""
+declare -a ATTEMPTED_ENDPOINTS=()
+for path_candidate in "${SECRETS_PATH_CANDIDATES[@]}"; do
+  endpoint="${API_BASE}/${path_candidate}"
+  ATTEMPTED_ENDPOINTS+=("$endpoint")
 
-if [[ "$HTTP_CODE" != "200" ]]; then
-  echo "[ERR] Échec récupération secret bundle (HTTP ${HTTP_CODE}) app=${BUNDLE_APP} env=${BUNDLE_ENV}" >&2
+  HTTP_CODE="$(
+    curl -sS -o "$PAYLOAD_FILE" -w "%{http_code}" \
+      -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+      "${endpoint}?app=${BUNDLE_APP}&env=${BUNDLE_ENV}"
+  )"
+
+  if [[ "$HTTP_CODE" == "200" ]]; then
+    SUCCESS_ENDPOINT="$endpoint"
+    break
+  fi
+
+  if [[ "$HTTP_CODE" != "404" ]]; then
+    echo "[ERR] Échec récupération secret bundle (HTTP ${HTTP_CODE}) app=${BUNDLE_APP} env=${BUNDLE_ENV} endpoint=${endpoint}" >&2
+    cat "$PAYLOAD_FILE" >&2 || true
+    exit 3
+  fi
+done
+
+if [[ -z "$SUCCESS_ENDPOINT" ]]; then
+  echo "[ERR] Endpoint secrets introuvable (HTTP 404)." >&2
+  printf '      endpoints testés:\n' >&2
+  printf '      - %s\n' "${ATTEMPTED_ENDPOINTS[@]}" >&2
+  echo "      Vérifiez le déploiement backend (route /api/secrets/) ou définissez SECRETS_PATH." >&2
   cat "$PAYLOAD_FILE" >&2 || true
   exit 3
 fi
@@ -184,3 +231,4 @@ ln -snf "$EXPECTED_MAIN" "$ROOT_DIR/.env"
 echo "[OK] Restauration des fichiers d'environnement terminée."
 echo "     restaurés: $EXPECTED_MAIN, $EXPECTED_LOCAL"
 echo "     .env -> $EXPECTED_MAIN"
+echo "     endpoint=${SUCCESS_ENDPOINT}"

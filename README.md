@@ -167,6 +167,8 @@ Variables utiles:
 - `PULL_SECRET_APP_ID` (optionnel): identifiant stable de dérivation (défaut: `APP_SLUG`).
 - `PULL_SECRET_VERSION` (optionnel): version de dérivation (défaut: `v1`).
 - `API_BASE_URL` (optionnel): override de l'API cible (défaut: `https://${APP_HOST_de_.env.prod}/api`).
+- `SECRETS_PATH` (optionnel): chemin API du endpoint secrets (défaut: `secrets/`).
+- `SECRETS_FALLBACK_PATHS` (optionnel): chemins alternatifs testés si 404 (défaut: `secret-bundles/,secretbundle/,secret-bundle/`).
 - `JWT_ACCESS_TOKEN` (optionnel): token deja genere; sinon script tente `ADMIN_USERNAME`/`ADMIN_PASSWORD`.
 - `BUNDLE_APP` (optionnel): cle logique applicative du bundle distant.
 - `BUNDLE_ENV` (optionnel): utile en mode unitaire; en mode groupé, la valeur est forcée à `dev` puis `prod`.

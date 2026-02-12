@@ -110,6 +110,7 @@ restore-db: env-check ## Restaurer la DB depuis BACKUP=<fichier.{sql.gz,dump}> (
 	esac
 
 push-secret: env-check ## Sauvegarder dev+prod vers l'API de prod (/api/secrets)
+	set -euo pipefail
 	PROD_HOST="$$(set -a; . ./.env.prod; set +a; echo "$$APP_HOST")"
 	API_BASE_URL="$${API_BASE_URL:-https://$${PROD_HOST}/api}"
 	echo "Push secret bundles vers: $$API_BASE_URL (dev + prod)"
@@ -122,6 +123,7 @@ push-secret-single: env-check ## Sauvegarder un seul env (SECRET_ENV=dev|prod, m
 	./scripts/push-secret.sh $${SECRET_ENV:-$(APP_ENV)}
 
 pull-secret: env-check ## Restaurer dev+prod depuis l'API de prod (/api/secrets)
+	set -euo pipefail
 	PROD_HOST="$$(set -a; . ./.env.prod; set +a; echo "$$APP_HOST")"
 	API_BASE_URL="$${API_BASE_URL:-https://$${PROD_HOST}/api}"
 	echo "Pull secret bundles depuis: $$API_BASE_URL (dev + prod)"
