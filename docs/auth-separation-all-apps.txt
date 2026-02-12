@@ -1,0 +1,119 @@
+# Séparer les comptes (app / admin / api) pour toutes les apps Django
+
+Objectif:
+- mot de passe simple pour usage quotidien dans l'app
+- mot de passe fort séparé pour `/admin`
+- compte technique dédié pour scripts `push/pull` (`API_AUTH_*`)
+
+## Ce que je dois faire maintenant (prod)
+
+```bash
+cd /opt/apps/<app>
+git pull
+chmod +x scripts/manage-django-account.sh scripts/rotate-secrets.sh
+
+# 1) Compte quotidien (non-admin)
+./scripts/manage-django-account.sh \
+  --env prod \
+  --role app \
+  --username sylvain \
+  --password 'MotDePasseMemorisable' \
+  --email sylvain@mon-site.ca \
+  --apply
+
+# 2) Compte admin séparé
+./scripts/manage-django-account.sh \
+  --env prod \
+  --role admin \
+  --username sylvain_admin \
+  --generate-password \
+  --show-password \
+  --email sylvain@mon-site.ca \
+  --apply
+
+# 3) Compte technique API (push/pull)
+./scripts/manage-django-account.sh \
+  --env prod \
+  --role api \
+  --username mdp_sync_bot \
+  --generate-password \
+  --show-password \
+  --apply
+
+# 4) Rotation secrets (sans toucher ADMIN_PASSWORD)
+./scripts/rotate-secrets.sh --env prod --apply
+
+# 5) Sauvegarde chiffrée des env prod
+make push-secret-single SECRET_ENV=prod
+```
+
+## 1) Sur le serveur prod de l'app
+
+```bash
+cd /opt/apps/<app>
+git pull
+chmod +x scripts/manage-django-account.sh scripts/rotate-secrets.sh
+```
+
+## 2) Créer/mettre à jour le compte utilisateur quotidien (non-admin)
+
+```bash
+./scripts/manage-django-account.sh \
+  --env prod \
+  --role app \
+  --username sylvain \
+  --password 'MotDePasseMemorisable' \
+  --email sylvain@mon-site.ca \
+  --apply
+```
+
+## 3) Créer/mettre à jour le compte admin Django séparé (fort)
+
+```bash
+./scripts/manage-django-account.sh \
+  --env prod \
+  --role admin \
+  --username sylvain_admin \
+  --generate-password \
+  --show-password \
+  --email sylvain@mon-site.ca \
+  --apply
+```
+
+## 4) Créer/mettre à jour le compte technique API (pour push/pull)
+
+```bash
+./scripts/manage-django-account.sh \
+  --env prod \
+  --role api \
+  --username mdp_sync_bot \
+  --generate-password \
+  --show-password \
+  --apply
+```
+
+Effet du rôle `api`:
+- compte non-admin créé/mis à jour dans Django
+- `API_AUTH_USERNAME` et `API_AUTH_PASSWORD` écrits dans `.env.prod.local`
+
+## 5) Rotation des secrets sans casser ton mot de passe d'usage
+
+```bash
+./scripts/rotate-secrets.sh --env prod --apply
+```
+
+Par défaut, `ADMIN_PASSWORD` n'est pas changé.
+
+## 6) Sauvegarder les env chiffrés
+
+```bash
+make push-secret-single SECRET_ENV=prod
+```
+
+## 7) Sur les machines de dev
+
+```bash
+make pull-secret FORCE=1
+```
+
+Ensuite, connecte-toi à l'app avec le compte `app` (non-admin), pas avec le compte admin.

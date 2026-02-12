@@ -126,9 +126,11 @@ done
 if [[ -n "${JWT_ACCESS_TOKEN:-}" ]]; then
   ACCESS_TOKEN="$JWT_ACCESS_TOKEN"
 else
-  : "${ADMIN_USERNAME:?ADMIN_USERNAME manquant (.env.${TARGET_ENV}.local)}"
-  : "${ADMIN_PASSWORD:?ADMIN_PASSWORD manquant (.env.${TARGET_ENV}.local)}"
-  AUTH_JSON="$(jq -n --arg u "$ADMIN_USERNAME" --arg p "$ADMIN_PASSWORD" '{username:$u, password:$p}')"
+  AUTH_USERNAME="${API_AUTH_USERNAME:-${ADMIN_USERNAME:-}}"
+  AUTH_PASSWORD="${API_AUTH_PASSWORD:-${ADMIN_PASSWORD:-}}"
+  : "${AUTH_USERNAME:?API_AUTH_USERNAME (ou ADMIN_USERNAME) manquant (.env.${TARGET_ENV}.local)}"
+  : "${AUTH_PASSWORD:?API_AUTH_PASSWORD (ou ADMIN_PASSWORD) manquant (.env.${TARGET_ENV}.local)}"
+  AUTH_JSON="$(jq -n --arg u "$AUTH_USERNAME" --arg p "$AUTH_PASSWORD" '{username:$u, password:$p}')"
   AUTH_RES="$(curl -fsS -X POST "${API_BASE}/auth/jwt/create/" \
     -H "Content-Type: application/json" \
     -d "$AUTH_JSON")"

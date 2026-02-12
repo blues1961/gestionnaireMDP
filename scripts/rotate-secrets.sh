@@ -10,27 +10,29 @@ BACKUP_DB=1
 SHOW_VALUES=0
 ADMIN_USERNAME_OVERRIDE=""
 ADMIN_EMAIL_OVERRIDE=""
+ROTATE_ADMIN_PASSWORD=0
+ADMIN_PASSWORD_OVERRIDE=""
 
 usage() {
   cat <<'EOF'
 Usage: rotate-secrets.sh [options]
 
 Options:
-  --env dev|prod          Target environment (default: prod)
-  --apply                 Apply changes (default: dry-run)
-  --no-db-backup          Skip DB backup before rotation
-  --show-values           Print generated secret values (use with caution)
-  --admin-username USER   Override ADMIN_USERNAME
-  --admin-email EMAIL     Override ADMIN_EMAIL
-  -h, --help              Show this help
+  --env dev|prod             Target environment (default: prod)
+  --apply                    Apply changes (default: dry-run)
+  --no-db-backup             Skip DB backup before rotation
+  --show-values              Print generated values (use with caution)
+  --admin-username USER      Override ADMIN_USERNAME
+  --admin-email EMAIL        Override ADMIN_EMAIL
+  --rotate-admin-password    Also rotate ADMIN_PASSWORD (disabled by default)
+  --admin-password PASS      Use this admin password (with --rotate-admin-password)
+  -h, --help                 Show this help
 
-Notes:
-- Dry-run does not modify files, database, or containers.
-- Apply mode rotates:
-  - POSTGRES_PASSWORD
-  - DJANGO_SECRET_KEY
-  - ADMIN_PASSWORD
-  and updates .env.<env>.local accordingly.
+Default rotation:
+- POSTGRES_PASSWORD
+- DJANGO_SECRET_KEY
+
+By default, ADMIN_PASSWORD is NOT changed.
 EOF
 }
 
@@ -65,6 +67,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --admin-email)
       ADMIN_EMAIL_OVERRIDE="${2:-}"
+      shift 2
+      ;;
+    --rotate-admin-password)
+      ROTATE_ADMIN_PASSWORD=1
+      shift
+      ;;
+    --admin-password)
+      ADMIN_PASSWORD_OVERRIDE="${2:-}"
       shift 2
       ;;
     -h|--help)
@@ -127,20 +137,23 @@ gen_secret() {
 
 NEW_POSTGRES_PASSWORD="$(gen_secret 36)"
 NEW_DJANGO_SECRET_KEY="$(gen_secret 72)"
-NEW_ADMIN_PASSWORD="$(gen_secret 36)"
+NEW_ADMIN_PASSWORD="${ADMIN_PASSWORD_OVERRIDE:-}"
+if [[ "$ROTATE_ADMIN_PASSWORD" -eq 1 && -z "$NEW_ADMIN_PASSWORD" ]]; then
+  NEW_ADMIN_PASSWORD="$(gen_secret 36)"
+fi
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 ENV_BACKUP_FILE="${LOCAL_FILE}.bak.${STAMP}"
 DB_BACKUP_FILE="$ROOT_DIR/backups/${APP_SLUG:-mdp}_db-${TARGET_ENV}-${STAMP}.sql.gz"
 
-if [[ "$BACKUP_DB" -eq 1 && "$APPLY" -eq 0 ]]; then
-  :
-fi
-
 echo "[PLAN] Rotation des secrets pour env=${TARGET_ENV}"
 echo "       - POSTGRES_PASSWORD (rotate)"
 echo "       - DJANGO_SECRET_KEY (rotate)"
-echo "       - ADMIN_PASSWORD (rotate)"
+if [[ "$ROTATE_ADMIN_PASSWORD" -eq 1 ]]; then
+  echo "       - ADMIN_PASSWORD (rotate)"
+else
+  echo "       - ADMIN_PASSWORD (unchanged)"
+fi
 echo "       - ADMIN_USERNAME=${ADMIN_USERNAME} (conservé/forcé)"
 echo "       - ADMIN_EMAIL=${ADMIN_EMAIL} (conservé/forcé)"
 echo "       - Backup env local: ${ENV_BACKUP_FILE}"
@@ -155,7 +168,9 @@ if [[ "$SHOW_VALUES" -eq 1 ]]; then
   echo "[SECRETS GENERATED]"
   echo "POSTGRES_PASSWORD=${NEW_POSTGRES_PASSWORD}"
   echo "DJANGO_SECRET_KEY=${NEW_DJANGO_SECRET_KEY}"
-  echo "ADMIN_PASSWORD=${NEW_ADMIN_PASSWORD}"
+  if [[ "$ROTATE_ADMIN_PASSWORD" -eq 1 ]]; then
+    echo "ADMIN_PASSWORD=${NEW_ADMIN_PASSWORD}"
+  fi
 fi
 
 if [[ "$APPLY" -ne 1 ]]; then
@@ -230,7 +245,9 @@ upsert_env_var "$LOCAL_FILE" "POSTGRES_PASSWORD" "$NEW_POSTGRES_PASSWORD"
 upsert_env_var "$LOCAL_FILE" "DJANGO_SECRET_KEY" "$NEW_DJANGO_SECRET_KEY"
 upsert_env_var "$LOCAL_FILE" "ADMIN_USERNAME" "$ADMIN_USERNAME"
 upsert_env_var "$LOCAL_FILE" "ADMIN_EMAIL" "$ADMIN_EMAIL"
-upsert_env_var "$LOCAL_FILE" "ADMIN_PASSWORD" "$NEW_ADMIN_PASSWORD"
+if [[ "$ROTATE_ADMIN_PASSWORD" -eq 1 ]]; then
+  upsert_env_var "$LOCAL_FILE" "ADMIN_PASSWORD" "$NEW_ADMIN_PASSWORD"
+fi
 chmod 600 "$LOCAL_FILE" || true
 echo "[OK] Fichier d'env local mis à jour."
 
@@ -239,13 +256,15 @@ echo "[STEP] Redémarrage backend avec les nouveaux secrets..."
 "${COMPOSE[@]}" exec -T backend python manage.py check >/dev/null
 echo "[OK] Backend redémarré et check Django OK."
 
-echo "[STEP] Rotation mot de passe admin Django..."
-"${COMPOSE[@]}" exec -T \
-  -e ROTATE_ADMIN_USERNAME="$ADMIN_USERNAME" \
-  -e ROTATE_ADMIN_EMAIL="$ADMIN_EMAIL" \
-  -e ROTATE_ADMIN_PASSWORD="$NEW_ADMIN_PASSWORD" \
-  backend python manage.py shell -c 'import os; from django.contrib.auth import get_user_model; U=get_user_model(); u, _ = U.objects.get_or_create(username=os.environ["ROTATE_ADMIN_USERNAME"], defaults={"email": os.environ.get("ROTATE_ADMIN_EMAIL", "")}); u.email=os.environ.get("ROTATE_ADMIN_EMAIL", ""); u.is_staff=True; u.is_superuser=True; u.set_password(os.environ["ROTATE_ADMIN_PASSWORD"]); u.save(); print("admin updated:", u.username)'
-echo "[OK] Mot de passe admin Django mis à jour."
+if [[ "$ROTATE_ADMIN_PASSWORD" -eq 1 ]]; then
+  echo "[STEP] Rotation mot de passe admin Django..."
+  "${COMPOSE[@]}" exec -T \
+    -e ROTATE_ADMIN_USERNAME="$ADMIN_USERNAME" \
+    -e ROTATE_ADMIN_EMAIL="$ADMIN_EMAIL" \
+    -e ROTATE_ADMIN_PASSWORD="$NEW_ADMIN_PASSWORD" \
+    backend python manage.py shell -c 'import os; from django.contrib.auth import get_user_model; U=get_user_model(); u, _ = U.objects.get_or_create(username=os.environ["ROTATE_ADMIN_USERNAME"], defaults={"email": os.environ.get("ROTATE_ADMIN_EMAIL", "")}); u.email=os.environ.get("ROTATE_ADMIN_EMAIL", ""); u.is_staff=True; u.is_superuser=True; u.set_password(os.environ["ROTATE_ADMIN_PASSWORD"]); u.save(); print("admin updated:", u.username)'
+  echo "[OK] Mot de passe admin Django mis à jour."
+fi
 
 echo
 echo "[DONE] Rotation terminée sans suppression de données."
@@ -253,4 +272,7 @@ echo "       Backup env: ${ENV_BACKUP_FILE}"
 if [[ "$BACKUP_DB" -eq 1 ]]; then
   echo "       Backup DB : ${DB_BACKUP_FILE}"
 fi
-echo "       Pense à lancer: make push-secret"
+if [[ "$ROTATE_ADMIN_PASSWORD" -eq 0 ]]; then
+  echo "       ADMIN_PASSWORD non modifié (comportement par défaut)."
+fi
+echo "       Pense à lancer: make push-secret-single SECRET_ENV=${TARGET_ENV}"
