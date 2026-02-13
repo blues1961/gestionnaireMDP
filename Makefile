@@ -16,7 +16,7 @@ TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.ven
 .PHONY: help env-check \
  tree \
  up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
- backup-db restore-db push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
+ backup-db restore-db pull-prod-backup push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
  up-backend up-db up-vite stop-backend stop-db stop-vite restart-backend restart-db restart-vite \
  logs-backend logs-db logs-vite exec-backend exec-db exec-vite clean reseed rebuild
 
@@ -112,6 +112,9 @@ restore-db: env-check ## Restaurer la DB depuis BACKUP=<fichier.{sql.gz,dump}> (
 	  *.dump)   docker exec -i -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" pg_restore -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" --no-owner --no-privileges < "$$FILE" ;; \
 	  *)        echo "Format de backup non supporté: $$FILE"; exit 1 ;; \
 	esac
+
+pull-prod-backup: backups-dir ## Déclencher backup-db sur Linode puis rapatrier le dump dans backups/
+	bash scripts/pull-prod-backup.sh
 
 push-secret: env-check ## Sauvegarder dev+prod vers l'API de prod (/api/secrets)
 	set -euo pipefail

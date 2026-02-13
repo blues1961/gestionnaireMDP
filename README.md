@@ -215,7 +215,10 @@ Compatibilite: `make push-secret-all-remote` et `make pull-secret-all-remote` so
 ```bash
 docker compose exec backend python manage.py migrate
 ```
-- Sauvegardes DB : voir `scripts/backup-db.sh` et `scripts/restore-db.sh`
+- Sauvegardes DB :
+  - `make backup-db` : dump de la DB de l'environnement courant (`.env -> .env.dev` ou `.env.prod`)
+  - `make restore-db [BACKUP=backups/<fichier>]` : restore (dernier backup par défaut)
+  - `make pull-prod-backup` : déclenche un backup sur Linode (`ssh linode`, dossier par défaut `/opt/apps/$APP_SLUG`) et rapatrie le fichier dans `backups/`
 
 ---
 
