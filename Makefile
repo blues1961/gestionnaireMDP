@@ -13,7 +13,7 @@ APP_ENV := $(shell . ./.env; echo $$APP_ENV)
 COMPOSE := docker compose --env-file .env.$(APP_ENV) -f docker-compose.$(APP_ENV).yml
 TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.venv|backups|project-tree-*.txt|*.py[co]|*.sqlite3|*.log|*.cache|*.cookies|*.sql|*.sql.gz|*.dump|*.bak
 
-.PHONY: help env-check env-check-base env-check-local \
+.PHONY: help env-check env-check-base env-check-local require-dev-env \
  tree \
  up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
  backup-db restore-db pull-prod-backup push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
@@ -39,6 +39,9 @@ env-check-local: ## Vérifie la présence des secrets locaux (.env.local)
 	test -f .env.local || { echo ".env.local introuvable (ex: cp .env.local.example .env.local)"; exit 1; }
 
 env-check: env-check-base env-check-local ## Vérifie env + secrets locaux
+
+require-dev-env: ## Garde-fou: autorise la commande uniquement si APP_ENV=dev
+	test "$$(. ./.env; echo $$APP_ENV)" = "dev" || { echo "Commande autorisée uniquement depuis dev (.env -> .env.dev)."; exit 1; }
 
 up: env-check ## Démarre la stack (db, backend, vite)
 	$(COMPOSE) up -d --build
@@ -121,43 +124,21 @@ restore-db: env-check ## Restaurer la DB depuis BACKUP=<fichier.{sql.gz,dump}> (
 pull-prod-backup: backups-dir ## Déclencher backup-db sur Linode puis rapatrier le dump dans backups/
 	bash scripts/pull-prod-backup.sh
 
-push-secret: env-check ## Sauvegarder dev+prod vers l'API de prod (/api/secrets)
-	set -euo pipefail
-	test -f .env.prod || { echo ".env.prod introuvable (fichier versionné: restaure-le depuis le repo)"; exit 1; }
-	if [[ -n "$${API_BASE_URL:-}" ]]; then \
-	  API_BASE_URL="$${API_BASE_URL%/}"; \
-	else \
-	  PROD_HOST="$$(set -a; . ./.env.prod; set +a; echo "$$APP_HOST")"; \
-	  API_BASE_URL="https://$${PROD_HOST}/api"; \
-	fi
-	echo "Push secret bundles vers: $$API_BASE_URL (dev + prod)"
-	API_BASE_URL="$$API_BASE_URL" BUNDLE_ENV=dev ./scripts/push-secret.sh dev
-	API_BASE_URL="$$API_BASE_URL" BUNDLE_ENV=prod ./scripts/push-secret.sh prod
+push-secret: env-check require-dev-env ## Copier .env.local (dev) vers la prod via SSH
+	./scripts/push-secret.sh
 
-push-secret-all-remote: push-secret ## Alias de compatibilite (dev+prod vers API de prod)
+push-secret-all-remote: push-secret ## Alias de compatibilité
 
-push-secret-single: env-check ## Sauvegarder un seul env (SECRET_ENV=dev|prod, mode legacy)
-	./scripts/push-secret.sh $${SECRET_ENV:-$(APP_ENV)}
+push-secret-single: push-secret ## Alias de compatibilité
 
-pull-secret: env-check-base ## Restaurer dev+prod depuis l'API de prod (/api/secrets)
-	set -euo pipefail
-	test -f .env.prod || { echo ".env.prod introuvable (fichier versionné: restaure-le depuis le repo)"; exit 1; }
-	if [[ -n "$${API_BASE_URL:-}" ]]; then \
-	  API_BASE_URL="$${API_BASE_URL%/}"; \
-	else \
-	  PROD_HOST="$$(set -a; . ./.env.prod; set +a; echo "$$APP_HOST")"; \
-	  API_BASE_URL="https://$${PROD_HOST}/api"; \
-	fi
-	echo "Pull secret bundles depuis: $$API_BASE_URL (dev + prod)"
-	API_BASE_URL="$$API_BASE_URL" BUNDLE_ENV=dev FORCE="$${FORCE:-0}" ./scripts/pull-secret.sh dev
-	API_BASE_URL="$$API_BASE_URL" BUNDLE_ENV=prod FORCE="$${FORCE:-0}" ./scripts/pull-secret.sh prod
+pull-secret: env-check-base require-dev-env ## Rapatrier .env.local depuis la prod via SSH
+	FORCE="$${FORCE:-0}" ./scripts/pull-secret.sh
 	ln -snf ".env.$(APP_ENV)" ./.env
 	echo ".env -> .env.$(APP_ENV)"
 
-pull-secret-all-remote: pull-secret ## Alias de compatibilite (dev+prod depuis API de prod)
+pull-secret-all-remote: pull-secret ## Alias de compatibilité
 
-pull-secret-single: env-check-base ## Restaurer un seul env (SECRET_ENV=dev|prod, mode legacy)
-	./scripts/pull-secret.sh $${SECRET_ENV:-$(APP_ENV)}
+pull-secret-single: pull-secret ## Alias de compatibilité
 
 init-root-secret: ## Générer PULL_ROOT_SECRET dans .env.root.local (FORCE=1 pour régénérer)
 	./scripts/init-pull-root-secret.sh

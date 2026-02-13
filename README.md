@@ -151,81 +151,40 @@ curl -H "Authorization: Bearer <JWT_ACCESS_TOKEN>" \
 ---
 
 ## 10) Backup/restore des fichiers d'environnement (pull-secret)
-Objectif: sauvegarder/restaurer les paires suivantes par environnement:
-- `.env.dev` + `.env.local`
-- `.env.prod` + `.env.local`
+Le workflow est volontairement simple:
+- `.env.dev` et `.env.prod` sont versionnés dans Git.
+- `.env.local` reste non versionné (copie manuelle/SSH).
 
-Le chiffrement est fait **localement** via `PULL_SECRET` avant envoi vers `/api/secrets/`.
-
-Par défaut, `make push-secret` et `make pull-secret` traitent **dev + prod en une seule commande** et ciblent l'API de prod.
-Les scripts chargent automatiquement `PULL_ROOT_SECRET` depuis `.env.root.local` (si présent).
-
-Variables utiles:
-- `PULL_SECRET` (optionnel): passphrase de chiffrement/dechiffrement directe.
-- `PULL_ROOT_SECRET` (optionnel): secret racine pour dériver automatiquement `PULL_SECRET`.
-- `PULL_ROOT_SECRET_FILE` (optionnel): chemin du fichier local contenant `PULL_ROOT_SECRET` (défaut: `.env.root.local`).
-- `PULL_SECRET_APP_ID` (optionnel): identifiant stable de dérivation (défaut: `APP_SLUG`).
-- `PULL_SECRET_VERSION` (optionnel): version de dérivation (défaut: `v1`).
-- `API_BASE_URL` (optionnel): override de l'API cible (défaut: `https://${APP_HOST_de_.env.prod}/api`).
-- `SECRETS_PATH` (optionnel): chemin API du endpoint secrets (défaut: `secrets/`).
-- `SECRETS_FALLBACK_PATHS` (optionnel): chemins alternatifs testés si 404 (défaut: `secret-bundles/,secretbundle/,secret-bundle/`).
-- `API_AUTH_USERNAME` / `API_AUTH_PASSWORD` (optionnels): compte technique recommandé pour push/pull (sinon fallback sur `ADMIN_*`).
-- `JWT_ACCESS_TOKEN` (optionnel): token deja genere; sinon script tente `API_AUTH_*` puis fallback `ADMIN_*`.
-- `BUNDLE_APP` (optionnel): cle logique applicative du bundle distant.
-- `BUNDLE_ENV` (optionnel): utile en mode unitaire; en mode groupé, la valeur est forcée à `dev` puis `prod`.
-- `FORCE=1` (pull uniquement): autorise l'ecrasement des fichiers existants.
-
-Bootstrap nouvelle machine (sans `.env.local`):
+Commandes:
 ```bash
-# 1) Vérifier les fichiers versionnés d'environnement
-test -f .env.dev && test -f .env.prod
+# Depuis DEV uniquement (.env -> .env.dev)
+# Pousse le .env.local local vers la prod
+make push-secret
 
-# 2) Choisir l'env actif
-ln -sfn .env.dev .env
-
-# 3) Fournir le secret racine local (non versionné)
-#    (contient au minimum PULL_ROOT_SECRET)
-test -f .env.root.local
-
-# 4) Authentifier le pull (au choix)
-#    A) token JWT déjà généré
-JWT_ACCESS_TOKEN="<token>" make pull-secret FORCE=1
-
-#    B) ou creds API bootstrap (dans .env.root.local ou via env vars shell)
-API_AUTH_USERNAME="<user>" API_AUTH_PASSWORD="<pass>" make pull-secret FORCE=1
+# Depuis DEV uniquement (.env -> .env.dev)
+# Récupère le .env.local de la prod (FORCE=1 pour écraser)
+make pull-secret FORCE=1
 ```
+
+`make push-secret` / `make pull-secret` utilisent une copie SSH directe (`scp`) vers/depuis:
+- hôte: `PROD_SSH` (défaut: `linode`)
+- dossier app prod: `PROD_DIR` (défaut: `/opt/apps/${APP_SLUG}`)
+- fichier cible: `${PROD_DIR}/.env.local` (surcharge possible via `PROD_ENV_LOCAL_PATH`)
 
 Exemples:
 ```bash
-# Initialiser une fois le secret racine local (fichier .env.root.local)
-make init-root-secret
-
-# Backup des env dev + prod vers l'API de prod
+# Valeurs par défaut (linode + /opt/apps/mdp/.env.local)
 make push-secret
-
-# Restore des env dev + prod depuis l'API de prod
 make pull-secret FORCE=1
 
-# Variante recommandee multi-apps (derive automatiquement un secret par app/env)
-PULL_ROOT_SECRET='secret-racine-long' PULL_SECRET_APP_ID='gestionnaireMDP' \
-  make push-secret
-
-PULL_ROOT_SECRET='secret-racine-long' PULL_SECRET_APP_ID='gestionnaireMDP' \
-  make pull-secret FORCE=1
+# Override ponctuel
+PROD_SSH=linode PROD_DIR=/opt/apps/mdp make push-secret
+PROD_SSH=linode PROD_DIR=/opt/apps/mdp make pull-secret FORCE=1
 ```
 
-Mode unitaire (legacy, un seul environnement):
-```bash
-make push-secret-single SECRET_ENV=dev
-make pull-secret-single SECRET_ENV=dev FORCE=1
-```
-
-Commandes directes scripts:
-```bash
-PULL_SECRET='mot-de-passe-long' ./scripts/push-secret.sh dev
-PULL_SECRET='mot-de-passe-long' FORCE=1 ./scripts/pull-secret.sh dev
-```
-Compatibilite: `make push-secret-all-remote` et `make pull-secret-all-remote` sont des alias des nouvelles commandes groupées.
+Important:
+- Ces commandes sont bloquées si l'environnement actif n'est pas `dev`.
+- `push-secret` crée un backup distant de l'ancien `.env.local` (`.bak.<timestamp>`).
 
 ---
 

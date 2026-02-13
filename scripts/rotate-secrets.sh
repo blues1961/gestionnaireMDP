@@ -275,4 +275,4 @@ fi
 if [[ "$ROTATE_ADMIN_PASSWORD" -eq 0 ]]; then
   echo "       ADMIN_PASSWORD non modifié (comportement par défaut)."
 fi
-echo "       Pense à lancer: make push-secret-single SECRET_ENV=${TARGET_ENV}"
+echo "       Depuis la machine DEV, synchronise ensuite .env.local vers la prod avec: make push-secret"
