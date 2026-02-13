@@ -33,15 +33,48 @@ echo "[*] Remote app dir: ${SSH_TARGET}:${REMOTE_APP_DIR}"
 echo "[*] Remote backups: ${SSH_TARGET}:${REMOTE_BACKUPS_DIR}"
 echo "[*] Local backups: ${LOCAL_BACKUPS_DIR}"
 
-REMOTE_FILE="$(
-  ssh "$SSH_TARGET" "set -euo pipefail; cd \"$REMOTE_APP_DIR\"; make -s backup-db >/dev/null; ls -1t \"$REMOTE_BACKUPS_DIR\"/${SLUG}_db-*.sql.gz \"$REMOTE_BACKUPS_DIR\"/${SLUG}_db-*.sql \"$REMOTE_BACKUPS_DIR\"/${SLUG}_db.*.dump \"$REMOTE_BACKUPS_DIR\"/db-*.dump \"$REMOTE_BACKUPS_DIR\"/*.dump 2>/dev/null | head -n1"
+set +e
+SSH_OUTPUT="$(
+  ssh "$SSH_TARGET" bash -s -- "$REMOTE_APP_DIR" "$REMOTE_BACKUPS_DIR" "$SLUG" <<'EOF'
+set -euo pipefail
+REMOTE_APP_DIR="$1"
+REMOTE_BACKUPS_DIR="$2"
+SLUG="$3"
+
+cd "$REMOTE_APP_DIR"
+make backup-db
+
+LATEST="$(
+  find "$REMOTE_BACKUPS_DIR" -maxdepth 1 -type f \
+    \( -name "${SLUG}_db-*.sql.gz" -o -name "${SLUG}_db-*.sql" -o -name "${SLUG}_db.*.dump" -o -name "db-*.dump" -o -name "*.dump" \) \
+    -printf '%T@ %p\n' \
+    | sort -nr \
+    | head -n1 \
+    | cut -d' ' -f2-
 )"
+
+test -n "$LATEST"
+printf '__REMOTE_FILE__=%s\n' "$LATEST"
+EOF
+)"
+SSH_RC=$?
+set -e
+
+if (( SSH_RC != 0 )); then
+  echo "[ERR] Échec du backup distant via ${SSH_TARGET}" >&2
+  printf '%s\n' "$SSH_OUTPUT" >&2
+  exit "$SSH_RC"
+fi
+
+REMOTE_FILE="$(printf '%s\n' "$SSH_OUTPUT" | awk -F'=' '/^__REMOTE_FILE__=/{print $2}' | tail -n1)"
 
 if [[ -z "$REMOTE_FILE" ]]; then
   echo "[ERR] Aucun backup trouvé côté remote" >&2
+  printf '%s\n' "$SSH_OUTPUT" >&2
   exit 1
 fi
 
+echo "[*] Remote file: ${REMOTE_FILE}"
 scp "${SSH_TARGET}:${REMOTE_FILE}" "${LOCAL_BACKUPS_DIR}/"
 LOCAL_FILE="${LOCAL_BACKUPS_DIR}/$(basename -- "$REMOTE_FILE")"
 touch "$LOCAL_FILE"
