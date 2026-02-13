@@ -123,6 +123,12 @@ for raw_path in "${EXTRA_PATHS[@]}"; do
   [[ "$already" -eq 1 ]] || SECRETS_PATH_CANDIDATES+=("$candidate")
 done
 
+TMP_DIR="$(mktemp -d)"
+cleanup() {
+  rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
 if [[ -n "${JWT_ACCESS_TOKEN:-}" ]]; then
   ACCESS_TOKEN="$JWT_ACCESS_TOKEN"
 else
@@ -131,9 +137,21 @@ else
   : "${AUTH_USERNAME:?API_AUTH_USERNAME (ou ADMIN_USERNAME) manquant (.env.local)}"
   : "${AUTH_PASSWORD:?API_AUTH_PASSWORD (ou ADMIN_PASSWORD) manquant (.env.local)}"
   AUTH_JSON="$(jq -n --arg u "$AUTH_USERNAME" --arg p "$AUTH_PASSWORD" '{username:$u, password:$p}')"
-  AUTH_RES="$(curl -fsS -X POST "${API_BASE}/auth/jwt/create/" \
+  AUTH_HTTP_CODE="$(
+    curl -sS -o "$TMP_DIR/auth-response.json" -w "%{http_code}" \
+      -X POST "${API_BASE}/auth/jwt/create/" \
     -H "Content-Type: application/json" \
-    -d "$AUTH_JSON")"
+    -d "$AUTH_JSON"
+  )"
+  AUTH_RES="$(cat "$TMP_DIR/auth-response.json" 2>/dev/null || true)"
+  if [[ "$AUTH_HTTP_CODE" != "200" ]]; then
+    echo "[ERR] Échec auth JWT (HTTP ${AUTH_HTTP_CODE}) via ${API_BASE}/auth/jwt/create/" >&2
+    [[ -n "$AUTH_RES" ]] && echo "$AUTH_RES" >&2
+    if [[ "$AUTH_HTTP_CODE" =~ ^5 ]]; then
+      echo "      L'API cible est en erreur serveur (souvent backend sans accès DB)." >&2
+    fi
+    exit 3
+  fi
   ACCESS_TOKEN="$(printf '%s' "$AUTH_RES" | jq -r '.access // empty')"
   if [[ -z "$ACCESS_TOKEN" ]]; then
     echo "[ERR] Impossible d'obtenir un token JWT via ${API_BASE}/auth/jwt/create/" >&2
@@ -148,12 +166,6 @@ for f in "${FILES[@]}"; do
     exit 2
   fi
 done
-
-TMP_DIR="$(mktemp -d)"
-cleanup() {
-  rm -rf "$TMP_DIR"
-}
-trap cleanup EXIT
 
 ARCHIVE="$TMP_DIR/env-files.tar.gz"
 ENCRYPTED="$TMP_DIR/env-files.enc"
