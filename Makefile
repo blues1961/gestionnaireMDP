@@ -85,27 +85,31 @@ token-test: env-check ## JWT create -> whoami (DEV)
 	ACC=$$(jq -r '.access // empty' /tmp/jwt.json) ; test -n "$$ACC" || { echo "Échec JWT"; exit 1; } ; \
 	curl -sS "http://localhost:$$DEV_API_PORT/api/whoami/" -H "Authorization: Bearer $$ACC" | jq .
 
-# Sauvegarde / restauration DB (DEV)
+# Sauvegarde / restauration DB
 backups-dir:
 	mkdir -p backups
 
-backup-db: env-check backups-dir ## Sauvegarder la DB de dev -> backups/<app_slug>_db-<ts>.sql.gz
-	set -a ; . ./.env ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
-	SLUG=$${APP_SLUG:-mdp} ; TS=$$(date +%Y%m%d-%H%M%S) ; OUT=$${OUT:-backups/$${SLUG}_db-$$TS.sql.gz} ; \
-	echo "Backup -> $$OUT" ; \
-	$(COMPOSE) exec -T db pg_dump -U "$$POSTGRES_USER" "$$POSTGRES_DB" | gzip > "$$OUT"
+backup-db: env-check backups-dir ## Sauvegarder la DB de l'env courant -> backups/<app_slug>_db-<ts>.sql.gz
+	set -euo pipefail ; \
+	set -a ; . ./.env.$(APP_ENV) ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
+	SLUG=$${APP_SLUG:-mdp} ; TS=$$(date +%Y%m%d-%H%M%S) ; OUT=$${OUT:-backups/$${SLUG}_db-$$TS.sql.gz} ; DB_CONT=$${SLUG}_db_$(APP_ENV) ; \
+	docker ps --format '{{.Names}}' | grep -qx "$$DB_CONT" || { echo "Conteneur DB introuvable ou arrêté: $$DB_CONT"; exit 1; } ; \
+	echo "Backup ($$(. ./.env.$(APP_ENV); echo $$APP_ENV)) -> $$OUT" ; \
+	docker exec -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" pg_dump -U "$$POSTGRES_USER" "$$POSTGRES_DB" | gzip > "$$OUT"
 
 restore-db: env-check ## Restaurer la DB depuis BACKUP=<fichier.{sql.gz,dump}> (dernier par défaut)
-	set -a ; . ./.env ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
-	SLUG=$${APP_SLUG:-mdp} ; PATTERN_DESC=backups/$${SLUG}_db-<timestamp>.sql.gz ; \
+	set -euo pipefail ; \
+	set -a ; . ./.env.$(APP_ENV) ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
+	SLUG=$${APP_SLUG:-mdp} ; DB_CONT=$${SLUG}_db_$(APP_ENV) ; PATTERN_DESC="backups/$${SLUG}_db-<timestamp>.sql.gz" ; \
 	FILE=$${BACKUP:-$$(ls -1t backups/$${SLUG}_db-*.sql.gz backups/$${SLUG}_db-*.sql backups/$${SLUG}_db.*.dump backups/db-*.dump backups/*.dump 2>/dev/null | head -n1)} ; \
 	test -n "$$FILE" -a -f "$$FILE" || { echo "Aucun backup trouvé ($$PATTERN_DESC) ou BACKUP invalide"; exit 1; } ; \
+	docker ps --format '{{.Names}}' | grep -qx "$$DB_CONT" || { echo "Conteneur DB introuvable ou arrêté: $$DB_CONT"; exit 1; } ; \
 	echo "Restore <- $$FILE" ; \
-	$(COMPOSE) exec -T db psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' ; \
+	docker exec -i -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' ; \
 	case "$$FILE" in \
-	  *.sql.gz) gunzip -c "$$FILE" | $(COMPOSE) exec -T db psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" ;; \
-	  *.sql)    $(COMPOSE) exec -T db psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" < "$$FILE" ;; \
-	  *.dump)   $(COMPOSE) exec -T db pg_restore -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" --no-owner --no-privileges < "$$FILE" ;; \
+	  *.sql.gz) gunzip -c "$$FILE" | docker exec -i -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" ;; \
+	  *.sql)    docker exec -i -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" < "$$FILE" ;; \
+	  *.dump)   docker exec -i -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" pg_restore -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" --no-owner --no-privileges < "$$FILE" ;; \
 	  *)        echo "Format de backup non supporté: $$FILE"; exit 1 ;; \
 	esac
 
