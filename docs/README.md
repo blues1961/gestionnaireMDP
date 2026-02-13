@@ -3,9 +3,11 @@
 Ce dossier contient des guides et procédures pour le projet **gestionnaire_mdp_zero_knowledge**.
 
 - `prod-update-guide.md` : procédure pas à pas pour mettre à jour l'application en **production**.
+- `BOOTSTRAP_PULL_SECRET_PUBLIC.md` : guide bootstrap nouvelle machine, version **safe to publish** (sans secrets).
 
 ⚠️ **Attention** : ces documents peuvent contenir des chemins, noms de domaine ou commandes sensibles.  
 Ils ne doivent pas être intégrés au frontend compilé, ni exposés publiquement.  
+Exception: `BOOTSTRAP_PULL_SECRET_PUBLIC.md` est rédigé pour publication externe.
 
 - **Contrat d’invariants (template “MDP”)** : [INVARIANTS.md](INVARIANTS.md)
 

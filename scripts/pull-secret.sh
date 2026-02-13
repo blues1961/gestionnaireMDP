@@ -129,12 +129,27 @@ if [[ -n "${JWT_ACCESS_TOKEN:-}" ]]; then
 else
   AUTH_USERNAME="${API_AUTH_USERNAME:-${ADMIN_USERNAME:-}}"
   AUTH_PASSWORD="${API_AUTH_PASSWORD:-${ADMIN_PASSWORD:-}}"
-  : "${AUTH_USERNAME:?API_AUTH_USERNAME (ou ADMIN_USERNAME) manquant (.env.local)}"
-  : "${AUTH_PASSWORD:?API_AUTH_PASSWORD (ou ADMIN_PASSWORD) manquant (.env.local)}"
+  if [[ -z "$AUTH_USERNAME" || -z "$AUTH_PASSWORD" ]]; then
+    echo "[ERR] Auth manquante pour pull-secret." >&2
+    echo "      Fournir JWT_ACCESS_TOKEN, ou API_AUTH_USERNAME/API_AUTH_PASSWORD" >&2
+    echo "      (dans .env.local ou .env.root.local)." >&2
+    exit 2
+  fi
   AUTH_JSON="$(jq -n --arg u "$AUTH_USERNAME" --arg p "$AUTH_PASSWORD" '{username:$u, password:$p}')"
-  AUTH_RES="$(curl -fsS -X POST "${API_BASE}/auth/jwt/create/" \
-    -H "Content-Type: application/json" \
-    -d "$AUTH_JSON")"
+  AUTH_RESPONSE_FILE="$(mktemp)"
+  AUTH_HTTP_CODE="$(
+    curl -sS -o "$AUTH_RESPONSE_FILE" -w "%{http_code}" \
+      -X POST "${API_BASE}/auth/jwt/create/" \
+      -H "Content-Type: application/json" \
+      -d "$AUTH_JSON"
+  )"
+  AUTH_RES="$(cat "$AUTH_RESPONSE_FILE" 2>/dev/null || true)"
+  rm -f "$AUTH_RESPONSE_FILE"
+  if [[ "$AUTH_HTTP_CODE" != "200" ]]; then
+    echo "[ERR] Échec auth JWT (HTTP ${AUTH_HTTP_CODE}) via ${API_BASE}/auth/jwt/create/" >&2
+    [[ -n "$AUTH_RES" ]] && echo "$AUTH_RES" >&2
+    exit 3
+  fi
   ACCESS_TOKEN="$(printf '%s' "$AUTH_RES" | jq -r '.access // empty')"
   if [[ -z "$ACCESS_TOKEN" ]]; then
     echo "[ERR] Impossible d'obtenir un token JWT via ${API_BASE}/auth/jwt/create/" >&2

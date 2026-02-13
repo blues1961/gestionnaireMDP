@@ -175,6 +175,26 @@ Variables utiles:
 - `BUNDLE_ENV` (optionnel): utile en mode unitaire; en mode groupé, la valeur est forcée à `dev` puis `prod`.
 - `FORCE=1` (pull uniquement): autorise l'ecrasement des fichiers existants.
 
+Bootstrap nouvelle machine (sans `.env.local`):
+```bash
+# 1) Vérifier les fichiers versionnés d'environnement
+test -f .env.dev && test -f .env.prod
+
+# 2) Choisir l'env actif
+ln -sfn .env.dev .env
+
+# 3) Fournir le secret racine local (non versionné)
+#    (contient au minimum PULL_ROOT_SECRET)
+test -f .env.root.local
+
+# 4) Authentifier le pull (au choix)
+#    A) token JWT déjà généré
+JWT_ACCESS_TOKEN="<token>" make pull-secret FORCE=1
+
+#    B) ou creds API bootstrap (dans .env.root.local ou via env vars shell)
+API_AUTH_USERNAME="<user>" API_AUTH_PASSWORD="<pass>" make pull-secret FORCE=1
+```
+
 Exemples:
 ```bash
 # Initialiser une fois le secret racine local (fichier .env.root.local)

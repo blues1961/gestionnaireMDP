@@ -13,7 +13,7 @@ APP_ENV := $(shell . ./.env; echo $$APP_ENV)
 COMPOSE := docker compose --env-file .env.$(APP_ENV) -f docker-compose.$(APP_ENV).yml
 TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.venv|backups|project-tree-*.txt|*.py[co]|*.sqlite3|*.log|*.cache|*.cookies|*.sql|*.sql.gz|*.dump|*.bak
 
-.PHONY: help env-check \
+.PHONY: help env-check env-check-base env-check-local \
  tree \
  up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
  backup-db restore-db pull-prod-backup push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
@@ -30,11 +30,15 @@ help: ## Liste les commandes disponibles
 tree: ## Arborescence du projet (4 niveaux, ignore les artefacts courants)
 	@tree -L 4 --dirsfirst --prune -I "$(TREE_IGNORE)"
 
-env-check: ## Vérifie .env -> .env.$(APP_ENV) et docker-compose.$(APP_ENV).yml
+env-check-base: ## Vérifie .env -> .env.$(APP_ENV) et docker-compose.$(APP_ENV).yml
 	test -L .env || { echo "Symlink .env manquant (ex: ln -snf .env.dev .env)"; exit 1; }
 	test -f .env.$(APP_ENV) || { echo ".env.$(APP_ENV) introuvable"; exit 1; }
-	test -f .env.local || { echo ".env.local introuvable (ex: cp .env.local.example .env.local)"; exit 1; }
 	test -f docker-compose.$(APP_ENV).yml || { echo "docker-compose.$(APP_ENV).yml introuvable"; exit 1; }
+
+env-check-local: ## Vérifie la présence des secrets locaux (.env.local)
+	test -f .env.local || { echo ".env.local introuvable (ex: cp .env.local.example .env.local)"; exit 1; }
+
+env-check: env-check-base env-check-local ## Vérifie env + secrets locaux
 
 up: env-check ## Démarre la stack (db, backend, vite)
 	$(COMPOSE) up -d --build
@@ -119,8 +123,13 @@ pull-prod-backup: backups-dir ## Déclencher backup-db sur Linode puis rapatrier
 
 push-secret: env-check ## Sauvegarder dev+prod vers l'API de prod (/api/secrets)
 	set -euo pipefail
-	PROD_HOST="$$(set -a; . ./.env.prod; set +a; echo "$$APP_HOST")"
-	API_BASE_URL="$${API_BASE_URL:-https://$${PROD_HOST}/api}"
+	test -f .env.prod || { echo ".env.prod introuvable (fichier versionné: restaure-le depuis le repo)"; exit 1; }
+	if [[ -n "$${API_BASE_URL:-}" ]]; then \
+	  API_BASE_URL="$${API_BASE_URL%/}"; \
+	else \
+	  PROD_HOST="$$(set -a; . ./.env.prod; set +a; echo "$$APP_HOST")"; \
+	  API_BASE_URL="https://$${PROD_HOST}/api"; \
+	fi
 	echo "Push secret bundles vers: $$API_BASE_URL (dev + prod)"
 	API_BASE_URL="$$API_BASE_URL" BUNDLE_ENV=dev ./scripts/push-secret.sh dev
 	API_BASE_URL="$$API_BASE_URL" BUNDLE_ENV=prod ./scripts/push-secret.sh prod
@@ -130,10 +139,15 @@ push-secret-all-remote: push-secret ## Alias de compatibilite (dev+prod vers API
 push-secret-single: env-check ## Sauvegarder un seul env (SECRET_ENV=dev|prod, mode legacy)
 	./scripts/push-secret.sh $${SECRET_ENV:-$(APP_ENV)}
 
-pull-secret: env-check ## Restaurer dev+prod depuis l'API de prod (/api/secrets)
+pull-secret: env-check-base ## Restaurer dev+prod depuis l'API de prod (/api/secrets)
 	set -euo pipefail
-	PROD_HOST="$$(set -a; . ./.env.prod; set +a; echo "$$APP_HOST")"
-	API_BASE_URL="$${API_BASE_URL:-https://$${PROD_HOST}/api}"
+	test -f .env.prod || { echo ".env.prod introuvable (fichier versionné: restaure-le depuis le repo)"; exit 1; }
+	if [[ -n "$${API_BASE_URL:-}" ]]; then \
+	  API_BASE_URL="$${API_BASE_URL%/}"; \
+	else \
+	  PROD_HOST="$$(set -a; . ./.env.prod; set +a; echo "$$APP_HOST")"; \
+	  API_BASE_URL="https://$${PROD_HOST}/api"; \
+	fi
 	echo "Pull secret bundles depuis: $$API_BASE_URL (dev + prod)"
 	API_BASE_URL="$$API_BASE_URL" BUNDLE_ENV=dev FORCE="$${FORCE:-0}" ./scripts/pull-secret.sh dev
 	API_BASE_URL="$$API_BASE_URL" BUNDLE_ENV=prod FORCE="$${FORCE:-0}" ./scripts/pull-secret.sh prod
@@ -142,7 +156,7 @@ pull-secret: env-check ## Restaurer dev+prod depuis l'API de prod (/api/secrets)
 
 pull-secret-all-remote: pull-secret ## Alias de compatibilite (dev+prod depuis API de prod)
 
-pull-secret-single: env-check ## Restaurer un seul env (SECRET_ENV=dev|prod, mode legacy)
+pull-secret-single: env-check-base ## Restaurer un seul env (SECRET_ENV=dev|prod, mode legacy)
 	./scripts/pull-secret.sh $${SECRET_ENV:-$(APP_ENV)}
 
 init-root-secret: ## Générer PULL_ROOT_SECRET dans .env.root.local (FORCE=1 pour régénérer)
