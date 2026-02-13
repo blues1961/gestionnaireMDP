@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# 1) Charger l'env actif via le symlink .env (invariant) + secrets .env.$APP_ENV.local
+# 1) Charger l'env actif via le symlink .env (invariant) + secrets .env.local
 if [[ ! -f "$ROOT_DIR/.env" ]]; then
   echo "[ERR] .env (symlink) introuvable à la racine: $ROOT_DIR/.env" >&2
   exit 2
@@ -17,18 +17,18 @@ set +a
 APP_SLUG="${APP_SLUG:-mdp}"
 APP_SLUG_UP="${APP_SLUG^^}"
 
-# Secrets selon l'env
-if [[ -f "$ROOT_DIR/.env.${APP_ENV}.local" ]]; then
+# Secrets locaux
+if [[ -f "$ROOT_DIR/.env.local" ]]; then
   set -a
   # shellcheck source=/dev/null
-  . "$ROOT_DIR/.env.${APP_ENV}.local"
+  . "$ROOT_DIR/.env.local"
   set +a
 fi
 
 # 2) Vérifs invariants DB
 : "${POSTGRES_DB:?POSTGRES_DB manquant}"
 : "${POSTGRES_USER:?POSTGRES_USER manquant}"
-: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env.${APP_ENV}.local}"
+: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env.local}"
 
 DB_CONT="${APP_SLUG}_db_${APP_ENV}"
 

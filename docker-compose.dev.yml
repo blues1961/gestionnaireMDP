@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     env_file:
       - .env.dev
-      - .env.dev.local
+      - .env.local
     # Les POSTGRES_* viennent des env_file; pas besoin de les répéter ici
     ports:
       - "${DEV_DB_PORT:-5433}:5432"
@@ -29,7 +29,7 @@ services:
     restart: unless-stopped
     env_file:
       - .env.dev
-      - .env.dev.local
+      - .env.local
     volumes:
       - ./backend:/app
     depends_on:
@@ -53,7 +53,7 @@ services:
     restart: unless-stopped
     env_file:
       - .env.dev
-      - .env.dev.local
+      - .env.local
     environment:
       VITE_API_BASE: "/api"
       VITE_APP_SLUG: "${APP_SLUG}"

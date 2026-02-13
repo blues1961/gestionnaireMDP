@@ -7,9 +7,9 @@ cd "$ROOT_DIR"
 set -a
 # shellcheck source=/dev/null
 . "$ROOT_DIR/.env.prod"
-if [[ -f "$ROOT_DIR/.env.prod.local" ]]; then
+if [[ -f "$ROOT_DIR/.env.local" ]]; then
   # shellcheck source=/dev/null
-  . "$ROOT_DIR/.env.prod.local"
+  . "$ROOT_DIR/.env.local"
 fi
 set +a
 

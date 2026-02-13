@@ -51,10 +51,10 @@ set -a
 . "$TARGET_ENV_FILE"
 set +a
 
-if [[ -f "$ROOT_DIR/.env.${TARGET_ENV}.local" ]]; then
+if [[ -f "$ROOT_DIR/.env.local" ]]; then
   set -a
   # shellcheck source=/dev/null
-  . "$ROOT_DIR/.env.${TARGET_ENV}.local"
+  . "$ROOT_DIR/.env.local"
   set +a
 fi
 
@@ -129,8 +129,8 @@ if [[ -n "${JWT_ACCESS_TOKEN:-}" ]]; then
 else
   AUTH_USERNAME="${API_AUTH_USERNAME:-${ADMIN_USERNAME:-}}"
   AUTH_PASSWORD="${API_AUTH_PASSWORD:-${ADMIN_PASSWORD:-}}"
-  : "${AUTH_USERNAME:?API_AUTH_USERNAME (ou ADMIN_USERNAME) manquant (.env.${TARGET_ENV}.local)}"
-  : "${AUTH_PASSWORD:?API_AUTH_PASSWORD (ou ADMIN_PASSWORD) manquant (.env.${TARGET_ENV}.local)}"
+  : "${AUTH_USERNAME:?API_AUTH_USERNAME (ou ADMIN_USERNAME) manquant (.env.local)}"
+  : "${AUTH_PASSWORD:?API_AUTH_PASSWORD (ou ADMIN_PASSWORD) manquant (.env.local)}"
   AUTH_JSON="$(jq -n --arg u "$AUTH_USERNAME" --arg p "$AUTH_PASSWORD" '{username:$u, password:$p}')"
   AUTH_RES="$(curl -fsS -X POST "${API_BASE}/auth/jwt/create/" \
     -H "Content-Type: application/json" \
@@ -198,7 +198,8 @@ openssl enc -d -aes-256-cbc -pbkdf2 \
   -pass "pass:${PULL_SECRET}"
 
 EXPECTED_MAIN=".env.${TARGET_ENV}"
-EXPECTED_LOCAL=".env.${TARGET_ENV}.local"
+EXPECTED_LOCAL=".env.local"
+LEGACY_LOCAL=".env.${TARGET_ENV}.local"
 
 mapfile -t ARCHIVE_ENTRIES < <(tar -tzf "$ARCHIVE")
 if ((${#ARCHIVE_ENTRIES[@]} == 0)); then
@@ -208,24 +209,45 @@ fi
 
 for entry in "${ARCHIVE_ENTRIES[@]}"; do
   entry="${entry#./}"
-  if [[ "$entry" != "$EXPECTED_MAIN" && "$entry" != "$EXPECTED_LOCAL" ]]; then
+  if [[ "$entry" != "$EXPECTED_MAIN" && "$entry" != "$EXPECTED_LOCAL" && "$entry" != "$LEGACY_LOCAL" ]]; then
     echo "[ERR] Archive invalide: entrée inattendue '$entry'." >&2
     exit 3
   fi
 done
 
 mkdir -p "$RESTORE_DIR"
-tar -xzf "$ARCHIVE" -C "$RESTORE_DIR" "$EXPECTED_MAIN" "$EXPECTED_LOCAL"
+if printf '%s\n' "${ARCHIVE_ENTRIES[@]}" | grep -qx "$EXPECTED_LOCAL"; then
+  tar -xzf "$ARCHIVE" -C "$RESTORE_DIR" "$EXPECTED_MAIN" "$EXPECTED_LOCAL"
+elif printf '%s\n' "${ARCHIVE_ENTRIES[@]}" | grep -qx "$LEGACY_LOCAL"; then
+  tar -xzf "$ARCHIVE" -C "$RESTORE_DIR" "$EXPECTED_MAIN" "$LEGACY_LOCAL"
+else
+  echo "[ERR] Archive invalide: fichier local manquant (.env.local ou .env.${TARGET_ENV}.local)." >&2
+  exit 3
+fi
 
-for f in "$EXPECTED_MAIN" "$EXPECTED_LOCAL"; do
-  if [[ -e "$ROOT_DIR/$f" && "$FORCE" != "1" ]]; then
-    echo "[ERR] $f existe déjà. Utilisez FORCE=1 pour écraser." >&2
+if [[ -e "$ROOT_DIR/$EXPECTED_MAIN" && "$FORCE" != "1" ]]; then
+  echo "[ERR] $EXPECTED_MAIN existe déjà. Utilisez FORCE=1 pour écraser." >&2
+  exit 4
+fi
+
+LOCAL_SOURCE="$RESTORE_DIR/$EXPECTED_LOCAL"
+if [[ ! -f "$LOCAL_SOURCE" ]]; then
+  LOCAL_SOURCE="$RESTORE_DIR/$LEGACY_LOCAL"
+fi
+
+if [[ -e "$ROOT_DIR/$EXPECTED_LOCAL" && "$FORCE" != "1" ]]; then
+  if ! cmp -s "$LOCAL_SOURCE" "$ROOT_DIR/$EXPECTED_LOCAL"; then
+    echo "[ERR] $EXPECTED_LOCAL existe déjà et diffère du bundle. Utilisez FORCE=1 pour écraser." >&2
     exit 4
   fi
-done
+fi
 
 cp -f "$RESTORE_DIR/$EXPECTED_MAIN" "$ROOT_DIR/$EXPECTED_MAIN"
-cp -f "$RESTORE_DIR/$EXPECTED_LOCAL" "$ROOT_DIR/$EXPECTED_LOCAL"
+if [[ -e "$ROOT_DIR/$EXPECTED_LOCAL" && "$FORCE" != "1" ]]; then
+  :
+else
+  cp -f "$LOCAL_SOURCE" "$ROOT_DIR/$EXPECTED_LOCAL"
+fi
 chmod 644 "$ROOT_DIR/$EXPECTED_MAIN"
 chmod 600 "$ROOT_DIR/$EXPECTED_LOCAL"
 ln -snf "$EXPECTED_MAIN" "$ROOT_DIR/.env"

@@ -95,7 +95,7 @@ if [[ ! "$TARGET_ENV" =~ ^(dev|prod)$ ]]; then
 fi
 
 ENV_FILE="$ROOT_DIR/.env.${TARGET_ENV}"
-LOCAL_FILE="$ROOT_DIR/.env.${TARGET_ENV}.local"
+LOCAL_FILE="$ROOT_DIR/.env.local"
 COMPOSE_FILE="$ROOT_DIR/docker-compose.${TARGET_ENV}.yml"
 
 if [[ ! -f "$ENV_FILE" ]]; then

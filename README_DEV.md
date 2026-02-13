@@ -1,8 +1,9 @@
 # DEV standard (mdp)
 
 ## Démarrer
+cp .env.local.example .env.local
 ln -sfn .env.dev .env
-set -a; . .env.dev; [ -f .env.dev.local ] && . .env.dev.local; set +a
+set -a; . .env.dev; [ -f .env.local ] && . .env.local; set +a
 docker compose -f docker-compose.dev.yml up -d --build
 
 ## Commandes utiles
@@ -11,7 +12,7 @@ SVC=backend ./scripts/common/restart.sh
 ./scripts/common/logs.sh
 ./scripts/common/psql.sh
 
-## Superuser (variables dans .env.dev.local)
+## Superuser (variables dans .env.local)
 ADMIN_USERNAME=…  ADMIN_PASSWORD=…  ADMIN_EMAIL=…
 ./scripts/dev/superuser.sh
 

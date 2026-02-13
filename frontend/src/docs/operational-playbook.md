@@ -141,7 +141,7 @@ scp backups/${SLUG}_db-YYYYMMDD-HHMMSS.sql.gz user@serveur:/chemin/de/sauvegarde
 ## 4) Clés & Secrets
 
 * Clé RSA navigateur : **jamais** dans les `.env`.
-* `DJANGO_SECRET_KEY` + mots de passe PostgreSQL : dans **`.env.dev.local`** / **`.env.prod.local`** (selon l’environnement).
+* `DJANGO_SECRET_KEY` + mots de passe PostgreSQL : dans **`.env.local`**.
 * Après modification des fichiers `.env.*`, redémarrer les conteneurs.
 
 ---

@@ -32,7 +32,7 @@ Respecter **scrupuleusement** le contrat d’architecture. Proposer des changeme
 ## Fichiers d’environnement
 
 * Versionnés : `.env.dev`, `.env.prod` (**non sensibles**).
-* Exemples secrets : `.env.dev.local.example`, `.env.prod.local.example`.
+* Exemple secret : `.env.local.example`.
 * Secrets réels **uniquement** en `*.local` (non commit).
 * `.env` est un **symlink** vers `.env.$(APP_ENV)`.
 
@@ -73,7 +73,7 @@ proxy: { '/api': { target: 'http://backend:8000', changeOrigin: false } }
 * `makemigrations/migrate/createsuperuser/psql`,
 * `prod-deploy`, `prod-health`, `prod-logs`,
 * `dps`, `dps-all` (listing containers).
-* Chargement auto des secrets : `.env.$(APP_ENV).local`.
+* Chargement auto des secrets : `.env.local`.
 
 ## Checklist (pré-merge)
 

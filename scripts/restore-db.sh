@@ -20,12 +20,9 @@ set +a
 APP_SLUG="${APP_SLUG:-mdp}"
 APP_SLUG_UP="${APP_SLUG^^}"   # ex. mdp -> MDP
 
-# charge .env.${APP_ENV}.local si présent (prioritaire), sinon .env.local (legacy)
+# charge .env.local si présent
 set -a
-if [[ -f "$ROOT_DIR/.env.${APP_ENV}.local" ]]; then
-  # shellcheck source=/dev/null
-  . "$ROOT_DIR/.env.${APP_ENV}.local"
-elif [[ -f "$ROOT_DIR/.env.local" ]]; then
+if [[ -f "$ROOT_DIR/.env.local" ]]; then
   # shellcheck source=/dev/null
   . "$ROOT_DIR/.env.local"
 fi
@@ -116,7 +113,7 @@ fi
 # Variables DB attendues (invariants POSTGRES_*)
 : "${POSTGRES_DB:?POSTGRES_DB manquant}"
 : "${POSTGRES_USER:?POSTGRES_USER manquant}"
-: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env.${APP_ENV}.local}"
+: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env.local}"
 
 DB_CONT="${APP_SLUG}_db_${APP_ENV}"
 

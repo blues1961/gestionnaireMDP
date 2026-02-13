@@ -51,10 +51,10 @@ set -a
 . "$TARGET_ENV_FILE"
 set +a
 
-if [[ -f "$ROOT_DIR/.env.${TARGET_ENV}.local" ]]; then
+if [[ -f "$ROOT_DIR/.env.local" ]]; then
   set -a
   # shellcheck source=/dev/null
-  . "$ROOT_DIR/.env.${TARGET_ENV}.local"
+  . "$ROOT_DIR/.env.local"
   set +a
 fi
 
@@ -128,8 +128,8 @@ if [[ -n "${JWT_ACCESS_TOKEN:-}" ]]; then
 else
   AUTH_USERNAME="${API_AUTH_USERNAME:-${ADMIN_USERNAME:-}}"
   AUTH_PASSWORD="${API_AUTH_PASSWORD:-${ADMIN_PASSWORD:-}}"
-  : "${AUTH_USERNAME:?API_AUTH_USERNAME (ou ADMIN_USERNAME) manquant (.env.${TARGET_ENV}.local)}"
-  : "${AUTH_PASSWORD:?API_AUTH_PASSWORD (ou ADMIN_PASSWORD) manquant (.env.${TARGET_ENV}.local)}"
+  : "${AUTH_USERNAME:?API_AUTH_USERNAME (ou ADMIN_USERNAME) manquant (.env.local)}"
+  : "${AUTH_PASSWORD:?API_AUTH_PASSWORD (ou ADMIN_PASSWORD) manquant (.env.local)}"
   AUTH_JSON="$(jq -n --arg u "$AUTH_USERNAME" --arg p "$AUTH_PASSWORD" '{username:$u, password:$p}')"
   AUTH_RES="$(curl -fsS -X POST "${API_BASE}/auth/jwt/create/" \
     -H "Content-Type: application/json" \
@@ -141,7 +141,7 @@ else
   fi
 fi
 
-FILES=(".env.${TARGET_ENV}" ".env.${TARGET_ENV}.local")
+FILES=(".env.${TARGET_ENV}" ".env.local")
 for f in "${FILES[@]}"; do
   if [[ ! -f "$ROOT_DIR/$f" ]]; then
     echo "[ERR] Fichier requis introuvable: $f" >&2

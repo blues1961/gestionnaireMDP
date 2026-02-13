@@ -152,8 +152,8 @@ curl -H "Authorization: Bearer <JWT_ACCESS_TOKEN>" \
 
 ## 10) Backup/restore des fichiers d'environnement (pull-secret)
 Objectif: sauvegarder/restaurer les paires suivantes par environnement:
-- `.env.dev` + `.env.dev.local`
-- `.env.prod` + `.env.prod.local`
+- `.env.dev` + `.env.local`
+- `.env.prod` + `.env.local`
 
 Le chiffrement est fait **localement** via `PULL_SECRET` avant envoi vers `/api/secrets/`.
 

@@ -1,7 +1,7 @@
 # Makefile — Calendrier (aligné sur INVARIANTS)
 # - .env est un symlink vers .env.<env> (ex: .env.dev)
 # - Services Compose fixes: db, backend, vite
-# - Secrets seulement dans .env.<env>.local
+# - Secrets seulement dans .env.local
 # - Front utilise /api (chemin relatif), Vite proxy -> backend:8000
 
 SHELL := /bin/bash
@@ -33,6 +33,7 @@ tree: ## Arborescence du projet (4 niveaux, ignore les artefacts courants)
 env-check: ## Vérifie .env -> .env.$(APP_ENV) et docker-compose.$(APP_ENV).yml
 	test -L .env || { echo "Symlink .env manquant (ex: ln -snf .env.dev .env)"; exit 1; }
 	test -f .env.$(APP_ENV) || { echo ".env.$(APP_ENV) introuvable"; exit 1; }
+	test -f .env.local || { echo ".env.local introuvable (ex: cp .env.local.example .env.local)"; exit 1; }
 	test -f docker-compose.$(APP_ENV).yml || { echo "docker-compose.$(APP_ENV).yml introuvable"; exit 1; }
 
 up: env-check ## Démarre la stack (db, backend, vite)
@@ -65,8 +66,8 @@ sh: env-check ## Shell dans le backend
 migrate: env-check ## Django: migrations
 	$(COMPOSE) exec -T backend python manage.py migrate
 
-createsuperuser: env-check ## Crée/MAJ admin via ADMIN_* (.env.<env>.local)
-	set -a ; . ./.env ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
+createsuperuser: env-check ## Crée/MAJ admin via ADMIN_* (.env.local)
+	set -a ; . ./.env ; [ -f ./.env.local ] && . ./.env.local || true ; set +a ; \
 	$(COMPOSE) exec -T \
 	  -e ADMIN_USERNAME="$$ADMIN_USERNAME" \
 	  -e ADMIN_EMAIL="$$ADMIN_EMAIL" \
@@ -77,7 +78,7 @@ whoami: env-check ## Test /api/whoami (via port API)
 	PORT=$$(. ./.env; echo $$DEV_API_PORT); curl -sS "http://localhost:$$PORT/api/whoami/" | jq . || true
 
 token-test: env-check ## JWT create -> whoami (DEV)
-	set -a ; . ./.env ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
+	set -a ; . ./.env ; [ -f ./.env.local ] && . ./.env.local || true ; set +a ; \
 	curl -sS "http://localhost:$$DEV_API_PORT/api/auth/jwt/create/" \
 	  -H 'Content-Type: application/json' \
 	  -d "$$(jq -n --arg u "$$ADMIN_USERNAME" --arg p "$$ADMIN_PASSWORD" '{username:$$u, password:$$p}')" \
@@ -91,7 +92,7 @@ backups-dir:
 
 backup-db: env-check backups-dir ## Sauvegarder la DB de l'env courant -> backups/<app_slug>_db-<ts>.sql.gz
 	set -euo pipefail ; \
-	set -a ; . ./.env.$(APP_ENV) ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
+	set -a ; . ./.env.$(APP_ENV) ; [ -f ./.env.local ] && . ./.env.local || true ; set +a ; \
 	SLUG=$${APP_SLUG:-mdp} ; TS=$$(date +%Y%m%d-%H%M%S) ; OUT=$${OUT:-backups/$${SLUG}_db-$$TS.sql.gz} ; DB_CONT=$${SLUG}_db_$(APP_ENV) ; \
 	docker ps --format '{{.Names}}' | grep -qx "$$DB_CONT" || { echo "Conteneur DB introuvable ou arrêté: $$DB_CONT"; exit 1; } ; \
 	echo "Backup ($$(. ./.env.$(APP_ENV); echo $$APP_ENV)) -> $$OUT" ; \
@@ -99,7 +100,7 @@ backup-db: env-check backups-dir ## Sauvegarder la DB de l'env courant -> backup
 
 restore-db: env-check ## Restaurer la DB depuis BACKUP=<fichier.{sql.gz,dump}> (dernier par défaut)
 	set -euo pipefail ; \
-	set -a ; . ./.env.$(APP_ENV) ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
+	set -a ; . ./.env.$(APP_ENV) ; [ -f ./.env.local ] && . ./.env.local || true ; set +a ; \
 	SLUG=$${APP_SLUG:-mdp} ; DB_CONT=$${SLUG}_db_$(APP_ENV) ; PATTERN_DESC="backups/$${SLUG}_db-<timestamp>.sql.gz" ; \
 	FILE=$${BACKUP:-$$( (ls -1t backups/$${SLUG}_db-*.sql.gz backups/$${SLUG}_db-*.sql backups/$${SLUG}_db.*.dump backups/db-*.dump backups/*.dump 2>/dev/null || true) | head -n1 )} ; \
 	test -n "$$FILE" -a -f "$$FILE" || { echo "Aucun backup trouvé ($$PATTERN_DESC) ou BACKUP invalide"; exit 1; } ; \

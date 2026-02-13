@@ -31,7 +31,7 @@ Options:
 Role behavior:
 - app: non-staff, non-superuser (usage quotidien)
 - admin: staff + superuser (admin Django)
-- api: non-staff, non-superuser + update API_AUTH_* in .env.<env>.local
+- api: non-staff, non-superuser + update API_AUTH_* in .env.local
 EOF
 }
 
@@ -118,7 +118,7 @@ if [[ "$ROLE" == "admin" ]]; then
   IS_SUPERUSER="True"
 fi
 
-LOCAL_FILE="$ROOT_DIR/.env.${TARGET_ENV}.local"
+LOCAL_FILE="$ROOT_DIR/.env.local"
 COMPOSE_FILE="$ROOT_DIR/docker-compose.${TARGET_ENV}.yml"
 if [[ ! -f "$COMPOSE_FILE" ]]; then
   echo "[ERR] Fichier introuvable: $COMPOSE_FILE" >&2
@@ -139,7 +139,7 @@ else
   echo "       password=(set)"
 fi
 if [[ "$ROLE" == "api" ]]; then
-  echo "       will update API_AUTH_USERNAME/API_AUTH_PASSWORD in .env.${TARGET_ENV}.local"
+  echo "       will update API_AUTH_USERNAME/API_AUTH_PASSWORD in .env.local"
 fi
 
 if [[ "$APPLY" -ne 1 ]]; then

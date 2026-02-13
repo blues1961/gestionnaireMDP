@@ -100,7 +100,7 @@ fi
 
 # ---------- 5) Smoke tests HTTP ----------
 echo "== Smoke: JWT create via Vite proxy (${VITE_PORT_HOST}) =="
-set -a; [ -f ./.env.dev ] && . ./.env.dev; [ -f ./.env.dev.local ] && . ./.env.dev.local; set +a
+set -a; [ -f ./.env.dev ] && . ./.env.dev; [ -f ./.env.local ] && . ./.env.local; set +a
 TOKENS=$(curl -sS -X POST "http://localhost:${VITE_PORT_HOST}/api/auth/jwt/create/" \
   -H 'Content-Type: application/json' \
   -d "{\"username\":\"${ADMIN_USERNAME}\",\"password\":\"${ADMIN_PASSWORD}\"}")

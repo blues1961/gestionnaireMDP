@@ -84,7 +84,7 @@ Tu dois respecter **scrupuleusement** les invariants ci-dessous, qui forment le 
 ### Fichiers conservés (canon)
 
 * **`.env.dev`**, **`.env.prod`** : variables **non sensibles** (versionnées).
-* **`.env.dev.local.example`**, **`.env.prod.local.example`** : **modèles de secrets** (non sensibles), pour guider la création locale de `*.local` **non versionnés**.
+* **`.env.local.example`** : **modèle de secrets** (non sensible), pour guider la création locale de `.env.local` **non versionné**.
 
 > **Interdit** : secrets dans `.env.dev` / `.env.prod`.
 > **Secrets réels** à conserver **uniquement** dans `*.local` (non commit) :
@@ -129,7 +129,7 @@ VITE_API_BASE=/api
 > Fichiers **non versionnés** (secrets)
 
 ```dotenv
-# .env.dev.local (exemple — non commit)
+# .env.local (exemple — non commit)
 POSTGRES_PASSWORD=change_me
 DJANGO_SECRET_KEY=django-unsafe-dev-…
 ADMIN_USERNAME=admin
@@ -282,7 +282,7 @@ export default defineConfig({
 
 ## 8) Compose (dev) — points d’attention
 
-* `env_file: .env.dev` **et** `.env.dev.local` pour `db`, `backend`, `vite`.
+* `env_file: .env.dev` **et** `.env.local` pour `db`, `backend`, `vite`.
 * `backend.ports: "${DEV_API_PORT}:8000"`
 * `vite.ports: "${DEV_VITE_PORT}:5173"`
 * `VITE_API_BASE: "/api"` injecté dans `vite`.

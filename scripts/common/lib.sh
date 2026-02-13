@@ -12,10 +12,7 @@ load_env() {
   local ENV_ACTIVE; ENV_ACTIVE="$(detect_env)"
   set -a
   . ".env.${ENV_ACTIVE}"
-  if [ -f ".env.${ENV_ACTIVE}.local" ]; then
-    . ".env.${ENV_ACTIVE}.local"
-  elif [ -f ".env.local" ]; then
-    # legacy fallback
+  if [ -f ".env.local" ]; then
     . ".env.local"
   fi
   set +a

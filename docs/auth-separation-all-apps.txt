@@ -94,7 +94,7 @@ chmod +x scripts/manage-django-account.sh scripts/rotate-secrets.sh
 
 Effet du rôle `api`:
 - compte non-admin créé/mis à jour dans Django
-- `API_AUTH_USERNAME` et `API_AUTH_PASSWORD` écrits dans `.env.prod.local`
+- `API_AUTH_USERNAME` et `API_AUTH_PASSWORD` écrits dans `.env.local`
 
 ## 5) Rotation des secrets sans casser ton mot de passe d'usage
 
