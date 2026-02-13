@@ -101,7 +101,7 @@ restore-db: env-check ## Restaurer la DB depuis BACKUP=<fichier.{sql.gz,dump}> (
 	set -euo pipefail ; \
 	set -a ; . ./.env.$(APP_ENV) ; [ -f ./.env.$(APP_ENV).local ] && . ./.env.$(APP_ENV).local || true ; set +a ; \
 	SLUG=$${APP_SLUG:-mdp} ; DB_CONT=$${SLUG}_db_$(APP_ENV) ; PATTERN_DESC="backups/$${SLUG}_db-<timestamp>.sql.gz" ; \
-	FILE=$${BACKUP:-$$(ls -1t backups/$${SLUG}_db-*.sql.gz backups/$${SLUG}_db-*.sql backups/$${SLUG}_db.*.dump backups/db-*.dump backups/*.dump 2>/dev/null | head -n1)} ; \
+	FILE=$${BACKUP:-$$( (ls -1t backups/$${SLUG}_db-*.sql.gz backups/$${SLUG}_db-*.sql backups/$${SLUG}_db.*.dump backups/db-*.dump backups/*.dump 2>/dev/null || true) | head -n1 )} ; \
 	test -n "$$FILE" -a -f "$$FILE" || { echo "Aucun backup trouvé ($$PATTERN_DESC) ou BACKUP invalide"; exit 1; } ; \
 	docker ps --format '{{.Names}}' | grep -qx "$$DB_CONT" || { echo "Conteneur DB introuvable ou arrêté: $$DB_CONT"; exit 1; } ; \
 	echo "Restore <- $$FILE" ; \
