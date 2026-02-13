@@ -15,7 +15,7 @@ import KeyCheck from "./components/KeyCheck";
 import KeyBackup from "./components/KeyBackup";
 import CategoryGuide from "./components/CategoryGuide";
 import { setAccessToken } from "./api";
-import monSiteLogo from "./assets/mon-site-logo.png";
+import monSiteSymbol from "./assets/mon-site-symbol.png";
 
 // Nom d'application injecté via Vite/env
 const APP_NAME = String(import.meta?.env?.APP_NAME || import.meta?.env?.VITE_APP_NAME || '').trim() || 'Gestionnaire MDP';
@@ -49,22 +49,22 @@ function NavBar() {
     navigate("/login", { replace: true });
   };
   return (
-    <header style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
-      <div className="container" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px' }}>
+    <header className="topbar">
+      <div className="topbar__inner">
         <Link
           to="/vault"
-          style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)', textDecoration: 'none', fontWeight: 700 }}
+          className="brand"
           aria-label={`Accueil ${APP_NAME}`}
         >
-          <img src={monSiteLogo} alt="mon-site.ca" style={{ height: 28 }} />
-          <span>{APP_NAME}</span>
+          <img src={monSiteSymbol} alt="mon-site.ca" className="brand__logo" />
+          <span className="brand__name">{APP_NAME}</span>
         </Link>
-        <nav className="row" style={{ gap: 12 }}>
+        <nav className="topnav">
           <Link to="/vault/categories" className="link">Catégories</Link>
           <Link to="/vault/key-check" className="link">Vérif clé</Link>
           <Link to="/vault/key-backup" className="link">Sauvegarde clé</Link>
         </nav>
-        <div style={{ marginLeft: 'auto' }}>
+        <div className="topbar__right">
           <button onClick={onLogout} className="btn btn--light">Se déconnecter</button>
         </div>
       </div>
@@ -74,7 +74,7 @@ function NavBar() {
 
 function VaultPage() {
   return (
-    <div>
+    <div className="app-shell">
       <NavBar />
       <PasswordList />
     </div>
@@ -83,7 +83,7 @@ function VaultPage() {
 
 function CategoryGuidePage() {
   return (
-    <div>
+    <div className="app-shell">
       <NavBar />
       <CategoryGuide />
     </div>
@@ -92,7 +92,7 @@ function CategoryGuidePage() {
 
 function KeyCheckPage() {
   return (
-    <div>
+    <div className="app-shell">
       <NavBar />
       <KeyCheck />
     </div>
@@ -101,7 +101,7 @@ function KeyCheckPage() {
 
 function KeyBackupPage() {
   return (
-    <div>
+    <div className="app-shell">
       <NavBar />
       <KeyBackup />
     </div>
@@ -110,7 +110,7 @@ function KeyBackupPage() {
 
 function PasswordFormPage() {
   return (
-    <div>
+    <div className="app-shell">
       <NavBar />
       <PasswordForm />
     </div>
@@ -119,7 +119,7 @@ function PasswordFormPage() {
 
 function PasswordEditPage() {
   return (
-    <div>
+    <div className="app-shell">
       <NavBar />
       <PasswordEdit />
     </div>
@@ -128,7 +128,7 @@ function PasswordEditPage() {
 
 function LoginPage() {
   return (
-    <div className="page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: 24 }}>
+    <div className="page login-page">
       <LoginForm appName={APP_NAME} />
     </div>
   );
