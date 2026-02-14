@@ -107,10 +107,12 @@ body {
 
 .brand__logo {
   height: 34px;
-  width: 34px;
-  border-radius: 999px;
+  width: 56px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  object-fit: contain;
+  padding: 2px;
   flex: 0 0 auto;
 }
 
@@ -483,12 +485,13 @@ body {
 }
 
 .login-logo {
-  height: 56px;
-  width: 56px;
-  border-radius: 999px;
+  height: 72px;
+  width: 120px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.09);
-  object-fit: cover;
+  object-fit: contain;
+  padding: 4px;
 }
 
 .login-title {
