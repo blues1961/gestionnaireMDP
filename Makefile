@@ -13,7 +13,7 @@ APP_ENV := $(shell . ./.env; echo $$APP_ENV)
 COMPOSE := docker compose --env-file .env.$(APP_ENV) -f docker-compose.$(APP_ENV).yml
 TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.venv|backups|project-tree-*.txt|*.py[co]|*.sqlite3|*.log|*.cache|*.cookies|*.sql|*.sql.gz|*.dump|*.bak
 
-.PHONY: help env-check env-check-base env-check-local require-dev-env \
+.PHONY: help env-check env-check-base env-check-local init-dev require-dev-env \
  tree \
  up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
  backup-db restore-db pull-prod-backup push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
@@ -39,6 +39,28 @@ env-check-local: ## Vérifie la présence des secrets locaux (.env.local)
 	test -f .env.local || { echo ".env.local introuvable (ex: cp .env.local.example .env.local)"; exit 1; }
 
 env-check: env-check-base env-check-local ## Vérifie env + secrets locaux
+
+init-dev: ## Prépare l'env de dev (.env -> .env.dev + .env.local depuis linode)
+	set -euo pipefail ; \
+	command -v scp >/dev/null 2>&1 || { echo "scp est requis pour init-dev"; exit 2; } ; \
+	test -f .env.dev || { echo ".env.dev introuvable (commencez par le créer)"; exit 1; } ; \
+	ln -snf ".env.dev" ".env" ; \
+	echo "[OK] .env -> .env.dev" ; \
+	BACKUP_TS=$$(date +%Y%m%d-%H%M%S) ; \
+	if [[ -f ".env.local" ]]; then \
+	  cp -f ".env.local" ".env.local.bak.$$BACKUP_TS" ; \
+	  echo "[*] Sauvegarde .env.local -> .env.local.bak.$$BACKUP_TS" ; \
+	fi ; \
+	SSH_TARGET="$${INIT_DEV_SSH:-linode}" ; \
+	REMOTE_DIR="$${INIT_DEV_REMOTE_DIR:-/opt/apps/mdp}" ; \
+	REMOTE_FILE="$${INIT_DEV_REMOTE_FILE:-$$REMOTE_DIR/.env.local}" ; \
+	TMP_ENV_LOCAL=$$(mktemp) ; \
+	trap 'rm -f "$$TMP_ENV_LOCAL"' EXIT ; \
+	echo "[*] Copie $$SSH_TARGET:$$REMOTE_FILE -> .env.local" ; \
+	scp "$$SSH_TARGET:$$REMOTE_FILE" "$$TMP_ENV_LOCAL" ; \
+	mv -f "$$TMP_ENV_LOCAL" ".env.local" ; \
+	chmod 600 ".env.local" ; \
+	echo "[OK] init-dev terminé"
 
 require-dev-env: ## Garde-fou: autorise la commande uniquement si APP_ENV=dev
 	test "$$(. ./.env; echo $$APP_ENV)" = "dev" || { echo "Commande autorisée uniquement depuis dev (.env -> .env.dev)."; exit 1; }
