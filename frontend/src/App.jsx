@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -14,11 +14,20 @@ import PasswordEdit from "./components/PasswordEdit";
 import KeyCheck from "./components/KeyCheck";
 import KeyBackup from "./components/KeyBackup";
 import CategoryGuide from "./components/CategoryGuide";
+import ThemeToggle from "./components/ThemeToggle";
 import { setAccessToken } from "./api";
 import monSiteSymbol from "./assets/mon-site-symbol.png";
 
 // Nom d'application injecté via Vite/env
 const APP_NAME = String(import.meta?.env?.APP_NAME || import.meta?.env?.VITE_APP_NAME || '').trim() || 'Gestionnaire MDP';
+const THEME_KEY = "mdp_theme";
+
+function getInitialTheme() {
+  if (typeof window === "undefined") return "dark";
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === "light" || saved === "dark") return saved;
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
 
 // Source unique de vérité pour l'access token
 function getStoredAccessToken() {
@@ -40,7 +49,7 @@ function RequireAuth({ children }) {
   return children;
 }
 
-function NavBar() {
+function NavBar({ theme, onThemeChange }) {
   const navigate = useNavigate();
   const onLogout = () => {
     localStorage.removeItem("mdp.jwt");
@@ -64,7 +73,8 @@ function NavBar() {
           <Link to="/vault/key-check" className="link">Vérif clé</Link>
           <Link to="/vault/key-backup" className="link">Sauvegarde clé</Link>
         </nav>
-        <div className="topbar__right">
+        <div className="topbar__right row">
+          <ThemeToggle theme={theme} onChange={onThemeChange} />
           <button onClick={onLogout} className="btn btn--light">Se déconnecter</button>
         </div>
       </div>
@@ -72,69 +82,76 @@ function NavBar() {
   );
 }
 
-function VaultPage() {
+function VaultPage({ theme, onThemeChange }) {
   return (
     <div className="app-shell">
-      <NavBar />
+      <NavBar theme={theme} onThemeChange={onThemeChange} />
       <PasswordList />
     </div>
   );
 }
 
-function CategoryGuidePage() {
+function CategoryGuidePage({ theme, onThemeChange }) {
   return (
     <div className="app-shell">
-      <NavBar />
+      <NavBar theme={theme} onThemeChange={onThemeChange} />
       <CategoryGuide />
     </div>
   );
 }
 
-function KeyCheckPage() {
+function KeyCheckPage({ theme, onThemeChange }) {
   return (
     <div className="app-shell">
-      <NavBar />
+      <NavBar theme={theme} onThemeChange={onThemeChange} />
       <KeyCheck />
     </div>
   );
 }
 
-function KeyBackupPage() {
+function KeyBackupPage({ theme, onThemeChange }) {
   return (
     <div className="app-shell">
-      <NavBar />
+      <NavBar theme={theme} onThemeChange={onThemeChange} />
       <KeyBackup />
     </div>
   );
 }
 
-function PasswordFormPage() {
+function PasswordFormPage({ theme, onThemeChange }) {
   return (
     <div className="app-shell">
-      <NavBar />
+      <NavBar theme={theme} onThemeChange={onThemeChange} />
       <PasswordForm />
     </div>
   );
 }
 
-function PasswordEditPage() {
+function PasswordEditPage({ theme, onThemeChange }) {
   return (
     <div className="app-shell">
-      <NavBar />
+      <NavBar theme={theme} onThemeChange={onThemeChange} />
       <PasswordEdit />
     </div>
   );
 }
 
-function LoginPage() {
+function LoginPage({ theme, onThemeChange }) {
   return (
     <div className="page login-page">
-      <LoginForm appName={APP_NAME} />
+      <LoginForm appName={APP_NAME} theme={theme} onThemeChange={onThemeChange} />
     </div>
   );
 }
 
 export default function App() {
+  const [theme, setTheme] = useState(getInitialTheme);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
   // Arme le header Authorization si un token existe déjà
   useEffect(() => {
     const token = getStoredAccessToken();
@@ -144,12 +161,12 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={<LoginPage theme={theme} onThemeChange={setTheme} />} />
         <Route
           path="/vault"
           element={
             <RequireAuth>
-              <VaultPage />
+              <VaultPage theme={theme} onThemeChange={setTheme} />
             </RequireAuth>
           }
         />
@@ -157,7 +174,7 @@ export default function App() {
           path="/vault/new"
           element={
             <RequireAuth>
-              <PasswordFormPage />
+              <PasswordFormPage theme={theme} onThemeChange={setTheme} />
             </RequireAuth>
           }
         />
@@ -165,7 +182,7 @@ export default function App() {
           path="/vault/:id/edit"
           element={
             <RequireAuth>
-              <PasswordEditPage />
+              <PasswordEditPage theme={theme} onThemeChange={setTheme} />
             </RequireAuth>
           }
         />
@@ -173,7 +190,7 @@ export default function App() {
           path="/vault/key-check"
           element={
             <RequireAuth>
-              <KeyCheckPage />
+              <KeyCheckPage theme={theme} onThemeChange={setTheme} />
             </RequireAuth>
           }
         />
@@ -181,7 +198,7 @@ export default function App() {
           path="/vault/key-backup"
           element={
             <RequireAuth>
-              <KeyBackupPage />
+              <KeyBackupPage theme={theme} onThemeChange={setTheme} />
             </RequireAuth>
           }
         />
@@ -189,7 +206,7 @@ export default function App() {
           path="/vault/categories"
           element={
             <RequireAuth>
-              <CategoryGuidePage />
+              <CategoryGuidePage theme={theme} onThemeChange={setTheme} />
             </RequireAuth>
           }
         />

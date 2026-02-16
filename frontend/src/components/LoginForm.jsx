@@ -1,9 +1,15 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginJWT, setAccessToken } from "../api";
+import ThemeToggle from "./ThemeToggle";
 import monSiteSymbol from "../assets/mon-site-symbol.png";
 
-export default function LoginForm({ onLogin, appName = "Gestionnaire MDP" }) {
+export default function LoginForm({
+  onLogin,
+  appName = "Gestionnaire MDP",
+  theme = "dark",
+  onThemeChange,
+}) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error,   setError]   = useState(null);
@@ -33,6 +39,7 @@ export default function LoginForm({ onLogin, appName = "Gestionnaire MDP" }) {
           <h1 className="login-title">{appName}</h1>
         )}
         <p className="login-sub">Connexion</p>
+        <ThemeToggle theme={theme} onChange={onThemeChange} className="login-theme-toggle" />
       </div>
       {/* on bloque toute soumission native */}
       <form
