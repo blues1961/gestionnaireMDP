@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginJWT, setAccessToken } from "../api";
 import ThemeToggle from "./ThemeToggle";
-import monSiteSymbol from "../assets/mon-site-symbol.png";
+import monSiteLogo from "../assets/mon-site-logo.png";
 
 export default function LoginForm({
   onLogin,
@@ -34,7 +34,7 @@ export default function LoginForm({
   return (
     <main className="login-card">
       <div className="login-head">
-        <img src={monSiteSymbol} alt="mon-site.ca" className="login-logo" />
+        <img src={monSiteLogo} alt="mon-site.ca" className="login-logo" />
         {appName && (
           <h1 className="login-title">{appName}</h1>
         )}

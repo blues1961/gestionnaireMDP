@@ -589,13 +589,14 @@ body {
 }
 
 .login-logo {
-  height: 72px;
-  width: 120px;
+  width: min(240px, 100%);
+  height: auto;
   border-radius: 14px;
   border: 1px solid var(--logo-border);
   background: var(--logo-bg);
   object-fit: contain;
-  padding: 4px;
+  padding: 6px 10px;
+  box-sizing: border-box;
 }
 
 .login-theme-toggle {
