@@ -167,7 +167,7 @@ make pull-secret FORCE=1
 ```
 
 `make push-secret` / `make pull-secret` utilisent une copie SSH directe (`scp`) vers/depuis:
-- hôte: `PROD_SSH` (défaut: `linode`)
+- hôte: `PROD_SSH_HOST` (défaut: `linode`, alias rétro-compatible `PROD_SSH`)
 - dossier app prod: `PROD_DIR` (défaut: `/opt/apps/${APP_SLUG}`)
 - fichier cible: `${PROD_DIR}/.env.local` (surcharge possible via `PROD_ENV_LOCAL_PATH`)
 
@@ -178,8 +178,8 @@ make push-secret
 make pull-secret FORCE=1
 
 # Override ponctuel
-PROD_SSH=linode PROD_DIR=/opt/apps/mdp make push-secret
-PROD_SSH=linode PROD_DIR=/opt/apps/mdp make pull-secret FORCE=1
+PROD_SSH_HOST=linode PROD_DIR=/opt/apps/mdp make push-secret
+PROD_SSH_HOST=linode PROD_DIR=/opt/apps/mdp make pull-secret FORCE=1
 ```
 
 Important:

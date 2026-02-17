@@ -16,7 +16,7 @@ TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.ven
 .PHONY: help env-check env-check-base env-check-local init-dev require-dev-env \
  tree \
  up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
- backup-db restore-db pull-prod-backup push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
+ backup-db restore-db pull-prod-backup push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-secret init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
  up-backend up-db up-vite stop-backend stop-db stop-vite restart-backend restart-db restart-vite \
  logs-backend logs-db logs-vite exec-backend exec-db exec-vite clean reseed rebuild
 
@@ -59,6 +59,13 @@ init-dev: ## Prépare l'env de dev (.env -> .env.dev + .env.local depuis linode)
 	echo "[*] Copie $$SSH_TARGET:$$REMOTE_FILE -> .env.local" ; \
 	scp "$$SSH_TARGET:$$REMOTE_FILE" "$$TMP_ENV_LOCAL" ; \
 	mv -f "$$TMP_ENV_LOCAL" ".env.local" ; \
+	if ! grep -q '^PROD_DB_PASSWORD=' ".env.local" ; then \
+	  POSTGRES_PASSWORD_VALUE="$$(grep -E '^POSTGRES_PASSWORD=' ".env.local" | tail -n1 | cut -d'=' -f2-)" ; \
+	  if [ -n "$$POSTGRES_PASSWORD_VALUE" ]; then \
+	    echo "[*] Ajout PROD_DB_PASSWORD depuis POSTGRES_PASSWORD" ; \
+	    printf '\nPROD_DB_PASSWORD=%s\n' "$$POSTGRES_PASSWORD_VALUE" >> ".env.local" ; \
+	  fi ; \
+	fi ; \
 	chmod 600 ".env.local" ; \
 	echo "[OK] init-dev terminé"
 
@@ -161,6 +168,9 @@ pull-secret: env-check-base require-dev-env ## Rapatrier .env.local depuis la pr
 pull-secret-all-remote: pull-secret ## Alias de compatibilité
 
 pull-secret-single: pull-secret ## Alias de compatibilité
+
+init-secret: ## Régénère les secrets (.env.local.example) hors ADMIN_* + sync DB
+	./scripts/init-secret.sh
 
 init-root-secret: ## Générer PULL_ROOT_SECRET dans .env.root.local (FORCE=1 pour régénérer)
 	./scripts/init-pull-root-secret.sh

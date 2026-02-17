@@ -41,7 +41,7 @@ if [[ ! -f "$LOCAL_FILE" ]]; then
 fi
 
 SLUG="${APP_SLUG:-mdp}"
-SSH_TARGET="${PROD_SSH:-linode}"
+SSH_TARGET="${PROD_SSH_HOST:-${PROD_SSH:-linode}}"
 REMOTE_APP_DIR="${PROD_DIR:-/opt/apps/${SLUG}}"
 REMOTE_FILE="${PROD_ENV_LOCAL_PATH:-${REMOTE_APP_DIR}/.env.local}"
 REMOTE_INCOMING="${REMOTE_FILE}.incoming"

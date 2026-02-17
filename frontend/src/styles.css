@@ -210,14 +210,11 @@ body {
 }
 
 .brand__logo {
-  height: 34px;
-  width: 56px;
-  border-radius: 10px;
-  border: 1px solid var(--logo-border);
-  background: var(--logo-bg);
+  height: 38px;
+  width: auto;
   object-fit: contain;
-  padding: 2px;
   flex: 0 0 auto;
+  display: block;
 }
 
 .brand__name {

@@ -16,7 +16,7 @@ import KeyBackup from "./components/KeyBackup";
 import CategoryGuide from "./components/CategoryGuide";
 import ThemeToggle from "./components/ThemeToggle";
 import { setAccessToken } from "./api";
-import monSiteSymbol from "./assets/mon-site-symbol.png";
+import monSiteLogo from "./assets/mon-site-logo.png";
 
 // Nom d'application injecté via Vite/env
 const APP_NAME = String(import.meta?.env?.APP_NAME || import.meta?.env?.VITE_APP_NAME || '').trim() || 'Gestionnaire MDP';
@@ -65,7 +65,7 @@ function NavBar({ theme, onThemeChange }) {
           className="brand"
           aria-label={`Accueil ${APP_NAME}`}
         >
-          <img src={monSiteSymbol} alt="mon-site.ca" className="brand__logo" />
+          <img src={monSiteLogo} alt="mon-site.ca" className="brand__logo" />
           <span className="brand__name">{APP_NAME}</span>
         </Link>
         <nav className="topnav">

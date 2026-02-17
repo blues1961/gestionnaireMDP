@@ -27,15 +27,15 @@ make pull-secret FORCE=1
 
 Tu peux surcharger la cible via variables d'environnement:
 
-- `PROD_SSH` (defaut: `linode`)
+- `PROD_SSH_HOST` (defaut: `linode`, alias `PROD_SSH`)
 - `PROD_DIR` (defaut: `/opt/apps/${APP_SLUG}`)
 - `PROD_ENV_LOCAL_PATH` (defaut: `${PROD_DIR}/.env.local`)
 
 Exemple:
 
 ```bash
-PROD_SSH=linode PROD_DIR=/opt/apps/mdp make push-secret
-PROD_SSH=linode PROD_DIR=/opt/apps/mdp make pull-secret FORCE=1
+PROD_SSH_HOST=linode PROD_DIR=/opt/apps/mdp make push-secret
+PROD_SSH_HOST=linode PROD_DIR=/opt/apps/mdp make pull-secret FORCE=1
 ```
 
 ## Garde-fous
@@ -58,7 +58,7 @@ PROD_SSH=linode PROD_DIR=/opt/apps/mdp make pull-secret FORCE=1
 ## Securite
 
 Tu peux publier:
-- les noms de variables (`PROD_SSH`, `PROD_DIR`, etc.)
+- les noms de variables (`PROD_SSH_HOST`, `PROD_DIR`, etc.)
 - la procedure
 
 Tu ne dois jamais publier:

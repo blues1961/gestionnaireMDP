@@ -38,7 +38,7 @@ fi
 FORCE="${FORCE:-0}"
 
 SLUG="${APP_SLUG:-mdp}"
-SSH_TARGET="${PROD_SSH:-linode}"
+SSH_TARGET="${PROD_SSH_HOST:-${PROD_SSH:-linode}}"
 REMOTE_APP_DIR="${PROD_DIR:-/opt/apps/${SLUG}}"
 REMOTE_FILE="${PROD_ENV_LOCAL_PATH:-${REMOTE_APP_DIR}/.env.local}"
 LOCAL_FILE="$ROOT_DIR/.env.local"

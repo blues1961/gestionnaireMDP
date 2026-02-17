@@ -14,7 +14,7 @@ fi
 set +a
 
 SLUG="${APP_SLUG:-mdp}"
-SSH_TARGET="${PROD_SSH:-linode}"
+SSH_TARGET="${PROD_SSH_HOST:-${PROD_SSH:-linode}}"
 REMOTE_APP_DIR="${PROD_DIR:-/opt/apps/${SLUG}}"
 REMOTE_BACKUPS_DIR="${PROD_BACKUPS_DIR:-${REMOTE_APP_DIR}/backups}"
 DEV_APP_DIR_CANDIDATE="${HOME}/projets/${APP_DEPOT:-}"
@@ -25,7 +25,7 @@ elif [[ -n "${APP_DEPOT:-}" && -d "${DEV_APP_DIR_CANDIDATE}" ]]; then
 else
   LOCAL_APP_DIR="${ROOT_DIR}"
 fi
-LOCAL_BACKUPS_DIR="${DEV_BACKUPS_DIR:-${LOCAL_APP_DIR}/backups}"
+LOCAL_BACKUPS_DIR="${DEV_BACKUPS_DIR:-${BACKUP_DIR:-${LOCAL_APP_DIR}/backups}}"
 
 mkdir -p "$LOCAL_BACKUPS_DIR"
 

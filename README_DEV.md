@@ -2,9 +2,13 @@
 
 ## Démarrer
 cp .env.local.example .env.local
+make init-secret        # génère des secrets aléatoires hors ADMIN_* et synchronise PostgreSQL
 ln -sfn .env.dev .env
 set -a; . .env.dev; [ -f .env.local ] && . .env.local; set +a
 docker compose -f docker-compose.dev.yml up -d --build
+
+> `make init-secret` prend `.env.local.example` comme référence, régénère des valeurs aléatoires pour toutes les variables sauf `ADMIN_*`, puis applique automatiquement le nouveau `POSTGRES_PASSWORD` dans la base (conteneur `db`).  
+> Définir `INIT_SECRET_UPDATE_DB=0` pour sauter la mise à jour de la DB si nécessaire.
 
 ## Commandes utiles
 ./scripts/common/ps.sh
