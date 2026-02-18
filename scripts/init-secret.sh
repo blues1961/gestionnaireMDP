@@ -116,6 +116,16 @@ if [[ "${#TEMPLATE_KEYS[@]}" -eq 0 ]]; then
   exit 2
 fi
 
+# Certaines clés doivent conserver la valeur du template (ex: hôte SSH)
+STATIC_TEMPLATE_KEYS=("PROD_SSH_HOST")
+is_static_template_key() {
+  local needle="$1"
+  for candidate in "${STATIC_TEMPLATE_KEYS[@]}"; do
+    [[ "$needle" == "$candidate" ]] && return 0
+  done
+  return 1
+}
+
 declare -a NON_ADMIN_KEYS=()
 declare -a ADMIN_KEYS=()
 for key in "${TEMPLATE_KEYS[@]}"; do
@@ -196,7 +206,14 @@ NEW_POSTGRES_PASSWORD=""
 
 echo "[STEP] Régénération des variables non ADMIN_* depuis $TEMPLATE_FILE"
 for key in "${NON_ADMIN_KEYS[@]}"; do
-  new_value="$(generate_value_for_key "$key")"
+  if is_static_template_key "$key"; then
+    new_value="${TEMPLATE_DEFAULTS[$key]:-}"
+    if [[ -z "$new_value" ]]; then
+      new_value="$(generate_value_for_key "$key")"
+    fi
+  else
+    new_value="$(generate_value_for_key "$key")"
+  fi
   upsert_env_var "$TARGET_FILE" "$key" "$new_value"
   echo "       - $key mis à jour"
   if [[ "$key" == "POSTGRES_PASSWORD" ]]; then
