@@ -13,7 +13,7 @@ APP_ENV := $(shell . ./.env; echo $$APP_ENV)
 COMPOSE := docker compose --env-file .env.$(APP_ENV) -f docker-compose.$(APP_ENV).yml
 TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.venv|backups|project-tree-*.txt|*.py[co]|*.sqlite3|*.log|*.cache|*.cookies|*.sql|*.sql.gz|*.dump|*.bak
 
-.PHONY: help env-check env-check-base env-check-local init-dev require-dev-env \
+.PHONY: help create-env env-check env-check-base env-check-local init-dev require-dev-env \
  tree \
  up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
  backup-db restore-db pull-prod-backup push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-secret init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
@@ -26,6 +26,9 @@ help: ## Liste les commandes disponibles
 	 | sed -E 's/^([a-zA-Z0-9_-]+):.*## (.*)$$/\1\t\2/' \
 	 | sort -f \
 	 | awk -F'\t' '{printf "  \033[36m%-24s\033[0m %s\n", $$1, $$2}'
+
+create-env: ## Génère .env.dev et .env.prod (FORCE=1 pour écraser)
+	./scripts/create-env.sh
 
 tree: ## Arborescence du projet (4 niveaux, ignore les artefacts courants)
 	@tree -L 4 --dirsfirst --prune -I "$(TREE_IGNORE)"

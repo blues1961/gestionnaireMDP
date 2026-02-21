@@ -1,6 +1,7 @@
 # DEV standard (mdp)
 
 ## Démarrer
+make create-env            # génère .env.dev + .env.prod (FORCE=1 pour écraser, voir docs/create-env.md)
 cp .env.local.example .env.local
 make init-secret        # génère des secrets aléatoires hors ADMIN_* et synchronise PostgreSQL
 ln -sfn .env.dev .env
