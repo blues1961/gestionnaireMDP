@@ -658,13 +658,6 @@ body {
   font-size: 14px;
 }
 
-.login-foot {
-  margin-top: 20px;
-  color: var(--text-muted);
-  font-size: 13px;
-  text-align: center;
-}
-
 /* ========== Responsive ========== */
 @media (max-width: 900px) {
   .topbar__inner {

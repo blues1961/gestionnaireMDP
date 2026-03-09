@@ -75,9 +75,6 @@ export default function LoginForm({
         </button>
       </form>
       {error && <p className="error" style={{ marginTop: 16 }}>{error}</p>}
-      <p className="login-foot">
-        Utilisez les identifiants <code>ADMIN_*</code> (déclarés en DEV) pour la première connexion.
-      </p>
     </main>
   );
 }
