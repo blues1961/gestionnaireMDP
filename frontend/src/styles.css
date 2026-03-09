@@ -72,6 +72,10 @@
   --theme-toggle-active-bg: rgba(76, 141, 255, 0.22);
   --theme-toggle-active-border: rgba(140, 182, 255, 0.7);
   --theme-toggle-active-text: #f5f9ff;
+  --dropdown-bg: rgba(12, 21, 33, 0.96);
+  --dropdown-hover-bg: rgba(25, 41, 63, 0.82);
+  --dropdown-selected-bg: rgba(41, 78, 120, 0.44);
+  --dropdown-shadow: 0 14px 36px rgba(0, 0, 0, 0.34);
 
   color-scheme: dark;
 }
@@ -140,6 +144,10 @@
   --theme-toggle-active-bg: rgba(47, 111, 218, 0.14);
   --theme-toggle-active-border: rgba(47, 111, 218, 0.42);
   --theme-toggle-active-text: #193a64;
+  --dropdown-bg: rgba(255, 255, 255, 0.98);
+  --dropdown-hover-bg: rgba(229, 240, 252, 0.96);
+  --dropdown-selected-bg: rgba(201, 223, 247, 0.96);
+  --dropdown-shadow: 0 14px 32px rgba(39, 74, 113, 0.18);
 
   color-scheme: light;
 }
@@ -400,6 +408,85 @@ body {
 .input[readonly]:focus,
 .textarea[readonly]:focus {
   box-shadow: none;
+}
+
+.category-select {
+  position: relative;
+}
+
+.category-select__trigger {
+  text-align: left;
+  appearance: none;
+  padding-right: 34px;
+}
+
+.category-select__chevron {
+  float: right;
+  opacity: 0.7;
+}
+
+.category-select__panel {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 320px;
+  overflow: auto;
+  background: var(--dropdown-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--dropdown-shadow);
+  backdrop-filter: blur(8px);
+}
+
+.category-select__search-wrap {
+  padding: 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.category-select__search {
+  padding: 8px 10px;
+}
+
+.category-select__option {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-soft);
+  background: transparent;
+  transition: background 0.16s ease;
+}
+
+.category-select__option:last-child {
+  border-bottom: 0;
+}
+
+.category-select__option:hover {
+  background: var(--dropdown-hover-bg);
+}
+
+.category-select__option.is-selected {
+  background: var(--dropdown-selected-bg);
+}
+
+.category-select__option-title {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.category-select__option-description {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+
+.category-select__status {
+  padding: 12px;
+  color: var(--text-muted);
+}
+
+.category-select__status--error {
+  color: var(--error);
 }
 
 /* ========== Boutons ========== */

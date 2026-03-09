@@ -67,7 +67,7 @@ export default function CategorySelect({
   }
 
   return (
-    <div ref={wrapRef} style={{ position:'relative', ...style }}>
+    <div ref={wrapRef} className="category-select" style={style}>
       {/* Affichage du champ sélectionné */}
       <button
         type="button"
@@ -75,35 +75,25 @@ export default function CategorySelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
-        style={{
-          width:'100%', textAlign:'left', padding:'8px 10px',
-          background:'#0c0c0c', border:'1px solid #333', color:'#eee',
-          borderRadius:8, cursor: disabled ? 'not-allowed' : 'pointer'
-        }}
+        className="select category-select__trigger"
+        style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
       >
         {label || placeholder}
-        <span style={{ float:'right', opacity:.7 }}>▾</span>
+        <span className="category-select__chevron">▾</span>
       </button>
 
       {/* Panneau déroulant */}
       {open && (
         <div
-          style={{
-            position:'absolute', zIndex:50, top:'calc(100% + 6px)', left:0, right:0,
-            background:'#111', border:'1px solid #333', borderRadius:10,
-            boxShadow:'0 10px 30px rgba(0,0,0,.45)', maxHeight:320, overflow:'auto'
-          }}
+          className="category-select__panel"
         >
-          <div style={{ padding:8, borderBottom:'1px solid #222' }}>
+          <div className="category-select__search-wrap">
             <input
               autoFocus
               value={query}
               onChange={e=>setQuery(e.target.value)}
               placeholder="Rechercher une catégorie…"
-              style={{
-                width:'100%', padding:'8px 10px', borderRadius:8,
-                background:'#0c0c0c', border:'1px solid #333', color:'#eee'
-              }}
+              className="input category-select__search"
             />
           </div>
 
@@ -112,26 +102,22 @@ export default function CategorySelect({
             role="option"
             aria-selected={String(value)===''}
             onClick={()=>choose('')}
-            style={{
-              padding:'10px 12px', cursor:'pointer',
-              borderBottom:'1px solid #1c1c1c',
-              background: String(value)==='' ? '#0f1a12' : 'transparent'
-            }}
+            className={`category-select__option${String(value)==='' ? ' is-selected' : ''}`}
           >
-            <div style={{ fontWeight:600, color:'#ddd' }}>(Aucune)</div>
-            <div style={{ fontSize:12, color:'#888' }}>Ne pas associer de catégorie</div>
+            <div className="category-select__option-title">(Aucune)</div>
+            <div className="category-select__option-description">Ne pas associer de catégorie</div>
           </div>
 
           {/* Liste des catégories avec suggestion (description) */}
           <div ref={listRef}>
             {loading && (
-              <div style={{ padding:12, color:'#aaa' }}>Chargement…</div>
+              <div className="category-select__status">Chargement…</div>
             )}
             {err && (
-              <div style={{ padding:12, color:'crimson' }}>{err}</div>
+              <div className="category-select__status category-select__status--error">{err}</div>
             )}
             {!loading && !err && filtered.length === 0 && (
-              <div style={{ padding:12, color:'#aaa' }}>Aucun résultat</div>
+              <div className="category-select__status">Aucun résultat</div>
             )}
             {filtered.map(c => {
               const selected = String(value) === String(c.id)
@@ -141,14 +127,10 @@ export default function CategorySelect({
                   role="option"
                   aria-selected={selected}
                   onClick={()=>choose(c.id)}
-                  style={{
-                    padding:'10px 12px', cursor:'pointer',
-                    borderBottom:'1px solid #1c1c1c',
-                    background: selected ? '#0f1a12' : 'transparent'
-                  }}
+                  className={`category-select__option${selected ? ' is-selected' : ''}`}
                 >
-                  <div style={{ fontWeight:700, color:'#eee' }}>{c.name}</div>
-                  <div style={{ fontSize:12, color:'#bbb', whiteSpace:'pre-wrap' }}>
+                  <div className="category-select__option-title">{c.name}</div>
+                  <div className="category-select__option-description">
                     {c.description || '(Pas de suggestion)'}
                   </div>
                 </div>
