@@ -11,6 +11,7 @@
   const loginForm = document.getElementById('login-form');
   const usernameInput = document.getElementById('username');
   const passwordInput = document.getElementById('password');
+  const capsWarningEl = document.getElementById('login-caps-warning');
   const loginBtn = document.getElementById('login-btn');
   const logoutBtn = document.getElementById('logout-btn');
   const keyForm = document.getElementById('key-form');
@@ -18,6 +19,26 @@
   const keyPassInput = document.getElementById('key-passphrase');
   const forgetKeyBtn = document.getElementById('forget-key-btn');
   const forceRefreshBtn = document.getElementById('force-refresh');
+  const themeButtons = Array.from(document.querySelectorAll('[data-theme-value]'));
+  const THEME_KEY = 'mdp_extension_theme';
+
+  function getInitialTheme() {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch (_) {}
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch (_) {}
+    for (const btn of themeButtons) {
+      btn.classList.toggle('is-active', btn.dataset.themeValue === theme);
+    }
+  }
 
   function setMessage(text, ok = false) {
     if (!messageEl) return;
@@ -80,12 +101,29 @@
     }
     for (const item of items) {
       const li = document.createElement('li');
+      li.className = item.ok ? 'status-item' : 'status-item is-bad';
       li.textContent = `${item.label} : ${item.value}`;
-      if (!item.ok) {
-        li.style.color = '#b95000';
-      }
       statusList.appendChild(li);
     }
+  }
+
+  function syncCapsLock(event) {
+    if (!capsWarningEl) return;
+    capsWarningEl.hidden = !Boolean(event && event.getModifierState && event.getModifierState('CapsLock'));
+  }
+
+  applyTheme(getInitialTheme());
+
+  for (const btn of themeButtons) {
+    btn.addEventListener('click', () => applyTheme(btn.dataset.themeValue || 'dark'));
+  }
+
+  if (passwordInput) {
+    passwordInput.addEventListener('keydown', syncCapsLock);
+    passwordInput.addEventListener('keyup', syncCapsLock);
+    passwordInput.addEventListener('blur', () => {
+      if (capsWarningEl) capsWarningEl.hidden = true;
+    });
   }
 
   async function loadState() {

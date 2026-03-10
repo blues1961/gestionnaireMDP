@@ -12,6 +12,7 @@ export default function LoginForm({
 }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [capsLockOn, setCapsLockOn] = useState(false);
   const [error,   setError]   = useState(null);
   const navigate = useNavigate();
 
@@ -31,6 +32,10 @@ export default function LoginForm({
     }
   };
 
+  const syncCapsLock = (e) => {
+    setCapsLockOn(Boolean(e?.getModifierState?.("CapsLock")));
+  };
+
   return (
     <main className="login-card">
       <div className="login-head">
@@ -41,11 +46,10 @@ export default function LoginForm({
         <p className="login-sub">Connexion</p>
         <ThemeToggle theme={theme} onChange={onThemeChange} className="login-theme-toggle" />
       </div>
-      {/* on bloque toute soumission native */}
       <form
         action="#"
         method="post"
-        onSubmit={(e) => e.preventDefault()}
+        onSubmit={submit}
         noValidate
         className="login-form"
       >
@@ -66,11 +70,19 @@ export default function LoginForm({
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={syncCapsLock}
+            onKeyUp={syncCapsLock}
+            onBlur={() => setCapsLockOn(false)}
             required
             placeholder="Mot de passe"
           />
+          {capsLockOn && (
+            <span className="login-warning" role="status" aria-live="polite">
+              Verr. Maj activée
+            </span>
+          )}
         </label>
-        <button type="button" onClick={submit} className="btn btn--light">
+        <button type="submit" className="btn btn--light">
           Se connecter
         </button>
       </form>

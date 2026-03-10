@@ -4,183 +4,438 @@
   <meta charset="utf-8">
   <title>GestionnaireMDP — Options</title>
   <style>
+    :root {
+      --bg-page: #0f1723;
+      --bg-page-alt: #162235;
+      --bg-surface: rgba(10, 18, 30, 0.58);
+      --bg-surface-alt: rgba(17, 28, 42, 0.72);
+      --bg-input: rgba(7, 13, 22, 0.74);
+      --text: #edf3ff;
+      --text-muted: #cad6ea;
+      --border: rgba(230, 238, 255, 0.2);
+      --border-soft: rgba(214, 226, 246, 0.16);
+      --focus: #4c8dff;
+      --warn-text: #f7e3a6;
+      --error: #ff9bb0;
+      --ok: #6ad49a;
+      --logo-border: rgba(255, 255, 255, 0.16);
+      --logo-bg: rgba(255, 255, 255, 0.09);
+      --theme-toggle-bg: rgba(8, 15, 26, 0.52);
+      --theme-toggle-border: rgba(214, 226, 246, 0.24);
+      --theme-toggle-text: var(--text-muted);
+      --theme-toggle-active-bg: rgba(76, 141, 255, 0.22);
+      --theme-toggle-active-border: rgba(140, 182, 255, 0.7);
+      --theme-toggle-active-text: #f5f9ff;
+      --btn-bg: rgba(18, 29, 44, 0.8);
+      --btn-bg-hover: rgba(28, 44, 66, 0.9);
+      --btn-border-hover: rgba(217, 228, 245, 0.34);
+      --btn-light-bg: rgba(12, 22, 36, 0.78);
+      --btn-light-bg-hover: rgba(18, 32, 49, 0.9);
+      --btn-light-text: #e2ebfb;
+      --shadow: 0 18px 44px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      color-scheme: dark;
+    }
+
+    :root[data-theme="light"] {
+      --bg-page: #ecf3fc;
+      --bg-page-alt: #deebf8;
+      --bg-surface: rgba(255, 255, 255, 0.88);
+      --bg-surface-alt: rgba(244, 250, 255, 0.92);
+      --bg-input: rgba(255, 255, 255, 0.98);
+      --text: #17324f;
+      --text-muted: #4e6887;
+      --border: rgba(31, 88, 153, 0.28);
+      --border-soft: rgba(31, 88, 153, 0.18);
+      --focus: #2f6fda;
+      --warn-text: #6a4d12;
+      --error: #b43f5f;
+      --ok: #2b8d61;
+      --logo-border: rgba(31, 88, 153, 0.24);
+      --logo-bg: rgba(236, 245, 253, 0.9);
+      --theme-toggle-bg: rgba(236, 245, 253, 0.95);
+      --theme-toggle-border: rgba(31, 88, 153, 0.28);
+      --theme-toggle-text: #446082;
+      --theme-toggle-active-bg: rgba(47, 111, 218, 0.14);
+      --theme-toggle-active-border: rgba(47, 111, 218, 0.42);
+      --theme-toggle-active-text: #193a64;
+      --btn-bg: rgba(238, 246, 255, 0.88);
+      --btn-bg-hover: rgba(226, 240, 255, 0.98);
+      --btn-border-hover: rgba(37, 84, 137, 0.34);
+      --btn-light-bg: rgba(255, 255, 255, 0.9);
+      --btn-light-bg-hover: rgba(242, 249, 255, 0.98);
+      --btn-light-text: #1c334f;
+      --shadow: 0 16px 36px rgba(35, 68, 104, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+      color-scheme: light;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
-      padding: 0;
-      font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
-      background: #f0f2f8;
-      color: #1f2532;
+      min-height: 100vh;
+      font: 14px/1.5 "Segoe UI", "Noto Sans", "Liberation Sans", sans-serif;
+      color: var(--text);
+      background-image:
+        linear-gradient(180deg, rgba(9, 15, 23, 0.7) 0%, rgba(11, 18, 29, 0.75) 100%),
+        radial-gradient(1100px 560px at -8% -10%, rgba(83, 121, 176, 0.26) 0%, transparent 56%),
+        radial-gradient(900px 560px at 108% 0%, rgba(87, 135, 194, 0.24) 0%, transparent 52%),
+        linear-gradient(135deg, var(--bg-page) 0%, var(--bg-page-alt) 100%);
     }
-    main {
-      max-width: 720px;
-      margin: 24px auto;
-      background: #fff;
-      border-radius: 10px;
-      padding: 24px;
-      box-shadow: 0 12px 32px rgba(17, 22, 34, 0.12);
+
+    :root[data-theme="light"] body {
+      background-image:
+        linear-gradient(180deg, rgba(235, 246, 255, 0.82) 0%, rgba(223, 238, 252, 0.9) 100%),
+        radial-gradient(1100px 560px at -8% -10%, rgba(70, 121, 186, 0.16) 0%, transparent 56%),
+        radial-gradient(900px 560px at 108% 0%, rgba(65, 154, 206, 0.14) 0%, transparent 52%),
+        linear-gradient(135deg, var(--bg-page) 0%, var(--bg-page-alt) 100%);
     }
-    h1 {
-      margin-top: 0;
-      font-size: 24px;
+
+    .options-page {
+      width: min(1040px, 94vw);
+      margin: 0 auto;
+      padding: 24px 0 36px;
+    }
+
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px 0;
+    }
+
+    .login-card,
+    .panel-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(3px);
+    }
+
+    .login-card {
+      width: min(460px, 100%);
+      padding: 30px;
+    }
+
+    .login-head {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .options-logo {
+      width: min(240px, 100%);
+      padding: 18px 20px;
+      border-radius: 14px;
+      border: 1px solid var(--logo-border);
+      background: var(--logo-bg);
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .login-title {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+
+    .login-sub {
+      margin: 0;
+      color: var(--text-muted);
+    }
+
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid var(--theme-toggle-border);
+      border-radius: 999px;
+      background: var(--theme-toggle-bg);
+      padding: 3px;
+    }
+
+    .theme-toggle__btn {
+      border: 1px solid transparent;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--theme-toggle-text);
+      padding: 4px 10px;
+      font-size: 12px;
       font-weight: 700;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: all 0.16s ease;
     }
-    h2 {
-      font-size: 18px;
-      margin-bottom: 12px;
-      margin-top: 28px;
-      font-weight: 600;
+
+    .theme-toggle__btn.is-active {
+      background: var(--theme-toggle-active-bg);
+      border-color: var(--theme-toggle-active-border);
+      color: var(--theme-toggle-active-text);
     }
+
     form {
       display: grid;
-      gap: 10px;
+      gap: 14px;
     }
+
     label {
-      font-weight: 600;
-      display: block;
+      display: grid;
+      gap: 6px;
+      color: var(--text-muted);
+      font-size: 14px;
     }
+
     input[type="text"],
     input[type="password"],
     input[type="file"],
     textarea {
       width: 100%;
-      box-sizing: border-box;
-      border-radius: 6px;
-      border: 1px solid #c7ccdd;
-      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 10px 12px;
       font: inherit;
+      color: var(--text);
+      background: var(--bg-input);
     }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: #adbdd8;
+    }
+
+    input:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--focus);
+      box-shadow: 0 0 0 3px rgba(76, 141, 255, 0.18);
+    }
+
     textarea {
       resize: vertical;
       min-height: 120px;
     }
+
     button {
-      background: #2f4cdd;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--btn-bg);
+      color: var(--text);
+      border-radius: 10px;
       padding: 10px 16px;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
+      transition: background 0.16s, border-color 0.16s, transform 0.1s;
     }
+
+    button:hover {
+      background: var(--btn-bg-hover);
+      border-color: var(--btn-border-hover);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
     button.secondary {
-      background: #e1e5f0;
-      color: #182036;
+      background: var(--btn-light-bg);
+      color: var(--btn-light-text);
     }
+
     button:disabled {
       opacity: 0.6;
       cursor: default;
     }
+
     .row {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       flex-wrap: wrap;
       align-items: center;
     }
-    .row button {
-      flex: 0 0 auto;
+
+    .login-actions button {
+      flex: 1 1 180px;
     }
-    .status-card {
-      background: #f6f8ff;
-      border-radius: 8px;
-      padding: 12px;
-      border: 1px solid #d9def2;
+
+    .section-gap {
+      margin-top: 18px;
     }
+
+    .login-warning {
+      font-size: 13px;
+      color: var(--warn-text);
+    }
+
+    .helper {
+      margin: -2px 0 0;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .message {
+      margin-top: 16px;
+      font-weight: 600;
+      min-height: 22px;
+    }
+
+    .message.ok {
+      color: var(--ok);
+    }
+
+    .message.err {
+      color: var(--error);
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 4px;
+    }
+
+    .panel-card {
+      padding: 22px;
+      background: var(--bg-surface-alt);
+    }
+
+    .panel-card h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
     .status-card ul {
       margin: 0;
       padding-left: 18px;
     }
-    .message {
-      margin-top: 16px;
-      font-weight: 600;
+
+    .status-item {
+      color: var(--text);
     }
-    .message.ok {
-      color: #1f7a4d;
+
+    .status-item.is-bad {
+      color: var(--warn-text);
     }
-    .message.err {
-      color: #b95000;
-    }
+
     .small {
       font-size: 12px;
-      color: #555;
+      color: var(--text-muted);
     }
+
     .inline {
       display: inline-flex;
       gap: 12px;
       align-items: center;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 860px) {
+      .options-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .options-page {
+        width: min(94vw, 100%);
+      }
+
+      .login-page {
+        min-height: auto;
+      }
+
+      .login-card,
+      .panel-card {
+        padding: 20px;
+      }
     }
   </style>
 </head>
 <body>
-  <main>
-    <h1>GestionnaireMDP — Options</h1>
+  <main class="options-page">
+    <section class="login-page">
+      <div class="login-card">
+        <div class="login-head">
+          <div class="options-logo">GestionnaireMDP</div>
+          <h1 class="login-title">GestionnaireMDP</h1>
+          <p class="login-sub">Connexion de l’extension</p>
+          <div class="theme-toggle" aria-label="Changer le thème">
+            <button type="button" class="theme-toggle__btn" data-theme-value="light">Clair</button>
+            <button type="button" class="theme-toggle__btn" data-theme-value="dark">Sombre</button>
+          </div>
+        </div>
 
-    <section class="status-card">
-      <strong>État actuel</strong>
-      <ul id="status-info"></ul>
-    </section>
+        <form id="config-form" class="login-form">
+          <div>
+            <label for="api-base">URL de base de l’API</label>
+            <input id="api-base" type="text" placeholder="https://vault.exemple.tld/api/" autocomplete="off" required>
+          </div>
+          <div class="row">
+            <button type="submit" id="save-config">Enregistrer l’API</button>
+          </div>
+          <p class="helper">Créez d’abord un compte sur l’application web puis fournissez ici l’URL exacte de l’API.</p>
+        </form>
 
-    <section>
-      <h2>Serveur &amp; API</h2>
-      <form id="config-form">
-        <div>
-          <label for="api-base">URL de base de l’API (ex&nbsp;: https://vault.exemple.tld/api/)</label>
-          <input id="api-base" type="text" placeholder="https://…" autocomplete="off" required>
-        </div>
-        <div class="row">
-          <button type="submit" id="save-config">Enregistrer</button>
-        </div>
-        <div class="small">Créez d’abord un compte sur l’application web puis fournissez ici l’URL exacte.</div>
-      </form>
-    </section>
+        <form id="login-form" class="login-form section-gap">
+          <div>
+            <label for="username">Nom d’utilisateur</label>
+            <input id="username" type="text" autocomplete="username" placeholder="Identifiant">
+          </div>
+          <div>
+            <label for="password">Mot de passe</label>
+            <input id="password" type="password" autocomplete="current-password" placeholder="Mot de passe">
+            <div id="login-caps-warning" class="login-warning" hidden>Verr. Maj activée</div>
+          </div>
+          <div class="row login-actions">
+            <button type="submit" id="login-btn">Se connecter</button>
+            <button type="button" class="secondary" id="logout-btn">Se déconnecter</button>
+          </div>
+          <p class="helper">Les jetons JWT sont stockés dans l’extension pour récupérer le coffre chiffré.</p>
+        </form>
 
-    <section>
-      <h2>Authentification</h2>
-      <form id="login-form">
-        <div>
-          <label for="username">Nom d’utilisateur</label>
-          <input id="username" type="text" autocomplete="username">
-        </div>
-        <div>
-          <label for="password">Mot de passe</label>
-          <input id="password" type="password" autocomplete="current-password">
-        </div>
-        <div class="row">
-          <button type="submit" id="login-btn">Se connecter</button>
-          <button type="button" class="secondary" id="logout-btn">Se déconnecter</button>
-        </div>
-        <div class="small">Les jetons JWT sont stockés dans l’extension pour récupérer le coffre chiffré.</div>
-      </form>
-    </section>
-
-    <section>
-      <h2>Clé privée (vault-key.json)</h2>
-      <form id="key-form">
-        <div>
-          <label for="key-file">Fichier exporté depuis l’application (vault-key.json)</label>
-          <input id="key-file" type="file" accept=".json,application/json">
-        </div>
-        <div>
-          <label for="key-passphrase">Passphrase du keybundle</label>
-          <input id="key-passphrase" type="password" placeholder="Passphrase utilisée lors de l’export" autocomplete="off">
-        </div>
-        <div class="row">
-          <button type="submit" id="import-key-btn">Importer</button>
-          <button type="button" class="secondary" id="forget-key-btn">Oublier la clé</button>
-        </div>
-        <div class="small">L’extension utilise cette clé pour déchiffrer localement les logins.</div>
-      </form>
-    </section>
-
-    <section>
-      <h2>Maintenance</h2>
-      <div class="inline">
-        <button type="button" id="force-refresh">Rafraîchir le coffre maintenant</button>
-        <span class="small">Force la synchronisation depuis l’API.</span>
+        <div class="message" id="status-message" aria-live="polite"></div>
       </div>
     </section>
 
-    <div class="message" id="status-message"></div>
+    <section class="options-grid">
+      <section class="panel-card status-card">
+        <h2>État actuel</h2>
+        <ul id="status-info"></ul>
+      </section>
+
+      <section class="panel-card">
+        <h2>Clé privée (vault-key.json)</h2>
+        <form id="key-form">
+          <div>
+            <label for="key-file">Fichier exporté depuis l’application</label>
+            <input id="key-file" type="file" accept=".json,application/json">
+          </div>
+          <div>
+            <label for="key-passphrase">Passphrase du keybundle</label>
+            <input id="key-passphrase" type="password" placeholder="Passphrase utilisée lors de l’export" autocomplete="off">
+          </div>
+          <div class="row">
+            <button type="submit" id="import-key-btn">Importer</button>
+            <button type="button" class="secondary" id="forget-key-btn">Oublier la clé</button>
+          </div>
+          <p class="small">L’extension utilise cette clé pour déchiffrer localement les logins.</p>
+        </form>
+      </section>
+
+      <section class="panel-card">
+        <h2>Maintenance</h2>
+        <div class="inline">
+          <button type="button" id="force-refresh">Rafraîchir le coffre maintenant</button>
+          <span class="small">Force la synchronisation depuis l’API.</span>
+        </div>
+      </section>
+    </section>
   </main>
 
   <script src="options.js"></script>

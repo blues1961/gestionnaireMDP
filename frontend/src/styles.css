@@ -745,6 +745,11 @@ body {
   font-size: 14px;
 }
 
+.login-warning {
+  font-size: 13px;
+  color: var(--warn-text);
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 900px) {
   .topbar__inner {
