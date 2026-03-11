@@ -155,14 +155,25 @@ export default function PasswordList() {
         </div>
       </header>
 
-      <section className="card" style={{ marginBottom: 12 }}>
+      <section className="card vault-search-card" style={{ marginBottom: 12 }}>
         <label className="label" style={{ display: 'block', marginBottom: 6 }}>Rechercher (titre, catégorie, notes)</label>
-        <input
-          className="input"
-          placeholder="ex: banque, perso, notes: VPN"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        <div className="vault-search-controls">
+          <input
+            className="input"
+            placeholder="ex: banque, perso, notes: VPN"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button
+            type="button"
+            className="btn btn--light vault-search-clear"
+            onClick={() => setQuery("")}
+            disabled={!query}
+            aria-label="Effacer la recherche"
+          >
+            Effacer
+          </button>
+        </div>
         {decBusy && (
           <div className="small dim" style={{ marginTop: 6 }}>
             Indexation du contenu chiffré… {decDone}/{items.length}
