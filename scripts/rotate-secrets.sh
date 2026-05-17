@@ -144,7 +144,7 @@ fi
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 ENV_BACKUP_FILE="${LOCAL_FILE}.bak.${STAMP}"
-DB_BACKUP_FILE="$ROOT_DIR/backups/${APP_SLUG:-mdp}_db-${TARGET_ENV}-${STAMP}.sql.gz"
+DB_BACKUP_FILE="$ROOT_DIR/backup/${APP_SLUG:-mdp}_db-${TARGET_ENV}-${STAMP}.sql.gz"
 
 echo "[PLAN] Rotation des secrets pour env=${TARGET_ENV}"
 echo "       - POSTGRES_PASSWORD (rotate)"
@@ -185,7 +185,7 @@ need_cmd gzip
 
 COMPOSE=(docker compose --env-file ".env.${TARGET_ENV}" -f "docker-compose.${TARGET_ENV}.yml")
 
-mkdir -p "$ROOT_DIR/backups"
+mkdir -p "$ROOT_DIR/backup"
 
 if [[ "$BACKUP_DB" -eq 1 ]]; then
   echo "[STEP] Backup DB en cours..."

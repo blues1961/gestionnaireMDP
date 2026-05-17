@@ -10,8 +10,8 @@ frontend/dist/
 backend/db.sqlite3
 
 # Backups & dumps (garder le dossier via .gitkeep)
-backups/**
-!backups/.gitkeep
+backup/*
+!backup/.gitkeep
 *.sql
 *.sql.gz
 *.tar.gz

@@ -40,9 +40,9 @@ if ! docker ps --format '{{.Names}}' | grep -qx "$DB_CONT"; then
   exit 3
 fi
 
-# 4) Préparer le chemin de sortie conforme: <repo>/backups/<app_slug>_db-YYYYMMDD-HHMMSS.sql.gz
+# 4) Préparer le chemin de sortie conforme: <repo>/backup/<app_slug>_db-YYYYMMDD-HHMMSS.sql.gz
 STAMP="$(date +%Y%m%d-%H%M%S)"
-OUT_DIR="$ROOT_DIR/backups"
+OUT_DIR="$ROOT_DIR/backup"
 mkdir -p "$OUT_DIR"
 FILE="$OUT_DIR/${APP_SLUG}_db-${STAMP}.sql.gz"
 

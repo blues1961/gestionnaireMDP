@@ -72,9 +72,9 @@ detect_backup_kind() {
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
-# Sélection du backup : arg 1 ou dernier fichier ./backups/${APP_SLUG}_db-*.sql.gz
+# Sélection du backup : arg 1 ou dernier fichier ./backup/${APP_SLUG}_db-*.sql.gz
 # ───────────────────────────────────────────────────────────────────────────────
-BACKUPS_DIR="${BACKUPS_DIR:-$ROOT_DIR/backups}"
+BACKUPS_DIR="${BACKUPS_DIR:-$ROOT_DIR/backup}"
 DUMP_PATH="${1:-}"
 BACKUP_KIND=""
 

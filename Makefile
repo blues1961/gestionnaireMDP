@@ -11,9 +11,9 @@ SHELL := /bin/bash
 # Détecte l'environnement courant via le symlink .env
 APP_ENV := $(shell . ./.env; echo $$APP_ENV)
 COMPOSE := docker compose --env-file .env.$(APP_ENV) -f docker-compose.$(APP_ENV).yml
-TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.venv|backups|project-tree-*.txt|*.py[co]|*.sqlite3|*.log|*.cache|*.cookies|*.sql|*.sql.gz|*.dump|*.bak
+TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.venv|backup|project-tree-*.txt|*.py[co]|*.sqlite3|*.log|*.cache|*.cookies|*.sql|*.sql.gz|*.dump|*.bak
 
-.PHONY: help create-env env-check env-check-base env-check-local init-dev require-dev-env \
+.PHONY: help create-env env-check env-check-base env-check-local init-dev require-dev-env backup-dir \
  tree \
  up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
  backup-db restore-db pull-prod-backup push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-secret init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
@@ -126,13 +126,13 @@ token-test: env-check ## JWT create -> whoami (DEV)
 	curl -sS "http://localhost:$$DEV_API_PORT/api/whoami/" -H "Authorization: Bearer $$ACC" | jq .
 
 # Sauvegarde / restauration DB
-backups-dir:
-	mkdir -p backups
+backup-dir:
+	mkdir -p backup
 
-backup-db: env-check backups-dir ## Sauvegarder la DB de l'env courant -> backups/<app_slug>_db-<ts>.sql.gz
+backup-db: env-check backup-dir ## Sauvegarder la DB de l'env courant -> backup/<app_slug>_db-<ts>.sql.gz
 	set -euo pipefail ; \
 	set -a ; . ./.env.$(APP_ENV) ; [ -f ./.env.local ] && . ./.env.local || true ; set +a ; \
-	SLUG=$${APP_SLUG:-mdp} ; TS=$$(date +%Y%m%d-%H%M%S) ; OUT=$${OUT:-backups/$${SLUG}_db-$$TS.sql.gz} ; DB_CONT=$${SLUG}_db_$(APP_ENV) ; \
+	SLUG=$${APP_SLUG:-mdp} ; TS=$$(date +%Y%m%d-%H%M%S) ; OUT=$${OUT:-backup/$${SLUG}_db-$$TS.sql.gz} ; DB_CONT=$${SLUG}_db_$(APP_ENV) ; \
 	docker ps --format '{{.Names}}' | grep -qx "$$DB_CONT" || { echo "Conteneur DB introuvable ou arrêté: $$DB_CONT"; exit 1; } ; \
 	echo "Backup ($$(. ./.env.$(APP_ENV); echo $$APP_ENV)) -> $$OUT" ; \
 	docker exec -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" pg_dump -U "$$POSTGRES_USER" "$$POSTGRES_DB" | gzip > "$$OUT"
@@ -140,8 +140,8 @@ backup-db: env-check backups-dir ## Sauvegarder la DB de l'env courant -> backup
 restore-db: env-check ## Restaurer la DB depuis BACKUP=<fichier.{sql.gz,dump}> (dernier par défaut)
 	set -euo pipefail ; \
 	set -a ; . ./.env.$(APP_ENV) ; [ -f ./.env.local ] && . ./.env.local || true ; set +a ; \
-	SLUG=$${APP_SLUG:-mdp} ; DB_CONT=$${SLUG}_db_$(APP_ENV) ; PATTERN_DESC="backups/$${SLUG}_db-<timestamp>.sql.gz" ; \
-	FILE=$${BACKUP:-$$( (ls -1t backups/$${SLUG}_db-*.sql.gz backups/$${SLUG}_db-*.sql backups/$${SLUG}_db.*.dump backups/db-*.dump backups/*.dump 2>/dev/null || true) | head -n1 )} ; \
+	SLUG=$${APP_SLUG:-mdp} ; DB_CONT=$${SLUG}_db_$(APP_ENV) ; PATTERN_DESC="backup/$${SLUG}_db-<timestamp>.sql.gz" ; \
+	FILE=$${BACKUP:-$$( (ls -1t backup/$${SLUG}_db-*.sql.gz backup/$${SLUG}_db-*.sql backup/$${SLUG}_db.*.dump backup/db-*.dump backup/*.dump 2>/dev/null || true) | head -n1 )} ; \
 	test -n "$$FILE" -a -f "$$FILE" || { echo "Aucun backup trouvé ($$PATTERN_DESC) ou BACKUP invalide"; exit 1; } ; \
 	docker ps --format '{{.Names}}' | grep -qx "$$DB_CONT" || { echo "Conteneur DB introuvable ou arrêté: $$DB_CONT"; exit 1; } ; \
 	echo "Restore <- $$FILE" ; \
@@ -153,7 +153,7 @@ restore-db: env-check ## Restaurer la DB depuis BACKUP=<fichier.{sql.gz,dump}> (
 	  *)        echo "Format de backup non supporté: $$FILE"; exit 1 ;; \
 	esac
 
-pull-prod-backup: backups-dir ## Déclencher backup-db sur Linode puis rapatrier le dump dans backups/
+pull-prod-backup: backup-dir ## Déclencher backup-db sur Linode puis rapatrier le dump dans backup/
 	bash scripts/pull-prod-backup.sh
 
 push-secret: env-check require-dev-env ## Copier .env.local (dev) vers la prod via SSH
