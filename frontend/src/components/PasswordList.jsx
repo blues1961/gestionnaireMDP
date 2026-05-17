@@ -5,6 +5,25 @@ import RevealDialog from "./RevealDialog";
 import { useToast } from "./ToastProvider";
 import { decryptPayload, hasKeyPair } from "../utils/crypto";
 
+function exportStamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+function downloadTextFile(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 export default function PasswordList() {
   const navigate = useNavigate();
   const toast = useToast?.() ?? { success(){}, error(){}, info(){}, add(){} };
@@ -17,6 +36,7 @@ export default function PasswordList() {
   const [dec, setDec] = useState({}); // id -> {login,password,notes}
   const [decBusy, setDecBusy] = useState(false);
   const [decDone, setDecDone] = useState(0);
+  const [exportBusy, setExportBusy] = useState(false);
 
   async function loadAll() {
     setLoading(true);
@@ -58,6 +78,83 @@ export default function PasswordList() {
   useEffect(() => {
     loadAll();
   }, []);
+
+  async function buildDecryptedExportRows() {
+    const rows = [];
+    let skipped = 0;
+    for (const it of items) {
+      try {
+        const secret = it?.ciphertext ? await decryptPayload(it.ciphertext) : {};
+        rows.push({
+          id: it.id,
+          title: it.title || "",
+          url: it.url || "",
+          category: cats[it.category] || "",
+          login: secret?.login || "",
+          password: secret?.password || "",
+          notes: secret?.notes || "",
+          created_at: it.created_at || "",
+          updated_at: it.updated_at || "",
+        });
+      } catch (_) {
+        skipped += 1;
+      }
+    }
+    return { rows, skipped };
+  }
+
+  async function exportVault(format) {
+    if (exportBusy) return;
+    const hasKey = await hasKeyPair().catch(() => false);
+    if (!hasKey) {
+      toast.error("Clé privée introuvable dans ce navigateur");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Exporter les mots de passe en clair au format ${format.toUpperCase()} ? Le fichier contiendra les secrets déchiffrés.`
+    );
+    if (!confirmed) return;
+
+    setExportBusy(true);
+    try {
+      const { rows, skipped } = await buildDecryptedExportRows();
+      if (!rows.length) {
+        toast.error("Aucune entrée exportable avec la clé actuelle");
+        return;
+      }
+
+      const stamp = exportStamp();
+      if (format === "json") {
+        downloadTextFile(
+          JSON.stringify(rows, null, 2),
+          `mdp-export-${stamp}.json`,
+          "application/json"
+        );
+      } else {
+        const header = ["id", "title", "url", "category", "login", "password", "notes", "created_at", "updated_at"];
+        const lines = [
+          header.map(csvCell).join(","),
+          ...rows.map((row) => header.map((key) => csvCell(row[key])).join(",")),
+        ];
+        downloadTextFile(
+          `\uFEFF${lines.join("\n")}\n`,
+          `mdp-export-${stamp}.csv`,
+          "text/csv;charset=utf-8"
+        );
+      }
+
+      if (skipped > 0) {
+        toast.info(`Export terminé, ${skipped} entrée(s) non déchiffrée(s) ignorée(s)`);
+      } else {
+        toast.success("Export terminé");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Échec de l’export");
+    } finally {
+      setExportBusy(false);
+    }
+  }
 
   // Construit un index déchiffré minimal pour la recherche dans les notes
   useEffect(() => {
@@ -151,9 +248,19 @@ export default function PasswordList() {
         <h2 style={{ margin: 0 }}>Voûte</h2>
         <div className="row">
           <button className="btn" onClick={() => navigate('/vault/new')}>Ajouter une entrée</button>
+          <button className="btn btn--light" onClick={() => exportVault("json")} disabled={exportBusy}>
+            {exportBusy ? "Export…" : "Exporter JSON"}
+          </button>
+          <button className="btn btn--light" onClick={() => exportVault("csv")} disabled={exportBusy}>
+            {exportBusy ? "Export…" : "Exporter CSV"}
+          </button>
           <button className="btn btn--light" onClick={loadAll}>Rafraîchir</button>
         </div>
       </header>
+
+      <div className="small dim" style={{ marginBottom: 12 }}>
+        Les exports JSON/CSV contiennent les mots de passe en clair. À stocker hors Git et dans un emplacement sûr.
+      </div>
 
       <section className="card vault-search-card" style={{ marginBottom: 12 }}>
         <label className="label" style={{ display: 'block', marginBottom: 6 }}>Rechercher (titre, catégorie, notes)</label>
