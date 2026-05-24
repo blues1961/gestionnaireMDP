@@ -25,6 +25,7 @@ backup/*
 !.env.example
 !.env.dev.example
 !.env.prod.example
+!.env.template.example
 .env.*.local
 .env.local
 .envrc

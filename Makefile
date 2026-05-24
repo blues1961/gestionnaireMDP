@@ -1,6 +1,6 @@
-# Makefile — Calendrier (aligné sur INVARIANTS)
+# Makefile — Gestionnaire MDP
 # - .env est un symlink vers .env.<env> (ex: .env.dev)
-# - Services Compose fixes: db, backend, vite
+# - Services Compose courants: db, backend, frontend (et vite en dev, écart transitoire)
 # - Secrets seulement dans .env.local
 # - Front utilise /api (chemin relatif), Vite proxy -> backend:8000
 
@@ -8,12 +8,12 @@ SHELL := /bin/bash
 .ONESHELL:
 .DEFAULT_GOAL := help
 
-# Détecte l'environnement courant via le symlink .env
-APP_ENV := $(shell . ./.env; echo $$APP_ENV)
+# Détecte l'environnement courant via le symlink .env si présent
+APP_ENV := $(shell if [ -f ./.env ]; then . ./.env; echo $$APP_ENV; else echo dev; fi)
 COMPOSE := docker compose --env-file .env.$(APP_ENV) -f docker-compose.$(APP_ENV).yml
 TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.venv|backup|project-tree-*.txt|*.py[co]|*.sqlite3|*.log|*.cache|*.cookies|*.sql|*.sql.gz|*.dump|*.bak
 
-.PHONY: help create-env env-check env-check-base env-check-local init-dev require-dev-env backup-dir \
+.PHONY: help create-env generate-env dev prod env-check env-check-base env-check-local init-dev require-dev-env backup-dir \
  tree \
  up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
  backup-db restore-db pull-prod-backup push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-secret init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
@@ -27,8 +27,17 @@ help: ## Liste les commandes disponibles
 	 | sort -f \
 	 | awk -F'\t' '{printf "  \033[36m%-24s\033[0m %s\n", $$1, $$2}'
 
-create-env: ## Génère .env.dev et .env.prod (FORCE=1 pour écraser)
+create-env: ## Bootstrap .env.template puis génère .env.dev et .env.prod
 	./scripts/create-env.sh
+
+generate-env: ## Génère .env.dev et .env.prod depuis .env.template
+	./scripts/generate-env.sh
+
+dev: ## Pointe .env vers .env.dev
+	./scripts/env-switch.sh dev
+
+prod: ## Pointe .env vers .env.prod
+	./scripts/env-switch.sh prod
 
 tree: ## Arborescence du projet (4 niveaux, ignore les artefacts courants)
 	@tree -L 4 --dirsfirst --prune -I "$(TREE_IGNORE)"
