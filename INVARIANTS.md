@@ -1,25 +1,27 @@
 # INVARIANTS.md
 
-## Rôle
+## Role
 
 Ce fichier est le contrat technique du projet.
 
-Il définit les règles obligatoires que doivent respecter :
+Il documente :
 
-* le code ;
-* Docker Compose ;
-* les fichiers `.env` ;
-* les scripts ;
-* la documentation ;
-* Codex.
+- les invariants globaux a respecter ;
+- les regles specifiques a une application de gestion de mots de passe ;
+- les ecarts actuellement presents dans `gestionnaireMDP` afin de ne pas les banaliser.
 
-En cas de contradiction, ce fichier prévaut.
+En cas de contradiction :
 
----
+1. `docs/specification.md`
+2. `docs/api.md`
+3. `INVARIANTS.md`
+4. `README_DEV.md`
+5. `README.md`
+6. le code existant
 
-## 1. Identité du projet
+## 1. Variables obligatoires
 
-Les variables suivantes doivent être définies dans `.env.dev` et `.env.prod` :
+Les variables suivantes doivent exister dans `.env.dev` et `.env.prod` :
 
 ```env
 APP_NAME=
@@ -27,21 +29,29 @@ APP_SLUG=
 APP_DEPOT=
 APP_NO=
 APP_ENV=
+APP_HOST=
+POSTGRES_DB=
+POSTGRES_USER=
+POSTGRES_HOST=
+POSTGRES_PORT=
+VITE_API_BASE=/api
 ```
 
-Règles :
+Regles :
 
-* `APP_NAME` = nom lisible de l’application ;
-* `APP_SLUG` = identifiant technique court ;
-* `APP_DEPOT` = nom du dépôt Git et du dossier projet ;
-* `APP_NO` = numéro unique utilisé pour dériver les ports ;
-* `APP_ENV` = `dev` ou `prod`.
+- `APP_NAME` est le nom lisible de l'application.
+- `APP_SLUG` est l'identifiant technique court.
+- `APP_DEPOT` est le nom du depot Git.
+- `APP_NO` est l'identifiant numerique servant a deriver les ports.
+- `APP_ENV` vaut `dev` ou `prod`.
+- `APP_HOST` est le domaine public attendu en production.
+- `POSTGRES_DB` doit suivre `${APP_SLUG}_pg_db`.
+- `POSTGRES_USER` doit suivre `${APP_SLUG}_pg_user`.
+- `VITE_API_BASE` doit rester `/api`.
 
----
+## 2. Fichiers d'environnement
 
-## 2. Fichiers d’environnement
-
-Structure obligatoire :
+Structure cible :
 
 ```text
 .env.template.example
@@ -52,36 +62,23 @@ Structure obligatoire :
 .env
 ```
 
-Règles :
+Regles :
 
-* `.env.template.example` est versionné ;
-* `.env.template` est local et n’est jamais versionné ;
-* `.env.dev` est versionné ;
-* `.env.prod` est versionné ;
-* `.env.local` n’est jamais versionné ;
-* `.env` n’est jamais versionné ;
-* `.env` doit être un lien symbolique vers `.env.dev` ou `.env.prod` ;
-* `.env` ne doit jamais être modifié directement.
+- `.env.dev` et `.env.prod` sont versionnes.
+- `.env.local` n'est jamais versionne.
+- `.env` doit etre un lien symbolique vers `.env.dev` ou `.env.prod`.
+- les secrets ne doivent pas etre dupliques dans `.env.dev` ou `.env.prod`.
 
-Le contenu canonique de `.env.template.example` est :
+Etat actuel du depot :
 
-```env
-APP_NAME=
-APP_SLUG=
-APP_DEPOT=
-APP_NO=
-ADMIN_USERNAME=
-ADMIN_PASSWORD=
-ADMIN_EMAIL=
-```
+- `.env.template.example` est versionné ;
+- `.env.template` est local et sert de source de vérité pour `make generate-env` ;
+- `.env.dev`, `.env.prod`, `.env.local.example` et `.env` existent ou sont attendus ;
+- `make create-env` est conservé comme bootstrap interactif de `.env.template`.
 
-`ADMIN_USERNAME`, `ADMIN_PASSWORD` et `ADMIN_EMAIL` servent au bootstrap initial puis doivent se retrouver dans `.env.local`.
+## 3. Regles de secrets
 
----
-
-## 3. Secrets
-
-Les secrets doivent être définis uniquement dans `.env.local`.
+Les secrets doivent etre definis uniquement dans `.env.local`.
 
 Exemples :
 
@@ -89,135 +86,25 @@ Exemples :
 POSTGRES_PASSWORD=
 DJANGO_SECRET_KEY=
 ADMIN_USERNAME=
-ADMIN_EMAIL=
 ADMIN_PASSWORD=
-CONTACT_API_TOKEN=
-CALENDRIER_API_TOKEN=
+ADMIN_EMAIL=
+JWT_SECRET=
+PROD_SSH_HOST=
 ```
 
 Interdit :
 
-* secret dans `.env.dev` ;
-* secret dans `.env.prod` ;
-* secret dans Git ;
-* secret dans README, AGENTS.md ou CODEX_START.md.
+- un secret dans `.env.dev` ;
+- un secret dans `.env.prod` ;
+- un secret dans Git ;
+- un secret dans la documentation ;
+- un secret dans les examples `curl`.
 
----
+Regle supplementaire pour ce depot :
 
-## 3.1 Authentification inter-apps
+- le fichier d'exemple `.env.local.example` ne doit contenir que des valeurs fictives manifestement non exploitables.
 
-Les appels backend vers backend entre applications auto-hebergees doivent utiliser une methode universelle basee sur `APP_DEPOT`.
-
-### Nom canonique du token local
-
-Chaque application possede son propre token technique inter-apps.
-
-Le nom canonique de ce token est :
-
-```env
-<APP_DEPOT_NORMALISE>_API_TOKEN=
-```
-
-Regle de normalisation de `APP_DEPOT` :
-
-* convertir en majuscules ;
-* remplacer tout caractere non alphanumerique par `_` ;
-* ne jamais utiliser un nom metier specifique si un nom derive de `APP_DEPOT` est possible.
-
-Exemples :
-
-```env
-APP_DEPOT=contact
-CONTACT_API_TOKEN=
-
-APP_DEPOT=calendrier
-CALENDRIER_API_TOKEN=
-
-APP_DEPOT=pense-bete
-PENSE_BETE_API_TOKEN=
-```
-
-### Regles obligatoires
-
-* le token inter-apps d'une application appartient a l'application hote ;
-* ce token doit etre defini uniquement dans `.env.local` ;
-* `scripts/generate-secrets.sh` doit creer automatiquement le token local de l'application courante s'il est absent ;
-* ce token local doit etre genere meme si l'application n'expose encore aucune API inter-apps ;
-* une application cliente qui appelle une application hote doit stocker dans son propre `.env.local` une copie du token de l'hote, sous le meme nom canonique ;
-* aucun token inter-apps ne doit etre stocke dans `.env.dev`, `.env.prod`, `.env.template`, `README.md`, `README_DEV.md`, `AGENTS.md` ou `CODEX_START.md`.
-
-### Variables non secretes associees
-
-Les variables non secretes de connexion vers une application hote doivent suivre la meme convention basee sur `APP_DEPOT` :
-
-```env
-<HOST_DEPOT_NORMALISE>_API_BASE=
-<HOST_DEPOT_NORMALISE>_API_TIMEOUT=
-```
-
-Exemple :
-
-```env
-CALENDRIER_API_BASE=
-CALENDRIER_API_TIMEOUT=
-```
-
-### En-tete HTTP universel
-
-L'authentification technique inter-apps doit utiliser un en-tete HTTP universel :
-
-```text
-X-Internal-Api-Token
-```
-
-Regles :
-
-* ne pas creer un nom d'en-tete specifique au metier ;
-* ne pas creer un nom d'en-tete specifique a une paire d'applications ;
-* l'identite metier utile au traitement applicatif doit etre transmise dans le payload, jamais deduite du token.
-
-### Portee
-
-Cette methode universelle s'applique a toute future integration backend vers backend entre applications du meme ecosysteme.
-
----
-
-## 4. PostgreSQL
-
-Convention obligatoire :
-
-```env
-POSTGRES_USER=${APP_SLUG}_pg_user
-POSTGRES_DB=${APP_SLUG}_pg_db
-```
-
-`POSTGRES_PASSWORD` doit rester dans `.env.local`.
-
----
-
-## 5. Ports de développement
-
-Les ports de développement sont dérivés de `APP_NO`.
-
-Aucun port ne doit être choisi arbitrairement.
-
-```text
-DEV_DB_PORT   = 5432 + APP_NO
-DEV_VITE_PORT = 5173 + APP_NO
-DEV_API_PORT  = 8000 + (APP_NO + 1)
-```
-
-Exemple avec `APP_NO=4` :
-
-```env
-DEV_DB_PORT=5436
-DEV_VITE_PORT=5177
-DEV_API_PORT=8005
-```
-
----
-
-## 6. Docker Compose
+## 4. Conventions Docker Compose
 
 Fichiers obligatoires :
 
@@ -226,221 +113,150 @@ docker-compose.dev.yml
 docker-compose.prod.yml
 ```
 
-Services standards :
+Conventions cibles :
+
+- utiliser `docker compose`, jamais `docker-compose` ;
+- services standards : `db`, `backend`, `frontend` ;
+- noms de conteneurs : `${APP_SLUG}_${SERVICE}_${APP_ENV}` ;
+- separation stricte `dev` / `prod` ;
+- usage prefere des cibles `make` quand elles existent.
+
+Etat actuel du depot :
+
+- la production utilise bien `db`, `backend`, `frontend` ;
+- le developpement ajoute encore un service `vite` en plus du service `frontend` ;
+- cette presence de `vite` est un ecart transitoire au standard global.
+
+## 5. Conventions de ports
+
+Les ports de developpement sont derives de `APP_NO`.
+
+Formules :
 
 ```text
-db
-backend
-frontend
+DEV_DB_PORT   = 5432 + APP_NO
+DEV_VITE_PORT = 5173 + APP_NO
+DEV_API_PORT  = 8000 + (APP_NO + 1)
 ```
 
-Les noms de services ne doivent pas être modifiés sans justification explicite.
-
----
-
-## 7. Noms de conteneurs
-
-Convention :
-
-```text
-${APP_SLUG}_${SERVICE}_${APP_ENV}
-```
-
-Exemples :
-
-```text
-con_db_dev
-con_backend_dev
-con_frontend_dev
-```
-
----
-
-## 8. Scripts obligatoires
-
-Le dossier `scripts/` doit contenir exactement les 15 scripts standards du template applicatif :
-
-```text
-scripts/
-├── backup-db.sh
-├── check-invariants.sh
-├── down.sh
-├── env-switch.sh
-├── generate-env.sh
-├── generate-secrets.sh
-├── init.sh
-├── logs.sh
-├── migrate.sh
-├── ps.sh
-├── rebuild.sh
-├── restart.sh
-├── restore-db.sh
-├── up.sh
-└── update.sh
-```
-
-Aucun script standard du template ne doit manquer ou être remplacé par une variante parallèle.
-Le changement d’environnement doit se faire avec :
-
-```bash
-./scripts/env-switch.sh dev
-./scripts/env-switch.sh prod
-```
-
-`init.sh` ne doit jamais modifier ce lien. Il doit utiliser l’environnement déjà pointé par `.env`, fonctionner aussi bien en `dev` qu’en `prod`, et pouvoir être relancé sans écraser les conteneurs déjà actifs.
-
-## 9. Commandes Docker
-
-Les commandes Docker Compose doivent passer par les scripts standards.
-
-Commande de référence :
-
-```bash
-docker compose \
-  --env-file .env \
-  --env-file .env.local \
-  -f docker-compose.${APP_ENV}.yml up
-```
-
----
-
-## 10. Frontend
-
-Variable obligatoire :
+Avec `APP_NO=1` :
 
 ```env
-VITE_API_BASE=/api
+DEV_DB_PORT=5433
+DEV_VITE_PORT=5174
+DEV_API_PORT=8002
 ```
 
-Règles :
+Regles :
 
-* pas d’URL backend absolue dans le code frontend ;
-* pas de `localhost` codé dans le frontend ;
-* le frontend appelle l’API via `/api`.
+- ne pas coder des ports arbitraires dans la documentation ;
+- ne pas changer `APP_NO` sans demande explicite ;
+- recalculer les ports a partir de `APP_NO` lors d'une regeneration d'env.
 
----
+## 6. Regles frontend / backend
 
-## 11. Backend
+Regles obligatoires :
 
-Règles :
+- toutes les routes backend applicatives doivent etre sous `/api` ;
+- le frontend doit appeler l'API via `VITE_API_BASE=/api` ;
+- aucune URL absolue de backend ne doit etre codee en dur dans le frontend ;
+- les donnees privees doivent etre filtrees cote backend, jamais seulement masquees cote frontend ;
+- les routes admin peuvent rester sous `/admin/`, hors contrat applicatif principal.
 
-* toutes les routes API doivent être sous `/api/` ;
-* les routes privées doivent utiliser JWT ;
-* le backend écoute dans le conteneur sur le port `8000` ;
-* les données privées doivent être isolées par utilisateur.
+Etat actuel du depot :
 
----
+- le backend expose bien les routes applicatives sous `/api` ;
+- `frontend/src/api.js` utilise bien `import.meta.env?.VITE_API_BASE` ;
+- le dev passe par le proxy Vite vers `http://backend:8000`.
 
-## 12. Production
+## 7. Authentification
 
-Règles :
+Conventions cibles :
 
-* Traefik assure le routage public ;
-* HTTPS est obligatoire ;
-* les conteneurs applicatifs utilisent le réseau Docker externe `edge` ;
-* `/api/` route vers le backend ;
-* le frontend est servi par le service `frontend` ;
-* aucun port applicatif ne doit être exposé publiquement sans justification.
+- JWT pour l'authentification applicative ;
+- pas d'inscription publique ;
+- `whoami` disponible pour verifier l'utilisateur courant ;
+- le backend doit rester source de verite pour l'isolation des donnees par utilisateur.
 
----
+Etat actuel du depot :
 
-## 13. Structure minimale
+- JWT SimpleJWT est en place ;
+- `GET /api/whoami/` et `GET /api/auth/whoami/` existent ;
+- des endpoints de session Django legacy (`/api/csrf/`, `/api/login/`, `/api/logout/`) existent encore pour compatibilite ;
+- aucun endpoint public de creation de compte n'est present.
 
-Structure attendue :
+## 8. Interface de commande
 
-```text
-.
-├── AGENTS.md
-├── backend
-│   ├── api
-│   │   ├── models.py
-│   │   ├── serializers.py
-│   │   ├── urls.py
-│   │   └── views.py
-│   ├── App
-│   │   ├── asgi.py
-│   │   ├── settings.py
-│   │   ├── urls.py
-│   │   └── wsgi.py
-│   ├── Dockerfile.dev
-│   ├── Dockerfile.prod
-│   ├── manage.py
-│   └── requirements.txt
-├── CODEX_START.md
-├── docker-compose.dev.yml
-├── docker-compose.prod.yml
-├── frontend
-│   ├── Dockerfile
-│   ├── index.html
-│   ├── node_modules
-│   ├── package.json
-│   └── src
-│       ├── App.jsx
-│       └── main.jsx
-├── INVARIANTS.md
-├── README_DEV.md
-├── README.md
-└── scripts
-    ├── check-invariants.sh
-    ├── down.sh
-    ├── env-switch.sh
-    ├── generate-env.sh
-    ├── generate-secrets.sh
-    ├── init.sh
-    ├── logs.sh
-    ├── ps.sh
-    ├── restart.sh
-    └── up.sh
+Quand le `Makefile` expose une commande, il doit etre prefere.
 
-8 directories, 34 files
+Commandes actuelles de reference :
 
+```bash
+make generate-env
+make dev
+make prod
+make up
+make down
+make restart
+make ps
+make logs
+make migrate
+make createsuperuser
+make backup-db
+make restore-db
 ```
 
----
+Etat actuel du depot :
 
-## 14. Règles pour Codex
+- l'interface principale existe, mais ne correspond pas encore a la nomenclature complete de `app-template` ;
+- `generate-env.sh` et `env-switch.sh` existent desormais sous les noms attendus ;
+- les scripts standards `init.sh`, `check-invariants.sh`, `update.sh`, `rebuild.sh` et assimilés ne sont pas encore tous presents sous les noms attendus.
 
-Codex doit respecter strictement ce fichier.
+## 9. Regles de securite specifiques au gestionnaire de mots de passe
 
-Interdictions :
+Regles non negociables :
 
-* inventer des ports ;
-* inventer des noms de services ;
-* déplacer les secrets hors de `.env.local` ;
-* coder une URL absolue dans le frontend ;
-* modifier les conventions sans justification.
+- le backend ne doit jamais recevoir de mot de passe maitre ;
+- le backend ne doit jamais dechiffrer `PasswordEntry.ciphertext` ;
+- les champs sensibles d'une entree de voute doivent rester chiffres cote serveur ;
+- aucune journalisation ne doit inclure des secrets en clair ;
+- aucune exportation claire ne doit etre automatique ;
+- toute fonctionnalite d'export clair doit etre explicite, locale et accompagnee d'un avertissement.
 
-Obligations :
+Pour le depot actuel :
 
-* lire `INVARIANTS.md` avant toute modification structurante ;
-* respecter `APP_NAME`, `APP_SLUG`, `APP_DEPOT`, `APP_NO`, `APP_ENV` ;
-* vérifier `.env.dev`, `.env.prod`, `.env.local.example`, `.gitignore` et Docker Compose.
+- `login`, `password` et `notes` sont chiffres cote client ;
+- le titre, l'URL, la categorie et certaines metadonnees restent en clair ;
+- la cle privee est stockee localement dans le navigateur et peut etre exportee manuellement ;
+- le fichier d'export de cle est lui-meme sensible et ne doit jamais etre committe ni place dans un stockage non maitrise.
 
----
+## 10. Zero-knowledge
 
-## 15. Gitignore minimal
+Le terme "zero-knowledge" doit etre utilise avec precision.
 
-Le projet doit ignorer au minimum :
+Dans ce depot, la garantie actuelle est partielle :
 
-```gitignore
-.env
-.env.local
-.env.template
-*.bak
-*.backup
-*.tmp
-__pycache__/
-node_modules/
-dist/
-build/
-.venv/
-venv/
-```
+- le serveur stocke des blobs chiffres pour les secrets ;
+- le serveur ne stocke pas la cle privee ;
+- le serveur peut toutefois lire certaines metadonnees non chiffrees.
 
----
+Ne pas presenter l'application comme "zero-knowledge complet" tant que :
 
-## 16. Règle finale
+- les metadonnees restent visibles ;
+- la gestion de cle n'est pas durcie ;
+- le threat model n'est pas formalise.
 
-Ce fichier est la source d’autorité opérationnelle du projet.
+## 11. Ecarts connus a ne pas aggraver
 
-La documentation Obsidian peut expliquer les règles, mais ne les remplace pas.
+Les ecarts suivants existent deja et doivent etre traites comme temporaires :
+
+- absence de `.env.template.example` et `.env.template` ;
+- service `vite` supplementaire en developpement ;
+- presence de scripts d'exploitation hors nomenclature standard du template ;
+- absence de `CODEX_START.md`, `AGENTS.md`, `docs/specification.md` et `docs/api.md` dans l'etat initial du depot.
+
+Tant qu'ils ne sont pas corriges :
+
+- ne pas etendre ces ecarts a de nouveaux fichiers ;
+- ne pas dupliquer de nouvelles conventions paralleles ;
+- documenter tout changement qui touche l'exploitation, l'auth ou le chiffrement.

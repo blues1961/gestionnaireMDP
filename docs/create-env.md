@@ -1,62 +1,72 @@
-# Générer les fichiers `.env` avec `create-env`
+# Générer les fichiers `.env`
 
-Ce dépôt fournit une commande unique pour préparer les fichiers d’environnement **non sensibles** (`.env.dev` et `.env.prod`). Cette procédure remplace les copier/coller manuels et garantit le respect des invariants (ports dérivés de `APP_NO`, noms `POSTGRES_*`, `ALLOWED_HOSTS`, etc.).
+Le workflow courant suit maintenant la logique du template :
 
-## 1. Quand exécuter `make create-env` ?
+1. `.env.template.example` est versionné ;
+2. `.env.template` est local ;
+3. `make generate-env` génère `.env.dev` et `.env.prod`.
 
-1. Cloner l’application (`git clone …`).
-2. Depuis la racine du projet :
+## 1. Workflow recommandé
+
+Depuis la racine du projet :
+
+```bash
+cp .env.template.example .env.template
+```
+
+Puis compléter `.env.template` avec au minimum :
+
+```env
+APP_NAME=
+APP_SLUG=
+APP_DEPOT=
+APP_NO=
+ADMIN_USERNAME=
+ADMIN_PASSWORD=
+ADMIN_EMAIL=
+```
+
+Ensuite :
+
+```bash
+make generate-env
+make dev
+```
+
+## 2. Bootstrap interactif
+
+Le dépôt conserve une aide interactive :
 
 ```bash
 make create-env
 ```
 
-Le script `scripts/create-env.sh` est interactif : il demande les invariants de base (slug, nom humain, dépôt Git, `APP_NO`, domaine prod). À la fin, les fichiers `.env.dev` et `.env.prod` sont créés/écrasés (permissions `600`).
+Cette commande :
 
-> **Astuce** : pour régénérer après coup, relancer avec `FORCE=1 make create-env`.
+- crée `.env.template` si nécessaire ;
+- y place les invariants de base ;
+- lance ensuite `make generate-env`.
 
-## 2. Variables demandées
+> **Astuce** : pour recréer `.env.template`, relancer avec `FORCE=1 make create-env`.
 
-| Question                         | Description                                                                                         |
-|----------------------------------|-----------------------------------------------------------------------------------------------------|
-| `APP_SLUG`                       | Préfixe court (db, conteneurs, dossier `/opt/apps/${APP_SLUG}`)                                     |
-| `APP_NAME`                       | Nom humain (logs/entêtes) ; guillemets ajoutés si nécessaire                                        |
-| `APP_DEPOT`                      | Nom du dépôt Git (`~/projets/${APP_DEPOT}` en dev)                                                  |
-| `APP_NO`                         | Index numérique pour dériver les ports dev (`N=1 → 5433/8002/5174`)                                 |
-| `APP_HOST (prod)`                | Domaine public (prod) : utilisé pour `ALLOWED_HOSTS`, Traefik, `FRONT_ORIGIN`                       |
-| *(optionnel via env)* `DEV_APP_HOST` | Host utilisé en dev (défaut `localhost`) pour `APP_HOST` côté `.env.dev`                           |
+## 3. Étapes suivantes
 
-Chaque réponse possède un défaut que l’on peut accepter en appuyant sur **Entrée**.
-
-## 3. Pré-remplir les réponses (CI, scripts)
-
-Le script lit les variables d’environnement avant de poser les questions. Exemple :
-
-```bash
-APP_SLUG=blog \
-APP_NAME="Blog Personnel" \
-APP_DEPOT=gestionnaireBlog \
-APP_NO=4 \
-PROD_APP_HOST=blog.example.com \
-DEV_APP_HOST=localhost \
-make create-env
-```
-
-La commande devient ainsi non‑interactive (pratique pour les templates automatisés).
-
-## 4. Étapes suivantes
-
-1. Copier les secrets (non versionnés) :
+1. Vérifier ou compléter `.env.local` :
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-2. Remplir/ajuster `.env.local` (mots de passe DB, clés Django, comptes admin…).
-3. Créer le symlink `ln -sfn .env.dev .env`.
-4. Poursuivre le bootstrap classique (`make init-secret`, `docker compose ...`).
+2. Ajuster les valeurs réelles dans `.env.local`.
+3. Démarrer :
 
-## 5. Que contient `.env.dev` ?
+```bash
+make up
+make migrate
+make createsuperuser
+```
+
+## 4. Que contient `.env.dev` ?
 
 - `APP_ENV`, `APP_SLUG`, `APP_NAME`, `APP_DEPOT`, `APP_NO`, `APP_HOST`.
 - Ports `DEV_*` calculés via `APP_NO`.
@@ -67,10 +77,10 @@ cp .env.local.example .env.local
 
 `.env.prod` suit la même structure, avec `DJANGO_DEBUG=0`, `FRONT_ORIGIN=https://${APP_HOST}` et les ports prod (`PROD_DB_PORT`, `PROD_API_PORT`, `PROD_FRONT_PORT`) dérivés automatiquement.
 
-## 6. Pourquoi ce script ?
+## 5. Pourquoi ce workflow ?
 
-- Garantit le respect des invariants documentés dans `docs/INVARIANTS.md`.
+- Garantit le respect des invariants documentés dans `INVARIANTS.md`.
 - Évite les erreurs récurrentes (ports incohérents, `APP_SLUG` oublié dans `POSTGRES_*`, `ALLOWED_HOSTS` incomplets).
-- Permet de bootstrapper de nouvelles apps à partir du template en quelques commandes reproductibles.
+- Rapproche le dépôt du fonctionnement de `app-template`.
 
 **Rappel** : les secrets réels ne doivent jamais être commités. Seuls `.env.dev`, `.env.prod`, et `.env.local.example` sont versionnés.
