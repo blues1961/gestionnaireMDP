@@ -34,6 +34,7 @@ Ils ne doivent pas contredire les fichiers racine ci-dessus.
 ## Fichiers annexes utiles
 
 - `create-env.md` : workflow `.env.template` -> `.env.dev` / `.env.prod`
+- `threat-model.md` : hypothese de confiance, actifs proteges et limites reelles du chiffrement
 - `Guide de deploiement.md` : procedure de deploiement et de mise a jour
 - `BOOTSTRAP_PULL_SECRET_PUBLIC.md` : bootstrap public sans secrets
 - `auth-separation-all-apps.txt` : note operative sur la separation des comptes Django

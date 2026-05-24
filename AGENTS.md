@@ -12,12 +12,13 @@ Avant toute modification :
 
 1. `INVARIANTS.md`
 2. `docs/specification.md`
-3. `docs/api.md`
-4. `README_DEV.md`
-5. `CODEX_START.md`
-6. `.env.template` si present
-7. `docker-compose.dev.yml`
-8. `docker-compose.prod.yml`
+3. `docs/threat-model.md` si le travail touche au chiffrement, a l'auth ou au stockage local
+4. `docs/api.md`
+5. `README_DEV.md`
+6. `CODEX_START.md`
+7. `.env.template` si present
+8. `docker-compose.dev.yml`
+9. `docker-compose.prod.yml`
 
 ## Priorite des sources
 
@@ -48,6 +49,7 @@ En cas de contradiction :
 - `ciphertext` doit rester opaque cote backend ;
 - le serveur ne doit pas manipuler la cle privee utilisateur ;
 - la cle privee locale ne doit pas etre reintroduite en clair dans `localStorage` ;
+- le modele de menace formalise dans `docs/threat-model.md` doit rester coherent avec le code reel ;
 - les fonctions KeyCheck, export de cle et import de cle sont actuellement locales au frontend ;
 - les bundles `/api/secrets/` stockent des payloads chiffres mais gardent des metadonnees en clair.
 

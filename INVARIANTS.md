@@ -237,6 +237,7 @@ Pour le depot actuel :
 - la cle privee est stockee localement dans le navigateur via `IndexedDB` et peut etre exportee manuellement ;
 - une migration legacy depuis `localStorage` peut exister a la premiere lecture, mais la copie legacy doit ensuite etre supprimee ;
 - le fichier d'export de cle est lui-meme sensible et ne doit jamais etre committe ni place dans un stockage non maitrise.
+- le detail du modele de menace courant est formalise dans `docs/threat-model.md`.
 
 ## 10. Zero-knowledge
 
@@ -252,7 +253,7 @@ Ne pas presenter l'application comme "zero-knowledge complet" tant que :
 
 - les metadonnees restent visibles ;
 - la gestion de cle reste accessible au contexte JavaScript du navigateur, meme si elle n'est plus laissee en clair dans `localStorage` ;
-- le threat model n'est pas formalise.
+- le threat model formalise decrit encore un navigateur local de confiance comme hypothese forte.
 
 ## 11. Ecarts connus a ne pas aggraver
 

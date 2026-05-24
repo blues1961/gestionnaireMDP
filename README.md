@@ -18,6 +18,7 @@ La documentation structurante de reference est :
 - `INVARIANTS.md` pour les conventions globales et les ecarts connus ;
 - `docs/specification.md` pour la vue d'ensemble fonctionnelle et technique ;
 - `docs/api.md` pour les endpoints backend reels ;
+- `docs/threat-model.md` pour le modele de menace du chiffrement et du stockage local ;
 - `CODEX_START.md` et `AGENTS.md` pour le travail assiste par IA.
 
 ## Demarrage rapide

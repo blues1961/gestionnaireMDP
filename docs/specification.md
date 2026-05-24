@@ -155,6 +155,8 @@ Il n'existe pas d'inscription publique.
 
 Le chiffrement est gere dans `frontend/src/utils/crypto.js`.
 
+Le modele de menace detaille est documente dans `docs/threat-model.md`.
+
 Flux actuel :
 
 1. le frontend genere ou recharge une paire RSA-OAEP ;
@@ -175,6 +177,20 @@ Limite importante :
 
 - l'implementation actuelle releve d'un zero-knowledge partiel, pas complet, car `title`, `url`, `category`, `app` et `environment` restent lisibles cote serveur.
 - le durcissement `IndexedDB` reduit l'exposition triviale de la cle privee, mais elle reste accessible au contexte JavaScript local du navigateur.
+
+### 7.1 Resume du threat model
+
+Le projet protege raisonnablement contre la lecture passive des secrets en base ou cote serveur, tant que le navigateur de l'utilisateur reste sain.
+
+Il ne protege pas correctement contre :
+
+- un XSS ;
+- une extension navigateur malveillante ;
+- un frontend distribue par un serveur compromis ;
+- un export clair mal manipule ;
+- un poste local deja compromis.
+
+Le modele courant repose donc sur une hypothese forte : le navigateur executant l'application est de confiance.
 
 ## 8. Flux utilisateur
 
@@ -235,7 +251,7 @@ Limite importante :
 
 ## 10. Prochaines etapes recommandees
 
-1. Formaliser le threat model du chiffrement et du stockage local de cle.
+1. Appliquer progressivement les mitigations les plus rentables du threat model, surtout autour du risque XSS et des exports clairs.
 2. Etendre encore les tests automatises aux composants React critiques et aux flux utilisateur principaux de la voute.
 3. Decider a terme si les endpoints de session Django legacy doivent etre conserves ou supprimes.
 4. Revoir la terminologie "zero-knowledge" dans tout le projet pour rester exacte.

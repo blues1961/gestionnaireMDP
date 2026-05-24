@@ -19,20 +19,21 @@ Avant toute modification, lis dans cet ordre :
 1. `AGENTS.md`
 2. `INVARIANTS.md`
 3. `docs/specification.md`
-4. `docs/api.md`
-5. `README_DEV.md`
-6. `README.md`
-7. `.env.template` si present
-8. `Makefile`
-9. `docker-compose.dev.yml`
-10. `docker-compose.prod.yml`
-11. `backend/gestionnaire_mdp/settings.py`
-12. `backend/api/urls.py`
-13. `backend/api/views.py`
-14. `backend/api/models.py`
-15. `frontend/src/api.js`
-16. `frontend/src/utils/crypto.js`
-17. `frontend/src/App.jsx`
+4. `docs/threat-model.md` si tu touches au chiffrement, au stockage local ou a l'auth
+5. `docs/api.md`
+6. `README_DEV.md`
+7. `README.md`
+8. `.env.template` si present
+9. `Makefile`
+10. `docker-compose.dev.yml`
+11. `docker-compose.prod.yml`
+12. `backend/gestionnaire_mdp/settings.py`
+13. `backend/api/urls.py`
+14. `backend/api/views.py`
+15. `backend/api/models.py`
+16. `frontend/src/api.js`
+17. `frontend/src/utils/crypto.js`
+18. `frontend/src/App.jsx`
 
 ## Regles a respecter avant de coder
 
@@ -102,6 +103,7 @@ alors mets a jour aussi :
 
 - `docs/specification.md`
 - `docs/api.md`
+- `docs/threat-model.md` si le modele de menace ou les hypotheses de confiance changent
 - `README.md` ou `README_DEV.md` si le workflow change.
 
 Point d'attention chiffrement :
