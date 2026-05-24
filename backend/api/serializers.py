@@ -7,6 +7,20 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ["id","name","description"]
 
 class PasswordSerializer(serializers.ModelSerializer):
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.none(),
+        allow_null=True,
+        required=False,
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get("request")
+        if request and getattr(request, "user", None) and request.user.is_authenticated:
+            self.fields["category"].queryset = Category.objects.filter(owner=request.user)
+        else:
+            self.fields["category"].queryset = Category.objects.all()
+
     class Meta:
         model = PasswordEntry
         fields = ["id","title","url","category","ciphertext","created_at","updated_at"]
