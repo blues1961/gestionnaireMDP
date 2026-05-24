@@ -47,6 +47,7 @@ En cas de contradiction :
 - les `PasswordEntry` sont isoles par utilisateur ;
 - `ciphertext` doit rester opaque cote backend ;
 - le serveur ne doit pas manipuler la cle privee utilisateur ;
+- la cle privee locale ne doit pas etre reintroduite en clair dans `localStorage` ;
 - les fonctions KeyCheck, export de cle et import de cle sont actuellement locales au frontend ;
 - les bundles `/api/secrets/` stockent des payloads chiffres mais gardent des metadonnees en clair.
 

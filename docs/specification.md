@@ -146,7 +146,7 @@ Il n'existe pas d'inscription publique.
 ### 6.3 Surface sensible
 
 - les mots de passe en clair n'atteignent pas le backend dans le flux nominal ;
-- la cle privee reste locale au navigateur ;
+- la cle privee reste locale au navigateur et est conservee en `IndexedDB` ;
 - le backend peut toutefois lire certaines metadonnees non chiffrees.
 
 ## 7. Chiffrement et logique zero-knowledge
@@ -156,10 +156,12 @@ Le chiffrement est gere dans `frontend/src/utils/crypto.js`.
 Flux actuel :
 
 1. le frontend genere ou recharge une paire RSA-OAEP ;
-2. les champs sensibles sont serialises localement ;
-3. une cle AES-GCM aleatoire chiffre le payload ;
-4. la cle AES est elle-meme chiffree avec la cle publique RSA ;
-5. le bundle chiffre est stocke dans `PasswordEntry.ciphertext`.
+2. la paire active est conservee localement en `IndexedDB` ;
+3. une ancienne paire stockee en `localStorage` est migree puis purgee si elle existe encore ;
+4. les champs sensibles sont serialises localement ;
+5. une cle AES-GCM aleatoire chiffre le payload ;
+6. la cle AES est elle-meme chiffree avec la cle publique RSA ;
+7. le bundle chiffre est stocke dans `PasswordEntry.ciphertext`.
 
 Pour l'export de cle :
 
@@ -170,6 +172,7 @@ Pour l'export de cle :
 Limite importante :
 
 - l'implementation actuelle releve d'un zero-knowledge partiel, pas complet, car `title`, `url`, `category`, `app` et `environment` restent lisibles cote serveur.
+- le durcissement `IndexedDB` reduit l'exposition triviale de la cle privee, mais elle reste accessible au contexte JavaScript local du navigateur.
 
 ## 8. Flux utilisateur
 
@@ -218,14 +221,14 @@ Limite importante :
 - pas d'inscription publique ;
 - pas d'invalidation serveur ou de blacklist du refresh token au logout JWT ;
 - presence d'endpoints session legacy non harmonisee avec le flux JWT principal ;
-- stockage local de la paire de cle en `localStorage`, plus faible qu'un stockage durci ;
+- stockage local de la paire de cle toujours accessible au contexte JavaScript du navigateur ;
 - export JSON/CSV de la voute en clair, donc operationnellement risqué ;
 - metadonnees de la voute non chiffrees ;
 - peu ou pas de tests automatises visibles dans le depot principal.
 
 ## 10. Prochaines etapes recommandees
 
-1. Durcir le stockage local de la cle et formaliser le threat model du chiffrement.
+1. Formaliser le threat model du chiffrement et du stockage local de cle.
 2. Ajouter une invalidation serveur des refresh tokens si le projet veut un vrai logout JWT cote backend.
-3. Etendre les tests automatises au flux frontend d'authentification.
+3. Etendre les tests automatises au flux frontend d'authentification et aux migrations de cle legacy.
 4. Revoir la terminologie "zero-knowledge" dans tout le projet pour rester exacte.

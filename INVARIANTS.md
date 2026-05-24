@@ -233,7 +233,8 @@ Pour le depot actuel :
 
 - `login`, `password` et `notes` sont chiffres cote client ;
 - le titre, l'URL, la categorie et certaines metadonnees restent en clair ;
-- la cle privee est stockee localement dans le navigateur et peut etre exportee manuellement ;
+- la cle privee est stockee localement dans le navigateur via `IndexedDB` et peut etre exportee manuellement ;
+- une migration legacy depuis `localStorage` peut exister a la premiere lecture, mais la copie legacy doit ensuite etre supprimee ;
 - le fichier d'export de cle est lui-meme sensible et ne doit jamais etre committe ni place dans un stockage non maitrise.
 
 ## 10. Zero-knowledge
@@ -249,7 +250,7 @@ Dans ce depot, la garantie actuelle est partielle :
 Ne pas presenter l'application comme "zero-knowledge complet" tant que :
 
 - les metadonnees restent visibles ;
-- la gestion de cle n'est pas durcie ;
+- la gestion de cle reste accessible au contexte JavaScript du navigateur, meme si elle n'est plus laissee en clair dans `localStorage` ;
 - le threat model n'est pas formalise.
 
 ## 11. Ecarts connus a ne pas aggraver

@@ -102,3 +102,9 @@ alors mets a jour aussi :
 - `docs/specification.md`
 - `docs/api.md`
 - `README.md` ou `README_DEV.md` si le workflow change.
+
+Point d'attention chiffrement :
+
+- ne pas reintroduire de stockage de cle privee en clair dans `localStorage` ;
+- si tu modifies `frontend/src/utils/crypto.js`, preserve la migration legacy vers `IndexedDB` ou documente explicitement sa suppression ;
+- ne pas presenter un durcissement de stockage local comme une protection contre un XSS deja present dans la page.

@@ -64,6 +64,8 @@ Restent lisibles cote serveur :
 
 La logique actuelle est donc une approche "zero-knowledge partielle" : le serveur ne peut pas lire les secrets stockes dans `ciphertext`, mais il conserve certaines metadonnees en clair.
 
+La paire de cles locale est maintenant conservee en `IndexedDB` dans le navigateur. Une migration legacy depuis `localStorage` est effectuee a la premiere lecture si une ancienne cle y est encore presente, puis la copie legacy est supprimee.
+
 ## Stack cible
 
 - backend : Django + Django REST Framework
