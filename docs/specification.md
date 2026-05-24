@@ -64,6 +64,7 @@ Ces elements existent, mais ne constituent pas encore une architecture totalemen
 - `docker-compose.dev.yml`
 - `docker-compose.prod.yml`
 - proxy de production attendu : Traefik externe
+- noms prod derives de `APP_SLUG` et `APP_ENV` pour les conteneurs, le volume PostgreSQL et le reseau applicatif
 - `Makefile` comme interface d'exploitation principale disponible
 
 ## 5. Modele de donnees

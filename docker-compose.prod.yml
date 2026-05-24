@@ -1,13 +1,13 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: mdp_db_prod
+    container_name: ${APP_SLUG}_db_${APP_ENV}
     restart: unless-stopped
     env_file:
       - .env.prod
       - .env.local
     volumes:
-      - mdp_prod_pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     ports:
       - "${PROD_DB_BIND:-127.0.0.1}:${PROD_DB_PORT:-5432}:5432"
     healthcheck:
@@ -22,7 +22,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
-    container_name: mdp_backend_prod
+    image: ${APP_SLUG}-backend:prod
+    container_name: ${APP_SLUG}_backend_${APP_ENV}
     depends_on:
       db:
         condition: service_healthy
@@ -37,43 +38,32 @@ services:
     ports:
       - "${PROD_API_BIND:-127.0.0.1}:${PROD_API_PORT:-8000}:8000"
     labels:
-      traefik.enable: "true"
-      traefik.docker.network: "edge"
-
-      # Middleware HTTP -> HTTPS
-      traefik.http.middlewares.mdp-redirect-https.redirectscheme.scheme: "https"
-
-      # API sous /api/ (HTTP -> redirect, HTTPS -> backend)
-      traefik.http.routers.mdp-api-http.rule: "Host(`${APP_HOST}`) && PathPrefix(`/api/`)"
-      traefik.http.routers.mdp-api-http.entrypoints: "web"
-      traefik.http.routers.mdp-api-http.middlewares: "mdp-redirect-https"
-      traefik.http.routers.mdp-api-http.priority: "1000"
-      traefik.http.routers.mdp-api-http.service: "mdp-api"
-
-      traefik.http.routers.mdp-api.rule: "Host(`${APP_HOST}`) && PathPrefix(`/api/`)"
-      traefik.http.routers.mdp-api.entrypoints: "websecure"
-      traefik.http.routers.mdp-api.tls: "true"
-      traefik.http.routers.mdp-api.tls.certresolver: "le"
-      traefik.http.routers.mdp-api.priority: "1000"
-      traefik.http.routers.mdp-api.service: "mdp-api"
-
-      # Admin Django (/admin/)
-      traefik.http.routers.mdp-admin-http.rule: "Host(`${APP_HOST}`) && PathPrefix(`/admin/`)"
-      traefik.http.routers.mdp-admin-http.entrypoints: "web"
-      traefik.http.routers.mdp-admin-http.middlewares: "mdp-redirect-https"
-      traefik.http.routers.mdp-admin-http.priority: "900"
-      traefik.http.routers.mdp-admin-http.service: "mdp-api"
-
-      traefik.http.routers.mdp-admin.rule: "Host(`${APP_HOST}`) && PathPrefix(`/admin/`)"
-      traefik.http.routers.mdp-admin.entrypoints: "websecure"
-      traefik.http.routers.mdp-admin.tls: "true"
-      traefik.http.routers.mdp-admin.tls.certresolver: "le"
-      traefik.http.routers.mdp-admin.priority: "900"
-      traefik.http.routers.mdp-admin.service: "mdp-api"
-
-      # Service backend (port interne)
-      traefik.http.services.mdp-api.loadbalancer.server.port: "8000"
-
+      - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_DOCKER_NETWORK:-edge}"
+      - "traefik.http.middlewares.${APP_SLUG}-redirect-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.${APP_SLUG}-api-http.rule=Host(`${APP_HOST}`) && PathPrefix(`/api/`)"
+      - "traefik.http.routers.${APP_SLUG}-api-http.entrypoints=web"
+      - "traefik.http.routers.${APP_SLUG}-api-http.middlewares=${APP_SLUG}-redirect-https"
+      - "traefik.http.routers.${APP_SLUG}-api-http.priority=1000"
+      - "traefik.http.routers.${APP_SLUG}-api-http.service=${APP_SLUG}-api"
+      - "traefik.http.routers.${APP_SLUG}-api.rule=Host(`${APP_HOST}`) && PathPrefix(`/api/`)"
+      - "traefik.http.routers.${APP_SLUG}-api.entrypoints=websecure"
+      - "traefik.http.routers.${APP_SLUG}-api.tls=true"
+      - "traefik.http.routers.${APP_SLUG}-api.tls.certresolver=le"
+      - "traefik.http.routers.${APP_SLUG}-api.priority=1000"
+      - "traefik.http.routers.${APP_SLUG}-api.service=${APP_SLUG}-api"
+      - "traefik.http.routers.${APP_SLUG}-admin-http.rule=Host(`${APP_HOST}`) && PathPrefix(`/admin/`)"
+      - "traefik.http.routers.${APP_SLUG}-admin-http.entrypoints=web"
+      - "traefik.http.routers.${APP_SLUG}-admin-http.middlewares=${APP_SLUG}-redirect-https"
+      - "traefik.http.routers.${APP_SLUG}-admin-http.priority=900"
+      - "traefik.http.routers.${APP_SLUG}-admin-http.service=${APP_SLUG}-api"
+      - "traefik.http.routers.${APP_SLUG}-admin.rule=Host(`${APP_HOST}`) && PathPrefix(`/admin/`)"
+      - "traefik.http.routers.${APP_SLUG}-admin.entrypoints=websecure"
+      - "traefik.http.routers.${APP_SLUG}-admin.tls=true"
+      - "traefik.http.routers.${APP_SLUG}-admin.tls.certresolver=le"
+      - "traefik.http.routers.${APP_SLUG}-admin.priority=900"
+      - "traefik.http.routers.${APP_SLUG}-admin.service=${APP_SLUG}-api"
+      - "traefik.http.services.${APP_SLUG}-api.loadbalancer.server.port=8000"
     networks:
       - appnet
       - edge
@@ -82,7 +72,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
-    container_name: mdp_frontend_prod
+      args:
+        VITE_API_BASE: "/api"
+        VITE_APP_SLUG: "${APP_SLUG}"
+    image: ${APP_SLUG}-frontend:prod
+    container_name: ${APP_SLUG}_frontend_${APP_ENV}
     depends_on:
       - backend
     restart: unless-stopped
@@ -91,33 +85,30 @@ services:
     ports:
       - "${PROD_FRONT_BIND:-127.0.0.1}:${PROD_FRONT_PORT:-8080}:80"
     labels:
-      traefik.enable: "true"
-      traefik.docker.network: "edge"
-
-      # HTTP -> redirige (mais NE capture PAS /api/*)
-      traefik.http.routers.mdp-front-http.rule: "Host(`${APP_HOST}`) && !PathPrefix(`/api/`) && !PathPrefix(`/admin/`)"
-      traefik.http.routers.mdp-front-http.entrypoints: "web"
-      traefik.http.routers.mdp-front-http.middlewares: "mdp-redirect-https@docker"
-      traefik.http.routers.mdp-front-http.priority: "1"
-
-      # HTTPS -> sert le front (mais NE capture PAS /api/*)
-      traefik.http.routers.mdp-front.rule: "Host(`${APP_HOST}`) && !PathPrefix(`/api/`) && !PathPrefix(`/admin/`)"
-      traefik.http.routers.mdp-front.entrypoints: "websecure"
-      traefik.http.routers.mdp-front.tls: "true"
-      traefik.http.routers.mdp-front.tls.certresolver: "le"
-      traefik.http.routers.mdp-front.priority: "1"
-
-      # Service front (port interne)
-      traefik.http.services.mdp-front.loadbalancer.server.port: "80"
+      - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_DOCKER_NETWORK:-edge}"
+      - "traefik.http.routers.${APP_SLUG}-front-http.rule=Host(`${APP_HOST}`) && !PathPrefix(`/api/`) && !PathPrefix(`/admin/`)"
+      - "traefik.http.routers.${APP_SLUG}-front-http.entrypoints=web"
+      - "traefik.http.routers.${APP_SLUG}-front-http.middlewares=${APP_SLUG}-redirect-https@docker"
+      - "traefik.http.routers.${APP_SLUG}-front-http.priority=1"
+      - "traefik.http.routers.${APP_SLUG}-front.rule=Host(`${APP_HOST}`) && !PathPrefix(`/api/`) && !PathPrefix(`/admin/`)"
+      - "traefik.http.routers.${APP_SLUG}-front.entrypoints=websecure"
+      - "traefik.http.routers.${APP_SLUG}-front.tls=true"
+      - "traefik.http.routers.${APP_SLUG}-front.tls.certresolver=le"
+      - "traefik.http.routers.${APP_SLUG}-front.priority=1"
+      - "traefik.http.services.${APP_SLUG}-front.loadbalancer.server.port=80"
     networks:
       - edge
 
 volumes:
-  mdp_prod_pgdata:
+  pgdata:
+    name: ${APP_SLUG}_${APP_ENV}_pgdata
     external: true
 
 networks:
   appnet:
+    name: ${APP_SLUG}_appnet
     driver: bridge
   edge:
+    name: ${TRAEFIK_DOCKER_NETWORK:-edge}
     external: true

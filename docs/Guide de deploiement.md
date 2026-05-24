@@ -4,8 +4,8 @@ Ce guide standardise le processus pour mettre à jour l’application de gestion
 
 > Hypothèses (modifiez si besoin) :
 >
-> * Répertoire du projet : `/opt/apps/mdp`
-> * Fichier d’environnement prod : `.env.prod` (permissions strictes `600`)
+> * Répertoire du projet : `/opt/apps/${APP_SLUG}` une fois l'environnement chargé
+> * Fichier d’environnement prod : `.env.prod` (versionné, non sensible)
 > * Compose : `docker-compose.prod.yml`
 > * Traefik publie le domaine applicatif `mdp.mon-site.ca` (resolver TLS `le`)
 > * Le backend écoute sur le conteneur `backend` (port interne 8000)
@@ -15,8 +15,8 @@ Ce guide standardise le processus pour mettre à jour l’application de gestion
 
 ## 0) Pré-vol (à faire **une fois** ou à vérifier avant chaque mise à jour)
 
-* Vérifier la présence de `.env.prod` à la racine du projet (non versionné, permissions `600`).
-* Vérifier que `.env.prod` contient notamment `APP_HOST=mdp.mon-site.ca`, `VITE_API_BASE=/api` (chemin relatif) et, si besoin d’accès locaux, ajuster `PROD_DB_PORT` / `PROD_API_PORT` / `PROD_FRONT_PORT` (bind 127.0.0.1 par défaut).
+* Vérifier la présence de `.env.prod` à la racine du projet.
+* Vérifier que `.env.prod` contient notamment `APP_HOST`, `VITE_API_BASE=/api` (chemin relatif) et `TRAEFIK_DOCKER_NETWORK` ; si besoin d’accès locaux, ajuster `PROD_DB_PORT` / `PROD_API_PORT` / `PROD_FRONT_PORT` (bind 127.0.0.1 par défaut).
 * Si une valeur contient des espaces, la mettre entre guillemets (ex. `BACKUP_CRON="0 3 * * *"`).
 * Vérifier que `docker-compose.prod.yml` est bien présent.
 * Créer le dossier de sauvegarde local au projet : `mkdir -p ./backups`.
@@ -28,7 +28,7 @@ Ce guide standardise le processus pour mettre à jour l’application de gestion
 
 ```bash
 ssh <user>@<votre_serveur>
-cd /opt/apps/mdp
+cd /opt/apps/<app_slug>
 ```
 
 ---
@@ -135,7 +135,7 @@ curl -I "${APP_URL}/" | head -n 1
   * `/api/*` et `/admin/*` → service `backend` (port interne 8000)
   * le reste (`/`) → service `frontend` (port interne 80)
   * redirection HTTP → HTTPS via le middleware `mdp-redirect-https`
-* Le réseau externe `edge` doit exister (`docker network ls | grep edge`).
+* Le réseau externe `${TRAEFIK_DOCKER_NETWORK}` doit exister.
 * Pour vérifier la configuration dynamique :
 
 ```bash

@@ -152,6 +152,7 @@ APP_HOST=${prod_app_host}
 PROD_DB_PORT=${prod_db_port}
 PROD_API_PORT=${prod_api_port}
 PROD_FRONT_PORT=${prod_front_port}
+TRAEFIK_DOCKER_NETWORK=edge
 
 # ============================
 # PostgreSQL (service db)

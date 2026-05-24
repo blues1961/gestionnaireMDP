@@ -118,6 +118,8 @@ Conventions cibles :
 - utiliser `docker compose`, jamais `docker-compose` ;
 - services standards : `db`, `backend`, `frontend` ;
 - noms de conteneurs : `${APP_SLUG}_${SERVICE}_${APP_ENV}` ;
+- volume PostgreSQL prod nomme : `${APP_SLUG}_${APP_ENV}_pgdata` ;
+- reseau applicatif prod nomme : `${APP_SLUG}_appnet` ;
 - separation stricte `dev` / `prod` ;
 - usage prefere des cibles `make` quand elles existent.
 
