@@ -1,6 +1,6 @@
 # Makefile — Gestionnaire MDP
 # - .env est un symlink vers .env.<env> (ex: .env.dev)
-# - Services Compose courants: db, backend, frontend (et vite en dev, écart transitoire)
+# - Services Compose courants: db, backend, frontend
 # - Secrets seulement dans .env.local
 # - Front utilise /api (chemin relatif), Vite proxy -> backend:8000
 
@@ -17,8 +17,8 @@ TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.ven
  tree \
  up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
  backup-db restore-db pull-prod-backup push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-secret init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
- up-backend up-db up-vite stop-backend stop-db stop-vite restart-backend restart-db restart-vite \
- logs-backend logs-db logs-vite exec-backend exec-db exec-vite clean reseed rebuild
+ up-backend up-db up-frontend up-vite stop-backend stop-db stop-frontend stop-vite restart-backend restart-db restart-frontend restart-vite \
+ logs-backend logs-db logs-frontend logs-vite exec-backend exec-db exec-frontend exec-vite clean reseed rebuild
 
 help: ## Liste les commandes disponibles
 	@echo -e "Usage: make <target>\n"
@@ -84,7 +84,7 @@ init-dev: ## Prépare l'env de dev (.env -> .env.dev + .env.local depuis linode)
 require-dev-env: ## Garde-fou: autorise la commande uniquement si APP_ENV=dev
 	test "$$(. ./.env; echo $$APP_ENV)" = "dev" || { echo "Commande autorisée uniquement depuis dev (.env -> .env.dev)."; exit 1; }
 
-up: env-check ## Démarre la stack (db, backend, vite)
+up: env-check ## Démarre la stack (db, backend, frontend)
 	$(COMPOSE) up -d --build
 
 start: up ## Alias de up
@@ -209,41 +209,46 @@ rebuild: env-check ## (compose) Rebuild images (no-cache) puis relance en détac
 	$(COMPOSE) build --no-cache
 	$(COMPOSE) up -d --build
 
-# --- Aides par service (db | backend | vite)
+# --- Aides par service (db | backend | frontend)
 up-backend: env-check ## (svc) Démarrer backend uniquement
 	$(COMPOSE) up -d backend
 up-db: env-check ## (svc) Démarrer db uniquement
 	$(COMPOSE) up -d db
-up-vite: env-check ## (svc) Démarrer vite uniquement
-	$(COMPOSE) up -d vite
+up-frontend: env-check ## (svc) Démarrer frontend uniquement
+	$(COMPOSE) up -d frontend
+up-vite: up-frontend ## Alias de compatibilité vers frontend
 
 stop-backend: env-check ## (svc) Stopper backend
 	$(COMPOSE) stop backend
 stop-db: env-check ## (svc) Stopper db
 	$(COMPOSE) stop db
-stop-vite: env-check ## (svc) Stopper vite
-	$(COMPOSE) stop vite
+stop-frontend: env-check ## (svc) Stopper frontend
+	$(COMPOSE) stop frontend
+stop-vite: stop-frontend ## Alias de compatibilité vers frontend
 
 restart-backend: env-check ## (svc) Redémarrer backend
 	$(COMPOSE) restart backend
 restart-db: env-check ## (svc) Redémarrer db
 	$(COMPOSE) restart db
-restart-vite: env-check ## (svc) Redémarrer vite
-	$(COMPOSE) restart vite
+restart-frontend: env-check ## (svc) Redémarrer frontend
+	$(COMPOSE) restart frontend
+restart-vite: restart-frontend ## Alias de compatibilité vers frontend
 
 logs-backend: env-check ## (svc) Logs backend (suivis)
 	$(COMPOSE) logs -f --tail=200 backend
 logs-db: env-check ## (svc) Logs db (suivis)
 	$(COMPOSE) logs -f --tail=200 db
-logs-vite: env-check ## (svc) Logs vite (suivis)
-	$(COMPOSE) logs -f --tail=200 vite
+logs-frontend: env-check ## (svc) Logs frontend (suivis)
+	$(COMPOSE) logs -f --tail=200 frontend
+logs-vite: logs-frontend ## Alias de compatibilité vers frontend
 
 exec-backend: env-check ## (svc) Shell dans backend
 	$(COMPOSE) exec backend bash || $(COMPOSE) run --rm backend bash
 exec-db: env-check ## (svc) Shell dans db
 	$(COMPOSE) exec db bash || true
-exec-vite: env-check ## (svc) Shell dans vite
-	$(COMPOSE) exec vite bash || true
+exec-frontend: env-check ## (svc) Shell dans frontend
+	$(COMPOSE) exec frontend sh || true
+exec-vite: exec-frontend ## Alias de compatibilité vers frontend
 
 clean: env-check ## Stop + suppression volumes nommés (pgdata, node_modules)
 	set -a ; . ./.env ; set +a ; \

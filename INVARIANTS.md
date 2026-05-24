@@ -124,8 +124,8 @@ Conventions cibles :
 Etat actuel du depot :
 
 - la production utilise bien `db`, `backend`, `frontend` ;
-- le developpement ajoute encore un service `vite` en plus du service `frontend` ;
-- cette presence de `vite` est un ecart transitoire au standard global.
+- le developpement utilise aussi `db`, `backend`, `frontend` ;
+- le service `frontend` execute Vite en developpement.
 
 ## 5. Conventions de ports
 
@@ -250,10 +250,8 @@ Ne pas presenter l'application comme "zero-knowledge complet" tant que :
 
 Les ecarts suivants existent deja et doivent etre traites comme temporaires :
 
-- absence de `.env.template.example` et `.env.template` ;
-- service `vite` supplementaire en developpement ;
 - presence de scripts d'exploitation hors nomenclature standard du template ;
-- absence de `CODEX_START.md`, `AGENTS.md`, `docs/specification.md` et `docs/api.md` dans l'etat initial du depot.
+- certains guides annexes du depot n'ont pas encore tous ete re-alignes sur les invariants courants ;
 
 Tant qu'ils ne sont pas corriges :
 

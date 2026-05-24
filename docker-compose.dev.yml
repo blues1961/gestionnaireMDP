@@ -44,10 +44,9 @@ services:
     networks:
       - appnet
 
-
-  vite:
+  frontend:
     image: node:20-alpine
-    container_name: ${APP_SLUG}_vite_${APP_ENV}
+    container_name: ${APP_SLUG}_frontend_${APP_ENV}
     working_dir: /app
     restart: unless-stopped
     env_file:
@@ -67,19 +66,6 @@ services:
       - "${DEV_VITE_PORT:-5174}:5173"
     networks:
       - appnet
-
-  frontend:
-    # Optionnel en dev : build statique (Caddy/Nginx). Non exposé (on utilise Vite).
-    image: caddy:2
-    container_name: ${APP_SLUG}_frontend_${APP_ENV}
-    restart: unless-stopped
-    volumes:
-      - ./frontend/dist:/usr/share/caddy:ro
-    depends_on:
-      - vite
-    networks:
-      - appnet
-    # Pas de ports en dev (on passe par Vite:5174)
 
 volumes:
   pgdata:

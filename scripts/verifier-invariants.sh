@@ -9,7 +9,7 @@ APP_ENV="${APP_ENV:-dev}"
 VITE_PORT_HOST="${DEV_VITE_PORT:-5174}"
 API_PORT_HOST="${DEV_API_PORT:-8002}"
 
-VITE_CTN="${PROJECT_SLUG}_vite_${APP_ENV}"
+FRONTEND_CTN="${PROJECT_SLUG}_frontend_${APP_ENV}"
 BE_CTN="${PROJECT_SLUG}_backend_${APP_ENV}"
 
 must_grep() {
@@ -71,7 +71,7 @@ echo "== Conteneurs =="
 docker ps --format "table {{.Names}}\t{{.Ports}}" | (grep "${PROJECT_SLUG}" || true)
 
 echo "== Vite: VITE_API_BASE dans le conteneur =="
-docker exec "${VITE_CTN}" printenv VITE_API_BASE
+docker exec "${FRONTEND_CTN}" printenv VITE_API_BASE
 
 echo "== Backend: ALLOWED_HOSTS, CORS, CSRF =="
 docker exec "${BE_CTN}" sh -lc 'printenv ALLOWED_HOSTS; printenv CORS_ALLOWED_ORIGINS; printenv CSRF_TRUSTED_ORIGINS'

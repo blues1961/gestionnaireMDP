@@ -221,14 +221,12 @@ Limite importante :
 - stockage local de la paire de cle en `localStorage`, plus faible qu'un stockage durci ;
 - export JSON/CSV de la voute en clair, donc operationnellement risqué ;
 - metadonnees de la voute non chiffrees ;
-- stack dev non encore standardisee sur les seuls services `db`, `backend`, `frontend` ;
 - peu ou pas de tests automatises visibles dans le depot principal.
 
 ## 10. Prochaines etapes recommandees
 
-1. Aligner le workflow d'environnement et de scripts sur `app-template` avec `.env.template(.example)` et les scripts standards attendus.
-2. Supprimer l'ecart `vite` en developpement ou l'encapsuler proprement derriere le service `frontend`.
-3. Ajouter une gestion frontend complete du refresh/logout JWT.
-4. Durcir le stockage local de la cle et formaliser le threat model du chiffrement.
-5. Ajouter des validations backend sur les references de categorie et des tests d'isolation par utilisateur.
-6. Revoir la terminologie "zero-knowledge" dans tout le projet pour rester exacte.
+1. Completer l'alignement sur `app-template` en ajoutant les scripts standards encore manquants (`init.sh`, `check-invariants.sh`, `update.sh`, `rebuild.sh`, etc.).
+2. Ajouter une gestion frontend complete du refresh/logout JWT.
+3. Durcir le stockage local de la cle et formaliser le threat model du chiffrement.
+4. Ajouter des validations backend sur les references de categorie et des tests d'isolation par utilisateur.
+5. Revoir la terminologie "zero-knowledge" dans tout le projet pour rester exacte.

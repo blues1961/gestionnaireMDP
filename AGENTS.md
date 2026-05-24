@@ -58,11 +58,6 @@ En cas de contradiction :
 - Docker Compose `dev` et `prod`
 - Makefile comme point d'entree principal quand la commande existe
 
-Attention :
-
-- la stack dev actuelle comporte encore un service `vite` distinct de `frontend` ;
-- cet etat doit etre traite comme un ecart temporaire, pas comme une convention a reproduire ailleurs.
-
 ## Style d'intervention attendu
 
 - privilegier les changements minimaux ;

@@ -107,7 +107,8 @@ bash scripts/verifier-invariants.sh
 
 ## Notes importantes
 
-- `make up` lance la stack Docker effective du depot. En developpement, elle inclut encore un service `vite` en plus de `db`, `backend` et `frontend`.
+- `make up` lance en developpement les services standard `db`, `backend` et `frontend`.
+- En dev, le service `frontend` execute Vite et expose l'interface sur `DEV_VITE_PORT`.
 - Le backend dev ne doit pas executer `python manage.py migrate` au demarrage du conteneur.
 - Les migrations doivent etre lancees explicitement via `make migrate`.
 - `VITE_API_BASE` doit rester a `/api`.

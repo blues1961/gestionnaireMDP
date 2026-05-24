@@ -52,7 +52,7 @@ Avant toute modification, lis dans cet ordre :
 - `backend/api/urls.py` : surface API reelle.
 - `frontend/src/api.js` : base URL relative et wrappers Axios.
 - `frontend/src/utils/crypto.js` : chiffrement, dechiffrement et export/import de cle.
-- `docker-compose.dev.yml` : stack dev actuelle, avec ecart `vite`.
+- `docker-compose.dev.yml` : stack dev standardisee autour de `db`, `backend`, `frontend`.
 - `Makefile` : interface d'exploitation principale du depot.
 
 ## Commandes de verification
@@ -84,7 +84,6 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml config
 - supposer que le depot suit deja strictement `app-template` ;
 - documenter comme "zero-knowledge complet" une implementation qui laisse des metadonnees en clair ;
 - ajouter de nouveaux scripts paralleles alors qu'une cible `make` existe deja ;
-- etendre l'usage du service `vite` comme convention globale ;
 - laisser croire qu'il existe un endpoint backend d'import/export de cle alors que la fonctionnalite est locale au frontend ;
 - ajouter des migrations automatiques supplementaires au demarrage des conteneurs.
 
