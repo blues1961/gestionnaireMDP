@@ -63,6 +63,7 @@ Verification minimale :
 make ps
 make migrate
 make token-test
+make test
 curl http://localhost:8002/api/healthz/
 ```
 

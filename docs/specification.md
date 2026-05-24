@@ -230,11 +230,11 @@ Limite importante :
 - stockage local de la paire de cle toujours accessible au contexte JavaScript du navigateur ;
 - export JSON/CSV de la voute en clair, donc operationnellement risqué ;
 - metadonnees de la voute non chiffrees ;
-- peu ou pas de tests automatises visibles dans le depot principal.
+- couverture automatisee encore partielle, meme si des tests backend Django et frontend Vitest existent maintenant sur l'auth et la gestion locale de cle.
 
 ## 10. Prochaines etapes recommandees
 
 1. Formaliser le threat model du chiffrement et du stockage local de cle.
-2. Etendre les tests automatises au flux frontend d'authentification, au logout JWT et aux migrations de cle legacy.
+2. Etendre encore les tests automatises aux composants React critiques et aux flux utilisateur principaux de la voute.
 3. Clarifier a terme la place des endpoints de session Django legacy.
 4. Revoir la terminologie "zero-knowledge" dans tout le projet pour rester exacte.

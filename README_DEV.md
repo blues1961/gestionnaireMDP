@@ -93,6 +93,9 @@ make rebuild
 make ps
 make logs
 make migrate
+make test
+make test-backend
+make test-frontend
 make update
 make backup
 make restore
@@ -130,6 +133,7 @@ Apres demarrage :
 ```bash
 make ps
 make token-test
+make test
 curl http://localhost:8002/api/healthz/
 ```
 

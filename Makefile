@@ -15,7 +15,7 @@ TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.ven
 
 .PHONY: help init create-env generate-env dev prod check update backup restore env-check env-check-base env-check-local init-dev require-dev-env backup-dir \
  tree \
- up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
+ up down stop start restart ps logs sh migrate createsuperuser whoami token-test test test-backend test-frontend \
  backup-db restore-db pull-prod-backup push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-secret init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
  up-backend up-db up-frontend up-vite stop-backend stop-db stop-frontend stop-vite restart-backend restart-db restart-frontend restart-vite \
  logs-backend logs-db logs-frontend logs-vite exec-backend exec-db exec-frontend exec-vite clean reseed rebuild
@@ -152,6 +152,14 @@ token-test: env-check ## JWT create -> whoami (DEV)
 	  | tee /tmp/jwt.json >/dev/null ; \
 	ACC=$$(jq -r '.access // empty' /tmp/jwt.json) ; test -n "$$ACC" || { echo "Échec JWT"; exit 1; } ; \
 	curl -sS "http://localhost:$$DEV_API_PORT/api/whoami/" -H "Authorization: Bearer $$ACC" | jq .
+
+test: test-backend test-frontend ## Lance la suite de tests principale
+
+test-backend: env-check ## Lance les tests backend Django
+	$(COMPOSE) run --rm backend python manage.py test
+
+test-frontend: env-check ## Lance les tests frontend Vitest
+	$(COMPOSE) run --rm frontend npm run test
 
 # Sauvegarde / restauration DB
 backup-dir:

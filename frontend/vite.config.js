@@ -5,6 +5,10 @@ export default defineConfig({
   plugins: [react()],
   // Expose both VITE_* and APP_* variables to import.meta.env
   envPrefix: ['VITE_', 'APP_'],
+  test: {
+    environment: 'happy-dom',
+    setupFiles: './vitest.setup.js',
+  },
   server: {
     host: true,
     port: 5173,                  // mappé vers 5174 côté hôte (N=1)
