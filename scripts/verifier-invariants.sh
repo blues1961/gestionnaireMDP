@@ -59,6 +59,12 @@ must_rg_anywhere "auth/jwt"
 # ---------- 3) Compose ----------
 must_grep docker-compose.dev.yml "runserver 0.0.0.0:8000"
 must_grep docker-compose.dev.yml "VITE_API_BASE: \"/api\""
+if rg -n "python manage.py migrate &&" docker-compose.dev.yml backend/Dockerfile.dev >/dev/null; then
+  echo "❌ Le backend dev ne doit pas lancer les migrations automatiquement au démarrage"
+  exit 1
+else
+  echo "✅ pas de migrations automatiques au démarrage du backend dev"
+fi
 
 # ---------- 4) Conteneurs: env & ports ----------
 echo "== Conteneurs =="
