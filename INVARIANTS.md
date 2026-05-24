@@ -192,15 +192,21 @@ Quand le `Makefile` expose une commande, il doit etre prefere.
 Commandes actuelles de reference :
 
 ```bash
+make init
 make generate-env
 make dev
 make prod
+make check
 make up
 make down
 make restart
+make rebuild
 make ps
 make logs
 make migrate
+make update
+make backup
+make restore
 make createsuperuser
 make backup-db
 make restore-db
@@ -208,9 +214,9 @@ make restore-db
 
 Etat actuel du depot :
 
-- l'interface principale existe, mais ne correspond pas encore a la nomenclature complete de `app-template` ;
-- `generate-env.sh` et `env-switch.sh` existent desormais sous les noms attendus ;
-- les scripts standards `init.sh`, `check-invariants.sh`, `update.sh`, `rebuild.sh` et assimilés ne sont pas encore tous presents sous les noms attendus.
+- l'interface principale existe et expose désormais les noms standards du template ;
+- `generate-env.sh`, `generate-secrets.sh`, `init.sh`, `check-invariants.sh`, `update.sh`, `rebuild.sh` et les autres scripts standards existent sous les noms attendus ;
+- le depot conserve aussi quelques scripts supplementaires propres a son exploitation.
 
 ## 9. Regles de securite specifiques au gestionnaire de mots de passe
 

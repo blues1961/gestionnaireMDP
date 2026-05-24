@@ -13,7 +13,7 @@ APP_ENV := $(shell if [ -f ./.env ]; then . ./.env; echo $$APP_ENV; else echo de
 COMPOSE := docker compose --env-file .env.$(APP_ENV) -f docker-compose.$(APP_ENV).yml
 TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.venv|backup|project-tree-*.txt|*.py[co]|*.sqlite3|*.log|*.cache|*.cookies|*.sql|*.sql.gz|*.dump|*.bak
 
-.PHONY: help create-env generate-env dev prod env-check env-check-base env-check-local init-dev require-dev-env backup-dir \
+.PHONY: help init create-env generate-env dev prod check update backup restore env-check env-check-base env-check-local init-dev require-dev-env backup-dir \
  tree \
  up down stop start restart ps logs sh migrate createsuperuser whoami token-test \
  backup-db restore-db pull-prod-backup push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-secret init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
@@ -30,6 +30,9 @@ help: ## Liste les commandes disponibles
 create-env: ## Bootstrap .env.template puis génère .env.dev et .env.prod
 	./scripts/create-env.sh
 
+init: ## Initialise le projet dans l'environnement pointé par .env
+	./scripts/init.sh
+
 generate-env: ## Génère .env.dev et .env.prod depuis .env.template
 	./scripts/generate-env.sh
 
@@ -38,6 +41,22 @@ dev: ## Pointe .env vers .env.dev
 
 prod: ## Pointe .env vers .env.prod
 	./scripts/env-switch.sh prod
+
+check: ## Vérifie les invariants du projet
+	./scripts/check-invariants.sh
+
+update: ## Exécute la séquence standard de mise à jour
+	./scripts/update.sh
+
+backup: ## Alias standard vers backup-db
+	./scripts/backup-db.sh
+
+restore: ## Alias standard vers restore-db
+	@if [ -n "$(FILE)" ]; then \
+		./scripts/restore-db.sh "$(FILE)"; \
+	else \
+		./scripts/restore-db.sh; \
+	fi
 
 tree: ## Arborescence du projet (4 niveaux, ignore les artefacts courants)
 	@tree -L 4 --dirsfirst --prune -I "$(TREE_IGNORE)"

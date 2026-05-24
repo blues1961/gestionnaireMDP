@@ -81,15 +81,21 @@ Avec la configuration actuellement versionnee (`APP_NO=1`) :
 
 ```bash
 make help
+make init
 make generate-env
 make dev
 make prod
+make check
 make up
 make down
 make restart
+make rebuild
 make ps
 make logs
 make migrate
+make update
+make backup
+make restore
 make createsuperuser
 make token-test
 make backup-db
