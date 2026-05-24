@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APITestCase
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from api.models import Category, PasswordEntry
 
@@ -80,3 +81,40 @@ class PasswordCategoryOwnershipTests(APITestCase):
         self.assertIn("category", response.data)
         entry.refresh_from_db()
         self.assertEqual(entry.category, self.owner_category)
+
+
+class JWTLogoutTests(APITestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.user = user_model.objects.create_user(username="jwt-user", password="jwt-pass")
+
+    def test_logout_blacklists_refresh_token(self):
+        refresh = RefreshToken.for_user(self.user)
+        access = str(refresh.access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+
+        logout_response = self.client.post(
+            "/api/auth/jwt/logout/",
+            {"refresh": str(refresh)},
+            format="json",
+        )
+
+        self.assertEqual(logout_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        refresh_response = self.client.post(
+            "/api/auth/jwt/refresh/",
+            {"refresh": str(refresh)},
+            format="json",
+        )
+
+        self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_logout_requires_refresh_token(self):
+        refresh = RefreshToken.for_user(self.user)
+        access = str(refresh.access_token)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+
+        response = self.client.post("/api/auth/jwt/logout/", {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["detail"], "'refresh' is required.")

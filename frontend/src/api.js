@@ -111,6 +111,12 @@ export function loginJWT(username, password) {
   return api.post("auth/jwt/create/", { username, password });
 }
 
+export async function logoutJWT() {
+  const refresh = getStoredRefreshToken();
+  if (!refresh) return;
+  await api.post("auth/jwt/logout/", { refresh });
+}
+
 export async function refreshAccessToken(force = false) {
   const refresh = getStoredRefreshToken();
   if (!refresh) {

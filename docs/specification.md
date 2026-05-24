@@ -131,6 +131,7 @@ Regles :
 ### 6.1 Authentification
 
 - login principal via `POST /api/auth/jwt/create/`
+- logout JWT via `POST /api/auth/jwt/logout/`
 - refresh via `POST /api/auth/jwt/refresh/`
 - verification via `POST /api/auth/jwt/verify/`
 - `GET /api/whoami/` et `GET /api/auth/whoami/`
@@ -184,6 +185,12 @@ Limite importante :
 4. au redemarrage, le frontend tente de restaurer une session valide via `refresh` si `access` a expire
 5. il est redirige vers `/vault`
 
+### 8.1.b Deconnexion
+
+1. le frontend appelle `POST /api/auth/jwt/logout/` avec le `refresh` courant si disponible
+2. le backend blacklist le refresh token
+3. le frontend purge ensuite la session locale et redirige vers `/login`
+
 ### 8.2 Creation d'une entree
 
 1. l'utilisateur ouvre `/vault/new`
@@ -219,7 +226,6 @@ Limite importante :
 
 - pas d'API d'administration des utilisateurs ;
 - pas d'inscription publique ;
-- pas d'invalidation serveur ou de blacklist du refresh token au logout JWT ;
 - presence d'endpoints session legacy non harmonisee avec le flux JWT principal ;
 - stockage local de la paire de cle toujours accessible au contexte JavaScript du navigateur ;
 - export JSON/CSV de la voute en clair, donc operationnellement risqué ;
@@ -229,6 +235,6 @@ Limite importante :
 ## 10. Prochaines etapes recommandees
 
 1. Formaliser le threat model du chiffrement et du stockage local de cle.
-2. Ajouter une invalidation serveur des refresh tokens si le projet veut un vrai logout JWT cote backend.
-3. Etendre les tests automatises au flux frontend d'authentification et aux migrations de cle legacy.
+2. Etendre les tests automatises au flux frontend d'authentification, au logout JWT et aux migrations de cle legacy.
+3. Clarifier a terme la place des endpoints de session Django legacy.
 4. Revoir la terminologie "zero-knowledge" dans tout le projet pour rester exacte.

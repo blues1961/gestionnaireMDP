@@ -15,7 +15,7 @@ import KeyCheck from "./components/KeyCheck";
 import KeyBackup from "./components/KeyBackup";
 import CategoryGuide from "./components/CategoryGuide";
 import ThemeToggle from "./components/ThemeToggle";
-import { clearStoredAuth, hasStoredSession, initializeAuth } from "./api";
+import { clearStoredAuth, hasStoredSession, initializeAuth, logoutJWT } from "./api";
 import monSiteLogo from "./assets/mon-site-logo.png";
 
 // Nom d'application injecté via Vite/env
@@ -36,9 +36,15 @@ function RequireAuth({ children }) {
 
 function NavBar({ theme, onThemeChange }) {
   const navigate = useNavigate();
-  const onLogout = () => {
-    clearStoredAuth();
-    navigate("/login", { replace: true });
+  const onLogout = async () => {
+    try {
+      await logoutJWT();
+    } catch {
+      // La purge locale reste la source de verite si l'API logout echoue.
+    } finally {
+      clearStoredAuth();
+      navigate("/login", { replace: true });
+    }
   };
   return (
     <header className="topbar">

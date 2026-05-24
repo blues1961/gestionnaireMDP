@@ -69,6 +69,23 @@ Sortie typique :
 }
 ```
 
+### `POST /api/auth/jwt/logout/`
+
+Auth JWT requise.
+
+Entree :
+
+```json
+{
+  "refresh": "jwt-refresh"
+}
+```
+
+Sortie :
+
+- `204 No Content` si le refresh token a ete blacklisté
+- `400 Bad Request` si `refresh` est absent ou invalide
+
 ### `POST /api/auth/jwt/verify/`
 
 Entree :
@@ -145,9 +162,9 @@ Sortie :
 
 Important :
 
-- ce logout ne blackliste pas un refresh token JWT ;
+- ce logout de session ne blackliste pas un refresh token JWT ;
 - il concerne la session Django legacy ;
-- le frontend principal purge ses JWT localement et tente un refresh automatique via `/api/auth/jwt/refresh/` tant que le `refresh` reste valide.
+- le frontend principal utilise `POST /api/auth/jwt/logout/` pour blacklister le refresh token quand il est disponible, puis purge ses JWT localement.
 
 ## 4. Categories
 

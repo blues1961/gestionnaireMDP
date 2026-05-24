@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .views import CategoryViewSet, PasswordViewSet, SecretsView, healthz
-from .views_auth import csrf, login_view, logout_view
+from .views_auth import JWTLogoutView, csrf, login_view, logout_view
 from api.views_jwt_whoami import jwt_whoami
 from rest_framework_simplejwt.views import (
     TokenObtainPairView, TokenRefreshView, TokenVerifyView
@@ -32,6 +32,7 @@ urlpatterns = [
 
     # SimpleJWT
     path("auth/jwt/create/",  TokenObtainPairView.as_view(), name="jwt-create"),
+    path("auth/jwt/logout/",  JWTLogoutView.as_view(),        name="jwt-logout"),
     path("auth/jwt/refresh/", TokenRefreshView.as_view(),    name="jwt-refresh"),
     path("auth/jwt/verify/",  TokenVerifyView.as_view(),     name="jwt-verify"),
 
