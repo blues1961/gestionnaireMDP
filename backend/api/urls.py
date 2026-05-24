@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .views import CategoryViewSet, PasswordViewSet, SecretsView, healthz
-from .views_auth import JWTLogoutView, csrf, login_view, logout_view
+from .views_auth import JWTLogoutView, csrf, login_view, logout_view, whoami
 from api.views_jwt_whoami import jwt_whoami
 from rest_framework_simplejwt.views import (
     TokenObtainPairView, TokenRefreshView, TokenVerifyView
@@ -23,6 +23,12 @@ urlpatterns = [
     path("secrets/", SecretsView.as_view(), name="api-secrets"),
 
     # Auth (sessions legacy — conservé pour compat)
+    path("auth/session/csrf/",   csrf,        name="api-session-csrf"),
+    path("auth/session/login/",  login_view,  name="api-session-login"),
+    path("auth/session/logout/", logout_view, name="api-session-logout"),
+    path("auth/session/whoami/", whoami,      name="api-session-whoami"),
+
+    # Alias historiques de compat session (deprecies)
     path("csrf/",   csrf,        name="api-csrf"),
     path("login/",  login_view,  name="api-login"),
     path("logout/", logout_view, name="api-logout"),

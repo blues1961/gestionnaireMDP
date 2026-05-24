@@ -47,7 +47,7 @@ Ces elements existent, mais ne constituent pas encore une architecture totalemen
 
 - framework : Django 5
 - API : Django REST Framework
-- auth : JWT SimpleJWT, avec classes d'authentification DRF et compat session/basic
+- auth : JWT SimpleJWT comme mecanisme DRF principal ; compat session Django isolee sur des vues legacy dediees
 - routes principales : `backend/api/urls.py`
 - base de donnees : PostgreSQL
 
@@ -135,6 +135,7 @@ Regles :
 - refresh via `POST /api/auth/jwt/refresh/`
 - verification via `POST /api/auth/jwt/verify/`
 - `GET /api/whoami/` et `GET /api/auth/whoami/`
+- compat session legacy via `/api/auth/session/*` et alias historiques deprecies
 
 Il n'existe pas d'inscription publique.
 
@@ -226,7 +227,7 @@ Limite importante :
 
 - pas d'API d'administration des utilisateurs ;
 - pas d'inscription publique ;
-- presence d'endpoints session legacy non harmonisee avec le flux JWT principal ;
+- presence d'endpoints session legacy encore exposes pour compatibilite ;
 - stockage local de la paire de cle toujours accessible au contexte JavaScript du navigateur ;
 - export JSON/CSV de la voute en clair, donc operationnellement risqué ;
 - metadonnees de la voute non chiffrees ;
@@ -236,5 +237,5 @@ Limite importante :
 
 1. Formaliser le threat model du chiffrement et du stockage local de cle.
 2. Etendre encore les tests automatises aux composants React critiques et aux flux utilisateur principaux de la voute.
-3. Clarifier a terme la place des endpoints de session Django legacy.
+3. Decider a terme si les endpoints de session Django legacy doivent etre conserves ou supprimes.
 4. Revoir la terminologie "zero-knowledge" dans tout le projet pour rester exacte.

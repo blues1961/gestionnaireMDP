@@ -2,10 +2,9 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 
 @api_view(["GET"])
-@authentication_classes([JWTAuthentication, SessionAuthentication, BasicAuthentication])
+@authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def jwt_whoami(request):
     u = request.user

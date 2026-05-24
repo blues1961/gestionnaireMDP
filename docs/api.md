@@ -12,7 +12,7 @@ http://localhost:8002/api/
 
 - format : JSON
 - auth principale : JWT Bearer
-- auth legacy de compatibilite : session Django avec CSRF
+- auth legacy de compatibilite : session Django avec CSRF, isolee sous `/api/auth/session/`
 - aucune inscription publique
 - toutes les donnees metier sont isolees par utilisateur authentifie
 - aucune pagination DRF specifique n'est configuree a ce stade
@@ -104,7 +104,7 @@ Reponse :
 ### `GET /api/whoami/`
 ### `GET /api/auth/whoami/`
 
-Auth requise.
+Auth JWT requise.
 
 Sortie :
 
@@ -120,12 +120,27 @@ Sortie :
 
 Ces routes existent encore pour compatibilite, mais le frontend principal utilise JWT.
 
+Routes legacy explicites :
+
+- `GET /api/auth/session/csrf/`
+- `POST /api/auth/session/login/`
+- `POST /api/auth/session/logout/`
+- `GET /api/auth/session/whoami/`
+
+Alias historiques encore exposes mais deprecies :
+
+- `GET /api/csrf/`
+- `POST /api/login/`
+- `POST /api/logout/`
+
+### `GET /api/auth/session/csrf/`
 ### `GET /api/csrf/`
 
 Pose un cookie CSRF et retourne :
 
 - `204 No Content`
 
+### `POST /api/auth/session/login/`
 ### `POST /api/login/`
 
 Prerequis :
@@ -151,6 +166,7 @@ Sortie :
 ```
 
 ### `POST /api/logout/`
+### `POST /api/auth/session/logout/`
 
 Prerequis :
 
@@ -160,10 +176,23 @@ Sortie :
 
 - `204 No Content`
 
+### `GET /api/auth/session/whoami/`
+
+Auth session Django requise.
+
+Sortie :
+
+```json
+{
+  "username": "admin"
+}
+```
+
 Important :
 
 - ce logout de session ne blackliste pas un refresh token JWT ;
 - il concerne la session Django legacy ;
+- les alias historiques `/api/csrf/`, `/api/login/`, `/api/logout/` renvoient des headers de deprecation ;
 - le frontend principal utilise `POST /api/auth/jwt/logout/` pour blacklister le refresh token quand il est disponible, puis purge ses JWT localement.
 
 ## 4. Categories

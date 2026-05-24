@@ -10,9 +10,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
+
+def with_legacy_session_headers(response):
+    response["Deprecation"] = "true"
+    response["Warning"] = '299 gestionnaireMDP "Deprecated session auth endpoint; use /api/auth/jwt/* instead."'
+    return response
+
 @ensure_csrf_cookie
 def csrf(request):
-    return JsonResponse({}, status=204)
+    return with_legacy_session_headers(JsonResponse({}, status=204))
 
 @require_POST
 @csrf_protect
@@ -27,16 +33,16 @@ def login_view(request):
 
     user = authenticate(request, username=username, password=password)
     if user is None or not user.is_active:
-        return JsonResponse({"detail": "Invalid credentials"}, status=401)
+        return with_legacy_session_headers(JsonResponse({"detail": "Invalid credentials"}, status=401))
 
     login(request, user)
-    return JsonResponse({"username": user.get_username()}, status=200)
+    return with_legacy_session_headers(JsonResponse({"username": user.get_username()}, status=200))
 
 @require_POST
 @csrf_protect
 def logout_view(request):
     logout(request)
-    return JsonResponse({}, status=204)
+    return with_legacy_session_headers(JsonResponse({}, status=204))
 
 
 class JWTLogoutView(APIView):
@@ -58,5 +64,5 @@ class JWTLogoutView(APIView):
 @require_GET
 def whoami(request):
     if request.user.is_authenticated:
-        return JsonResponse({"username": request.user.get_username()}, status=200)
-    return JsonResponse({"detail": "unauthenticated"}, status=401)
+        return with_legacy_session_headers(JsonResponse({"username": request.user.get_username()}, status=200))
+    return with_legacy_session_headers(JsonResponse({"detail": "unauthenticated"}, status=401))

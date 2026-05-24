@@ -182,7 +182,8 @@ Etat actuel du depot :
 
 - JWT SimpleJWT est en place ;
 - `GET /api/whoami/` et `GET /api/auth/whoami/` existent ;
-- des endpoints de session Django legacy (`/api/csrf/`, `/api/login/`, `/api/logout/`) existent encore pour compatibilite ;
+- des endpoints de session Django legacy existent encore pour compatibilite, mais doivent etre isoles sous `/api/auth/session/` ;
+- les alias historiques top-level (`/api/csrf/`, `/api/login/`, `/api/logout/`) doivent etre traites comme deprecies ;
 - aucun endpoint public de creation de compte n'est present.
 
 ## 8. Interface de commande

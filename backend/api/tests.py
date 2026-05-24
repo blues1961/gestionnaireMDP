@@ -118,3 +118,32 @@ class JWTLogoutTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["detail"], "'refresh' is required.")
+
+
+class LegacySessionCompatibilityTests(APITestCase):
+    def setUp(self):
+        user_model = get_user_model()
+        self.user = user_model.objects.create_user(username="session-user", password="session-pass")
+
+    def test_jwt_whoami_rejects_session_authentication(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get("/api/whoami/")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_legacy_session_whoami_accepts_session_authentication(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get("/api/auth/session/whoami/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["username"], self.user.username)
+        self.assertEqual(response["Deprecation"], "true")
+
+    def test_legacy_csrf_alias_is_marked_deprecated(self):
+        response = self.client.get("/api/csrf/")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response["Deprecation"], "true")
+        self.assertIn("/api/auth/jwt/", response["Warning"])
