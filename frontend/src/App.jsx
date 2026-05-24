@@ -15,7 +15,7 @@ import KeyCheck from "./components/KeyCheck";
 import KeyBackup from "./components/KeyBackup";
 import CategoryGuide from "./components/CategoryGuide";
 import ThemeToggle from "./components/ThemeToggle";
-import { setAccessToken } from "./api";
+import { clearStoredAuth, hasStoredSession, initializeAuth } from "./api";
 import monSiteLogo from "./assets/mon-site-logo.png";
 
 // Nom d'application injecté via Vite/env
@@ -29,32 +29,15 @@ function getInitialTheme() {
   return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
-// Source unique de vérité pour l'access token
-function getStoredAccessToken() {
-  try {
-    const jwt = JSON.parse(localStorage.getItem("mdp.jwt") || "null");
-    return jwt?.access || localStorage.getItem("token") || null; // compat fallback
-  } catch {
-    return localStorage.getItem("token") || null; // compat fallback
-  }
-}
-
-// Garde d'auth simple (token en localStorage)
 function RequireAuth({ children }) {
-  const token = getStoredAccessToken();
-  useEffect(() => {
-    setAccessToken(token || null);
-  }, [token]);
-  if (!token) return <Navigate to="/login" replace />;
+  if (!hasStoredSession()) return <Navigate to="/login" replace />;
   return children;
 }
 
 function NavBar({ theme, onThemeChange }) {
   const navigate = useNavigate();
   const onLogout = () => {
-    localStorage.removeItem("mdp.jwt");
-    localStorage.removeItem("token"); // compat: purge ancienne clé
-    setAccessToken(null);
+    clearStoredAuth();
     navigate("/login", { replace: true });
   };
   return (
@@ -146,17 +129,34 @@ function LoginPage({ theme, onThemeChange }) {
 
 export default function App() {
   const [theme, setTheme] = useState(getInitialTheme);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
-  // Arme le header Authorization si un token existe déjà
   useEffect(() => {
-    const token = getStoredAccessToken();
-    if (token) setAccessToken(token);
+    let alive = true;
+    (async () => {
+      try {
+        await initializeAuth();
+      } finally {
+        if (alive) setAuthReady(true);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
+
+  if (!authReady) {
+    return (
+      <main className="container">
+        <div className="card">Chargement…</div>
+      </main>
+    );
+  }
 
   return (
     <BrowserRouter>
@@ -214,7 +214,7 @@ export default function App() {
         <Route
           path="*"
           element={
-            getStoredAccessToken()
+            hasStoredSession()
               ? <Navigate to="/vault" replace />
               : <Navigate to="/login" replace />
           }

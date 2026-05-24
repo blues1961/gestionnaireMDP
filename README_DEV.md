@@ -117,6 +117,7 @@ bash scripts/verifier-invariants.sh
 - En dev, le service `frontend` execute Vite et expose l'interface sur `DEV_VITE_PORT`.
 - Le backend dev ne doit pas executer `python manage.py migrate` au demarrage du conteneur.
 - Les migrations doivent etre lancees explicitement via `make migrate`.
+- Le frontend React tente un refresh JWT automatique au demarrage et sur `401` tant que le `refresh` local reste valide.
 - `VITE_API_BASE` doit rester a `/api`.
 - Le frontend ne doit pas contenir d'URL backend absolue.
 - `.env.local` ne doit jamais etre committe.

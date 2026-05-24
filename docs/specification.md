@@ -178,7 +178,8 @@ Limite importante :
 1. l'utilisateur ouvre `/login`
 2. il soumet username et mot de passe
 3. le frontend stocke `access` et `refresh` en local
-4. il est redirige vers `/vault`
+4. au redemarrage, le frontend tente de restaurer une session valide via `refresh` si `access` a expire
+5. il est redirige vers `/vault`
 
 ### 8.2 Creation d'une entree
 
@@ -215,8 +216,7 @@ Limite importante :
 
 - pas d'API d'administration des utilisateurs ;
 - pas d'inscription publique ;
-- pas de refresh JWT automatique cote frontend ;
-- pas de logout JWT avec invalidation de refresh token ;
+- pas d'invalidation serveur ou de blacklist du refresh token au logout JWT ;
 - presence d'endpoints session legacy non harmonisee avec le flux JWT principal ;
 - stockage local de la paire de cle en `localStorage`, plus faible qu'un stockage durci ;
 - export JSON/CSV de la voute en clair, donc operationnellement risqué ;
@@ -225,7 +225,7 @@ Limite importante :
 
 ## 10. Prochaines etapes recommandees
 
-1. Ajouter une gestion frontend complete du refresh/logout JWT.
-2. Durcir le stockage local de la cle et formaliser le threat model du chiffrement.
-3. Ajouter des validations backend sur les references de categorie et des tests d'isolation par utilisateur.
+1. Durcir le stockage local de la cle et formaliser le threat model du chiffrement.
+2. Ajouter une invalidation serveur des refresh tokens si le projet veut un vrai logout JWT cote backend.
+3. Etendre les tests automatises au flux frontend d'authentification.
 4. Revoir la terminologie "zero-knowledge" dans tout le projet pour rester exacte.

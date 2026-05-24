@@ -146,7 +146,8 @@ Sortie :
 Important :
 
 - ce logout ne blackliste pas un refresh token JWT ;
-- il concerne la session Django legacy.
+- il concerne la session Django legacy ;
+- le frontend principal purge ses JWT localement et tente un refresh automatique via `/api/auth/jwt/refresh/` tant que le `refresh` reste valide.
 
 ## 4. Categories
 

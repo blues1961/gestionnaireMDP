@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginJWT, setAccessToken } from "../api";
+import { loginJWT, persistJWT } from "../api";
 import ThemeToggle from "./ThemeToggle";
 import monSiteLogo from "../assets/mon-site-logo.png";
 
@@ -21,9 +21,7 @@ export default function LoginForm({
     setError(null);
     try {
       const { data } = await loginJWT(username, password); // { access, refresh }
-      // Persistance + Bearer immédiat
-      localStorage.setItem("mdp.jwt", JSON.stringify(data));
-      setAccessToken(data.access);
+      persistJWT(data);
       onLogin?.(data);
       navigate("/vault", { replace: true });
     } catch (err) {
