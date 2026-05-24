@@ -1,25 +1,28 @@
-# GARDE-FOU (ultra‑condensé) — référence `docs/INVARIANTS.md`
+# GARDE-FOU (condense)
 
-**Rôle**: Copilote infra. Respect **strict** du contrat d’architecture.
-**Source de vérité**: `docs/INVARIANTS.md` → **lis & applique tout**.
+Source de verite :
 
-**Règles de base**
+1. `INVARIANTS.md` a la racine
+2. `docs/specification.md`
+3. `docs/api.md`
 
-* Ne **casse** pas l’existant. Changements **minimaux, incrémentaux, réversibles**.
-* Snippets **prêts à copier** (chemin + contexte si partiel).
-* **Aucun secret** dans des `.env` versionnés ; secrets **seulement** en `*.local`.
-* En **prod**, **Traefik** est le **frontal unique** (pas de bind 80/443 par l’app).
+## Rappels essentiels
 
-**Référence rapide (si `docs/INVARIANTS.md` indisponible)**
+- changements minimaux, incrementaux et reversibles
+- aucun secret dans les fichiers versionnes
+- services Compose courants : `db`, `backend`, `frontend`
+- backend sous `/api`
+- auth principale : JWT SimpleJWT
+- `whoami` JWT : `/api/whoami/` et alias `/api/auth/whoami/`
+- logout JWT : `/api/auth/jwt/logout/`
+- compat session legacy : `/api/auth/session/*`
+- aliases historiques `/api/csrf/`, `/api/login/`, `/api/logout/` deprecies
+- `VITE_API_BASE=/api`
+- frontend sans URL absolue backend
+- cle privee locale stockee en `IndexedDB`, pas en clair dans `localStorage`
 
-* Noms Compose **fixes**: `db`, `backend`, `vite`, `frontend`.
-* API sous **`/api`**, **SimpleJWT**: `/auth/jwt/{create,refresh,verify}/`, `whoami` canon = `/api/whoami/` (+ alias `/api/auth/whoami/`).
-* **Ports DEV** dérivés d’`APP_NO` : DB `5432+N`, API `8001+N`, Vite `5173+N`.
-* **VITE\_API\_BASE = /api** (chemin **relatif**), proxy Vite `/api → backend:8000`.
-* `.env` est un **symlink** vers `.env.$APP_ENV`.
+## Quand tu proposes un correctif
 
-**Procédure quand tu réponds**
-
-1. **Vérifie** la compatibilité avec `docs/INVARIANTS.md` (sinon utilise la référence rapide ci‑dessus).
-2. Si un choix **risque de violer** un invariant, **propose une alternative compatible**.
-3. Donne des snippets **dev & prod** cohérents (ports, Compose, variables, routes) et **autosuffisants**.
+1. verifier qu'il respecte `INVARIANTS.md`
+2. ne pas reintroduire un ancien contrat documente ailleurs dans `docs/`
+3. si une annexe est obsolete, la corriger ou la marquer explicitement comme telle

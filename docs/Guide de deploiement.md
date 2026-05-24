@@ -241,9 +241,9 @@ curl -fsS "https://${APP_HOST}/api/health/" || true
 ## Annexe A — Résolution de l’enfer des paths
 
 * Invariant : `.env.prod` doit définir `VITE_API_BASE=/api` (chemin relatif)
-* Les appels front restent relatifs : `api.post('/login/', data)` (pas de `/api` codé en dur)
+* Les appels front restent relatifs : `api.post('auth/jwt/create/', data)` ou `api.get('passwords/')` (pas de `/api` codé en dur)
 
-👉 Le problème typique est `POST /api/api/login/` → cela signifie que le code a préfixé `/api` **et** que `VITE_API_BASE` n’est pas relatif. Remettre `VITE_API_BASE=/api` et retirer le `/api` superflu dans les appels.
+👉 Le problème typique est `POST /api/api/auth/jwt/create/` ou `GET /api/api/passwords/` : cela signifie que le code a préfixé `/api` **et** que `VITE_API_BASE` n’est pas relatif. Remettre `VITE_API_BASE=/api` et retirer le `/api` superflu dans les appels.
 
 Vérifier avec DevTools → Network → onglet XHR/fetch → filtrer sur `login`.
 
@@ -251,14 +251,14 @@ Vérifier avec DevTools → Network → onglet XHR/fetch → filtrer sur `login`
 
 * **Séparation recommandée** :
 
-  * `scripts/dev-*` : utilitaires pour dev local (ex. build front vite local, migrations rapides).
-  * `scripts/prod-*` : scripts exécutés uniquement en prod (sécurisés, avec `set -euo pipefail`).
-  * `scripts/shared-*` : bouts communs (backup, helpers, etc.).
+  * `scripts/` expose les points d'entree standard du depot (`init.sh`, `up.sh`, `migrate.sh`, `check-invariants.sh`, etc.).
+  * les sous-dossiers comme `scripts/dev/` restent possibles pour des utilitaires locaux secondaires.
+  * les scripts de production doivent rester explicites, securises et documentes.
 * **Versionnement** :
 
   * Garder les scripts génériques dans Git.
   * Exclure du Git les scripts contenant des secrets ou des chemins locaux (ajouter au `.gitignore`).
-* **Nomination** : utiliser un préfixe clair (`dev-`, `prod-`, `shared-`).
+* **Nomination** : privilegier les noms standards du depot avant d'ajouter une nouvelle famille de scripts.
 * **Documentation** : maintenir ce guide à jour et pointer chaque script vers son usage attendu.
 
 ---
