@@ -36,6 +36,14 @@ backup/*
 cookies.txt
 .cookies.dev
 
+# Exports de clé de coffre (ne jamais versionner)
+vault-key.json
+vault-key*.json
+*.zkkey
+*.zkkey.json
+key-backups/*
+!key-backups/.gitkeep
+
 # Fichiers temporaires & .bak
 *.bak
 *.bak*
