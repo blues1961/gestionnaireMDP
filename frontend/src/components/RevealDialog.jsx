@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { decryptPayload } from '../utils/crypto'
+import { normalizeExternalUrl } from '../utils/url'
 import { useToast } from './ToastProvider'
 
 async function copyToClipboard(text){
@@ -31,8 +32,8 @@ export default function RevealDialog({ item, onClose }) {
   const handleCopy = async (which, value, label) => { if (await copyToClipboard(value)) markCopied(which, label) }
 
   const openUrl = () => {
-    const url = (item.url || '').trim(); if(!url) return
-    const withScheme = /^https?:\/\//i.test(url) ? url : `https://${url}`
+    const withScheme = normalizeExternalUrl(item.url)
+    if (!withScheme) { toast.error('URL invalide'); return }
     window.open(withScheme, '_blank', 'noopener,noreferrer')
     toast.info('Ouverture de l’URL dans un nouvel onglet')
   }

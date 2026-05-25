@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { encryptPayload, decryptPayload } from '../utils/crypto';
+import { normalizeExternalUrl } from '../utils/url';
 import PasswordGenerator from './PasswordGenerator';
 import { useToast } from './ToastProvider';
 import CategorySelect from './CategorySelect';
@@ -108,18 +109,17 @@ export default function PasswordEdit() {
     return () => { alive = false; };
   }, [id]);
 
-  const normalizeUrl = (u) => {
-    const trimmed = (u || '').trim();
-    if (!trimmed) return '';
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
-    return `https://${trimmed}`;
-  };
-
   const openUrl = () => {
-    const withScheme = normalizeUrl(url);
-    if (!withScheme) return;
+    const withScheme = normalizeExternalUrl(url);
+    if (!withScheme) { toast.error('URL invalide'); return; }
     window.open(withScheme, '_blank', 'noopener,noreferrer');
     toast.info('Ouverture de l’URL dans un nouvel onglet');
+  };
+
+  const copyUrl = async () => {
+    const normalizedUrl = normalizeExternalUrl(url);
+    if (!normalizedUrl) { toast.error('URL invalide'); return; }
+    await handleCopy('url', normalizedUrl, 'URL');
   };
 
   const submit = async (e) => {
@@ -132,9 +132,11 @@ export default function PasswordEdit() {
     try {
       // On chiffre toujours login/password/notes
       const cipher = await encryptPayload({ login, password, notes });
+      const normalizedUrl = url.trim() ? normalizeExternalUrl(url) : '';
+      if (url.trim() && !normalizedUrl) throw new Error('URL invalide');
       const payload = {
         title,
-        url: normalizeUrl(url),
+        url: normalizedUrl,
         category: categoryId || null,
         ciphertext: cipher
       };
@@ -190,7 +192,7 @@ export default function PasswordEdit() {
             <input className={classFlash(copied === 'url', 'input')} value={url} onChange={e => setUrl(e.target.value)} placeholder="exemple.com ou https://exemple.com" />
             <div className="row">
               <button type="button" className="btn" onClick={openUrl} disabled={!url.trim()}>Ouvrir</button>
-              <button type="button" className={`btn${copied === 'url' ? ' btn--success' : ''}`} onClick={() => handleCopy('url', normalizeUrl(url), 'URL')}>
+              <button type="button" className={`btn${copied === 'url' ? ' btn--success' : ''}`} onClick={copyUrl}>
                 {copied === 'url' ? '✅ Copié !' : 'Copier'}
               </button>
             </div>

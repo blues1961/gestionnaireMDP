@@ -231,6 +231,7 @@ Regles non negociables :
 - aucune journalisation ne doit inclure des secrets en clair ;
 - aucune exportation claire ne doit etre automatique ;
 - toute fonctionnalite d'export clair doit etre explicite, locale et accompagnee d'un avertissement.
+- les URL utilisateur ouvertes dans un nouvel onglet doivent etre limitees a `http` et `https`.
 
 Pour le depot actuel :
 
@@ -239,6 +240,7 @@ Pour le depot actuel :
 - la cle privee est stockee localement dans le navigateur via `IndexedDB` et peut etre exportee manuellement ;
 - une migration legacy depuis `localStorage` peut exister a la premiere lecture, mais la copie legacy doit ensuite etre supprimee ;
 - le fichier d'export de cle est lui-meme sensible et ne doit jamais etre committe ni place dans un stockage non maitrise.
+- le frontend prod sert des en-tetes de securite via Nginx, dont une CSP restrictive.
 - le detail du modele de menace courant est formalise dans `docs/threat-model.md`.
 
 ## 10. Zero-knowledge

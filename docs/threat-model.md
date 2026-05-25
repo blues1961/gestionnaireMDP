@@ -71,7 +71,9 @@ Protections actuellement plausibles si le navigateur de l'utilisateur n'est pas 
 - une fuite de base ne revele pas directement le contenu dechiffre de `PasswordEntry.ciphertext` ;
 - un refresh token peut etre invalide au logout JWT ;
 - un utilisateur ne peut pas referencer la categorie d'un autre utilisateur dans une entree de mot de passe ;
-- la cle locale n'est plus laissee en clair dans `localStorage`, ce qui reduit l'exposition triviale a certaines lectures opportunistes.
+- la cle locale n'est plus laissee en clair dans `localStorage`, ce qui reduit l'exposition triviale a certaines lectures opportunistes ;
+- les URL utilisateur ouvertes depuis la voute sont limitees aux protocoles `http` et `https` ;
+- la production ajoute une politique CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` et `Permissions-Policy` via Nginx.
 
 ## 5. Ce que l'application ne protege pas
 
@@ -184,7 +186,7 @@ Implications directes :
 
 Ameliorations realistes pour plus tard :
 
-- renforcer la politique CSP et reduire le risque XSS ;
+- supprimer les styles inline restants pour pouvoir retirer `style-src 'unsafe-inline'` de la CSP ;
 - minimiser encore les metadonnees laissees en clair ;
 - mieux encadrer les exports clairs ;
 - ajouter davantage de tests e2e sur les flux critiques ;

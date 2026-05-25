@@ -150,6 +150,8 @@ Il n'existe pas d'inscription publique.
 
 - les mots de passe en clair n'atteignent pas le backend dans le flux nominal ;
 - la cle privee reste locale au navigateur et est conservee en `IndexedDB` ;
+- les URL utilisateur ouvertes par le frontend sont normalisees et limitees a `http` / `https` ;
+- le frontend de production sert une politique CSP restrictive depuis Nginx ;
 - le backend peut toutefois lire certaines metadonnees non chiffrees.
 
 ## 7. Chiffrement et logique zero-knowledge
