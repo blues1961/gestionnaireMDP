@@ -202,8 +202,9 @@ Le modele courant repose donc sur une hypothese forte : le navigateur executant 
 1. l'utilisateur ouvre `/login`
 2. il soumet username et mot de passe
 3. le frontend stocke `access` et `refresh` en local
-4. au redemarrage, le frontend tente de restaurer une session valide via `refresh` si `access` a expire
-5. il est redirige vers `/vault`
+4. si aucune cle de coffre locale n'est disponible dans `IndexedDB`, le frontend propose immediatement l'import local du fichier de cle protege par passphrase
+5. au redemarrage, le frontend tente de restaurer une session valide via `refresh` si `access` a expire
+6. il est redirige vers `/vault`
 
 ### 8.1.b Deconnexion
 
@@ -223,18 +224,22 @@ Le modele courant repose donc sur une hypothese forte : le navigateur executant 
 1. le frontend liste les entrees depuis `/api/passwords/`
 2. les metadonnees s'affichent
 3. au moment de la revelation, le frontend dechiffre localement `ciphertext`
+4. si le dechiffrement echoue, l'utilisateur peut reimporter le fichier de cle directement depuis l'ecran concerne
 
 ### 8.4 Verification de cle
 
 1. l'utilisateur ouvre `/vault/key-check`
 2. le frontend tente de dechiffrer chaque entree
 3. il produit un resume des succes et echecs
+4. en cas d'echec, le meme formulaire local de reimport de cle est propose
 
 ### 8.5 Sauvegarde / import de cle
 
 1. l'utilisateur exporte sa cle dans un fichier JSON protege par passphrase
 2. il peut reimporter ce fichier sur un autre navigateur
 3. une cle differente rend les anciennes entrees indechiffrables
+4. le fichier de cle n'est pas stocke par l'application apres import ; seule la cle importee est conservee localement dans `IndexedDB`
+5. les noms d'exports de cle courants sont ignores par Git via `.gitignore`, mais l'emplacement recommande reste hors depot
 
 ### 8.6 Bundles de secrets
 

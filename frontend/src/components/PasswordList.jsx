@@ -4,6 +4,7 @@ import { api } from "../api";
 import RevealDialog from "./RevealDialog";
 import { useToast } from "./ToastProvider";
 import { decryptPayload, hasKeyPair } from "../utils/crypto";
+import KeyImportForm from "./KeyImportForm";
 
 function exportStamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
@@ -37,6 +38,8 @@ export default function PasswordList() {
   const [decBusy, setDecBusy] = useState(false);
   const [decDone, setDecDone] = useState(0);
   const [exportBusy, setExportBusy] = useState(false);
+  const [keyIssue, setKeyIssue] = useState(false);
+  const [keyImportNonce, setKeyImportNonce] = useState(0);
 
   async function loadAll() {
     setLoading(true);
@@ -163,10 +166,12 @@ export default function PasswordList() {
       if (!items.length) { setDec({}); setDecBusy(false); setDecDone(0); return; }
       try {
         setDecBusy(true); setDecDone(0);
+        setKeyIssue(false);
         const hasKey = await hasKeyPair().catch(() => false);
-        if (!hasKey) { setDecBusy(false); return; }
+        if (!hasKey) { setKeyIssue(true); setDecBusy(false); return; }
         const out = {};
         let done = 0;
+        let failed = false;
         for (const it of items) {
           try {
             if (it?.ciphertext) {
@@ -174,6 +179,7 @@ export default function PasswordList() {
               out[it.id] = { login: secret?.login || '', password: secret?.password || '', notes: secret?.notes || '' };
             }
           } catch (_) {
+            failed = true;
             // ignore: entrée non déchiffrable avec la clé actuelle
           } finally {
             done += 1;
@@ -181,13 +187,16 @@ export default function PasswordList() {
             setDecDone(done);
           }
         }
-        if (alive) setDec(out);
+        if (alive) {
+          setDec(out);
+          setKeyIssue(failed);
+        }
       } finally {
         if (alive) setDecBusy(false);
       }
     })();
     return () => { alive = false };
-  }, [items]);
+  }, [items, keyImportNonce]);
 
   if (loading) return (
     <main className="container">
@@ -261,6 +270,20 @@ export default function PasswordList() {
       <div className="small dim mb-3">
         Les exports JSON/CSV contiennent les mots de passe en clair. À stocker hors Git et dans un emplacement sûr.
       </div>
+
+      {keyIssue && (
+        <section className="card mb-3">
+          <div className="card__title">Clé de coffre à réimporter</div>
+          <p className="small">
+            Une ou plusieurs entrées ne sont pas déchiffrables avec la clé locale actuelle.
+            Sélectionne le fichier de clé JSON correspondant et entre sa passphrase.
+          </p>
+          <KeyImportForm
+            submitLabel="Réimporter la clé"
+            onImported={() => setKeyImportNonce(n => n + 1)}
+          />
+        </section>
+      )}
 
       <section className="card vault-search-card mb-3">
         <label className="label block mb-1">Rechercher (titre, catégorie, notes)</label>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { decryptPayload } from '../utils/crypto'
 import { normalizeExternalUrl } from '../utils/url'
 import { useToast } from './ToastProvider'
+import KeyImportForm from './KeyImportForm'
 
 async function copyToClipboard(text){
   try { await navigator.clipboard.writeText(text || ''); return true } catch {
@@ -20,12 +21,17 @@ export default function RevealDialog({ item, onClose }) {
   const [error, setError] = useState(null)
   const [copied, setCopied] = useState(null)
 
-  useEffect(() => {
+  const loadSecret = () => {
     let mounted = true
+    setError(null)
     decryptPayload(item.ciphertext)
       .then(p => { if(!mounted) return; setLogin(p.login || ''); setPassword(p.password || ''); setNotes(p.notes || '') })
-      .catch(() => setError("Impossible de déchiffrer cette entrée."))
+      .catch(() => { if (mounted) setError("Impossible de déchiffrer cette entrée avec la clé locale actuelle.") })
     return () => { mounted = false }
+  }
+
+  useEffect(() => {
+    return loadSecret()
   }, [item])
 
   const markCopied = (which, label) => { setCopied(which); toast.success(`${label} copié dans le presse-papiers`); setTimeout(()=>setCopied(null), 1200) }
@@ -53,7 +59,15 @@ export default function RevealDialog({ item, onClose }) {
           <button onClick={onClose} className="card__close" aria-label="Fermer">✕</button>
         </header>
 
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <div className="note">
+            <p className="m-0">{error}</p>
+            <p className="small mt-2">
+              Réimporte le fichier de clé JSON correspondant, puis la lecture sera retentée automatiquement.
+            </p>
+            <KeyImportForm submitLabel="Réimporter la clé" onImported={loadSecret} />
+          </div>
+        )}
 
         <div className="form-row">
           <label className="label">Nom d’utilisateur</label>

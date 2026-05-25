@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ensureKeyPair, hasKeyPair, exportKeyBundle, importKeyBundle } from '../utils/crypto'
+import { ensureKeyPair, hasKeyPair, exportKeyBundle } from '../utils/crypto'
 import { useToast } from './ToastProvider'
 import { api } from '../api'
+import KeyImportForm from './KeyImportForm'
 
 export default function KeyBackup(){
   const navigate = useNavigate()
@@ -13,10 +14,6 @@ export default function KeyBackup(){
   const [expPass, setExpPass] = useState('')
   const [expPass2, setExpPass2] = useState('')
   const [busyExp, setBusyExp] = useState(false)
-
-  const [impFile, setImpFile] = useState(null)
-  const [impPass, setImpPass] = useState('')
-  const [busyImp, setBusyImp] = useState(false)
 
   useEffect(() => {
     (async () => {
@@ -42,20 +39,6 @@ export default function KeyBackup(){
       toast.success('Clé exportée')
     }catch(err){ toast.error('Échec de l\'export') }
     finally{ setBusyExp(false) }
-  }
-
-  const onImport = async (e)=>{
-    e.preventDefault()
-    if (!impFile) { toast.error('Sélectionne un fichier de sauvegarde'); return }
-    if (!impPass) { toast.error('Passphrase requise'); return }
-    setBusyImp(true)
-    try{
-      const text = await impFile.text()
-      const bundle = JSON.parse(text)
-      await importKeyBundle(bundle, impPass)
-      toast.success('Clé importée'); navigate('/vault')
-    }catch(err){ toast.error("Échec de l’import (fichier ou passphrase invalide)") }
-    finally{ setBusyImp(false) }
   }
 
   return (
@@ -101,19 +84,7 @@ export default function KeyBackup(){
             <div className="note">
               <strong>Rappel :</strong> sur tous les autres appareils/navigateurs, utilisez <u>le fichier de clé initial</u> et la <u>même passphrase</u>. Importer une clé différente rendra vos entrées existantes indéchiffrables.
             </div>
-            <form onSubmit={onImport} className="form mt-3">
-              <div className="form-row form-row--noactions">
-                <label className="label">Fichier</label>
-                <input type="file" accept=".json,.zkkey,.zkkey.json" onChange={e=>setImpFile(e.target.files?.[0]||null)} className="file" />
-              </div>
-              <div className="form-row form-row--noactions">
-                <label className="label">Passphrase</label>
-                <input type="password" className="input" value={impPass} onChange={e=>setImpPass(e.target.value)} />
-              </div>
-              <div className="row row--end">
-                <button type="submit" className="btn" disabled={busyImp}>{busyImp ? 'Import…' : 'Importer'}</button>
-              </div>
-            </form>
+            <KeyImportForm onImported={() => navigate('/vault')} />
           </div>
         </div>
       </section>

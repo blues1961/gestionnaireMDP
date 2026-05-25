@@ -6,6 +6,7 @@ import { normalizeExternalUrl } from '../utils/url';
 import PasswordGenerator from './PasswordGenerator';
 import { useToast } from './ToastProvider';
 import CategorySelect from './CategorySelect';
+import KeyImportForm from './KeyImportForm';
 
 function classFlash(active, base) {
   return active ? `${base} ${base}--flash` : base;
@@ -34,6 +35,7 @@ export default function PasswordEdit() {
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
+  const [decryptErr, setDecryptErr] = useState(false);
 
   // Métadonnées
   const [title, setTitle] = useState('');
@@ -58,54 +60,58 @@ export default function PasswordEdit() {
 
   const numericId = Number(id);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      if (!id || Number.isNaN(numericId)) {
-        setErr('Identifiant invalide');
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setErr(null);
+  const loadEntry = async (alive = () => true) => {
+    if (!id || Number.isNaN(numericId)) {
+      setErr('Identifiant invalide');
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setErr(null);
+    setDecryptErr(false);
+    try {
+      // Récupère l’entrée (on s’appuie sur list() pour rester compatible)
+      const all = await api.passwords.list();
+      const item = Array.isArray(all) ? all.find(x => Number(x?.id) === numericId) : null;
+      if (!item) throw new Error('Entrée introuvable');
+
+      if (!alive()) return;
+
+      // Métadonnées
+      setTitle(item.title || '');
+      setUrl(item.url || '');
+      setCategoryId(item.category ?? '');
+
+      // Déchiffrement du secret (login/password/notes)
       try {
-        // Récupère l’entrée (on s’appuie sur list() pour rester compatible)
-        const all = await api.passwords.list();
-        const item = Array.isArray(all) ? all.find(x => Number(x?.id) === numericId) : null;
-        if (!item) throw new Error('Entrée introuvable');
-
-        if (!alive) return;
-
-        // Métadonnées
-        setTitle(item.title || '');
-        setUrl(item.url || '');
-        setCategoryId(item.category ?? '');
-
-        // Déchiffrement du secret (login/password/notes)
-        try {
-          if (item.ciphertext) {
-            const secret = await decryptPayload(item.ciphertext); // gère { iv, salt, data }
-            setLogin(secret?.login || '');
-            setPassword(secret?.password || '');
-            setNotes(secret?.notes || '');
-          } else {
-            setLogin('');
-            setPassword('');
-            setNotes('');
-          }
-        } catch (e) {
-          console.warn('Déchiffrement impossible:', e);
+        if (item.ciphertext) {
+          const secret = await decryptPayload(item.ciphertext); // gère { iv, salt, data }
+          setLogin(secret?.login || '');
+          setPassword(secret?.password || '');
+          setNotes(secret?.notes || '');
+        } else {
           setLogin('');
           setPassword('');
           setNotes('');
         }
       } catch (e) {
-        if (!alive) return;
-        setErr(e?.message || 'Erreur de chargement');
-      } finally {
-        if (alive) setLoading(false);
+        console.warn('Déchiffrement impossible:', e);
+        setLogin('');
+        setPassword('');
+        setNotes('');
+        setDecryptErr(true);
       }
-    })();
+    } catch (e) {
+      if (!alive()) return;
+      setErr(e?.message || 'Erreur de chargement');
+    } finally {
+      if (alive()) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let alive = true;
+    loadEntry(() => alive);
     return () => { alive = false; };
   }, [id]);
 
@@ -126,6 +132,10 @@ export default function PasswordEdit() {
     e?.preventDefault?.();
     if (!id || Number.isNaN(numericId)) {
       setErr('Identifiant invalide');
+      return;
+    }
+    if (decryptErr) {
+      toast.error('Réimporte la bonne clé avant d’enregistrer cette entrée');
       return;
     }
     setErr(null);
@@ -178,6 +188,21 @@ export default function PasswordEdit() {
           <div id="edit-title" className="card__title">Modifier l’entrée</div>
           <button onClick={() => navigate('/vault')} className="card__close" aria-label="Retour">✕</button>
         </header>
+
+        {decryptErr && (
+          <div className="note mb-3">
+            <p className="m-0">
+              Les secrets de cette entrée ne sont pas déchiffrables avec la clé locale actuelle.
+            </p>
+            <p className="small mt-2">
+              Réimporte le fichier de clé correspondant avant de modifier l’entrée, sinon les champs vides remplaceraient les anciens secrets à l’enregistrement.
+            </p>
+            <KeyImportForm
+              submitLabel="Réimporter la clé"
+              onImported={() => loadEntry(() => true)}
+            />
+          </div>
+        )}
 
         <form onSubmit={submit} className="form">
           {/* Titre */}
@@ -247,7 +272,7 @@ export default function PasswordEdit() {
               >
                 Annuler
              </button>
-             <button type="submit" className="btn">
+             <button type="submit" className="btn" disabled={decryptErr}>
               Enregistrer
              </button>
             </div>

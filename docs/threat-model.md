@@ -72,6 +72,7 @@ Protections actuellement plausibles si le navigateur de l'utilisateur n'est pas 
 - un refresh token peut etre invalide au logout JWT ;
 - un utilisateur ne peut pas referencer la categorie d'un autre utilisateur dans une entree de mot de passe ;
 - la cle locale n'est plus laissee en clair dans `localStorage`, ce qui reduit l'exposition triviale a certaines lectures opportunistes ;
+- le reimport de cle est propose localement apres login ou lorsqu'un dechiffrement echoue, sans envoyer la cle ni la passphrase au backend ;
 - les URL utilisateur ouvertes depuis la voute sont limitees aux protocoles `http` et `https` ;
 - la production ajoute une politique CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` et `Permissions-Policy` via Nginx.
 
@@ -83,6 +84,7 @@ Le modele courant ne protege pas correctement contre :
 - une extension navigateur malveillante ;
 - un navigateur ou poste utilisateur compromis ;
 - un export de voute en clair conserve dans un emplacement non maitrise ;
+- un export de cle JSON conserve dans un emplacement non maitrise ou accompagne d'une passphrase faible ;
 - une capture d'ecran, un keylogger ou un malware local ;
 - un backend malveillant qui altere silencieusement les donnees ou sert du JavaScript modifie ;
 - l'analyse des metadonnees de la voute cote serveur ;
@@ -145,6 +147,7 @@ Le modele ne tient que si les hypotheses suivantes restent vraies :
 - le navigateur executant l'application n'est pas activement compromis ;
 - le frontend servi a l'utilisateur correspond bien au code attendu ;
 - l'utilisateur protege ses exports de cle et de voute ;
+- les fichiers de cle restent hors depot Git meme si `.gitignore` ignore les noms d'exports courants ;
 - `.env.local` reste hors Git et hors exposition publique ;
 - les developpeurs ne reintroduisent pas de stockage clair de la cle privee dans `localStorage`.
 
@@ -156,6 +159,7 @@ Implications directes :
 - eviter d'ajouter des metadonnees sensibles non chiffrees supplementaires ;
 - considerer tout code frontend comme partie du perimetre de securite ;
 - traiter les exports comme des operations risquees devant rester explicites et locales ;
+- ne pas automatiser la lecture disque d'un fichier de cle cote serveur ou backend ;
 - maintenir la separation nette entre auth JWT, stockage de cle locale et secrets d'exploitation.
 
 ## 9. Recommandations pratiques

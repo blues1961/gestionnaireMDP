@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { api } from '../api'
 import { decryptPayload, ensureKeyPair } from '../utils/crypto'
 import { useNavigate } from 'react-router-dom'
+import KeyImportForm from './KeyImportForm'
 
 export default function KeyCheck() {
   const navigate = useNavigate()
@@ -13,36 +14,38 @@ export default function KeyCheck() {
   const [results, setResults] = useState([])   // [{id, title, ok, reason?}]
   const [sample, setSample] = useState(null)   // premier échec (pour l'exemple)
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true)
-      setError('')
-      try {
-        await ensureKeyPair()
-        const items = await api.passwords.list()
+  const runCheck = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await ensureKeyPair()
+      const items = await api.passwords.list()
 
-        const res = []
-        let example = null
-        for (const it of items || []) {
-          try {
-            await decryptPayload(it.ciphertext)
-            res.push({ id: it.id, title: it.title || '', ok: true })
-          } catch (e) {
-            const reason = e?.message || 'Déchiffrement impossible'
-            res.push({ id: it.id, title: it.title || '', ok: false, reason })
-            if (!example) example = it
-          }
+      const res = []
+      let example = null
+      for (const it of items || []) {
+        try {
+          await decryptPayload(it.ciphertext)
+          res.push({ id: it.id, title: it.title || '', ok: true })
+        } catch (e) {
+          const reason = e?.message || 'Déchiffrement impossible'
+          res.push({ id: it.id, title: it.title || '', ok: false, reason })
+          if (!example) example = it
         }
-
-        setResults(res)
-        setSummary({ total: res.length, ok: res.filter(r => r.ok).length, fail: res.filter(r => !r.ok).length })
-        setSample(example)
-      } catch (e) {
-        setError(String(e))
-      } finally {
-        setLoading(false)
       }
-    })()
+
+      setResults(res)
+      setSummary({ total: res.length, ok: res.filter(r => r.ok).length, fail: res.filter(r => !r.ok).length })
+      setSample(example)
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    runCheck()
   }, [])
 
   return (
@@ -91,10 +94,13 @@ export default function KeyCheck() {
           )}
 
           {summary?.fail > 0 && (
-            <p className="bad mt-3">
-              Certaines entrées ne sont pas déchiffrables avec la clé actuelle. Vérifie que tu as importé le
-              <em> même</em> fichier JSON et la même passphrase que lors de l’export précédent.
-            </p>
+            <div className="note mt-3">
+              <p className="m-0">
+                Certaines entrées ne sont pas déchiffrables avec la clé actuelle. Vérifie que tu as importé le
+                <em> même</em> fichier JSON et la même passphrase que lors de l’export précédent.
+              </p>
+              <KeyImportForm submitLabel="Réimporter la clé" onImported={runCheck} />
+            </div>
           )}
 
           {sample && (
