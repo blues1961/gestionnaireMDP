@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { ensureKeyPair, hasKeyPair, exportKeyBundle } from '../utils/crypto'
 import { useToast } from './ToastProvider'
 import { api } from '../api'
-import KeyImportForm from './KeyImportForm'
 
 export default function KeyBackup(){
   const navigate = useNavigate()
@@ -45,7 +44,7 @@ export default function KeyBackup(){
     <main className="container">
       <section className="modal modal--wide" aria-labelledby="kb-title">
         <header className="card__header">
-          <div id="kb-title" className="card__title">Importer / Exporter la clé</div>
+          <div id="kb-title" className="card__title">Exporter la clé</div>
           <button onClick={()=>navigate('/vault')} className="card__close" aria-label="Retour">✕</button>
         </header>
 
@@ -56,10 +55,9 @@ export default function KeyBackup(){
               {entriesCount !== null && <div className="small dim">Entrées actuelles : {entriesCount}</div>}
             </div>
             <div className="note">
-              <strong>Important :</strong> le fichier JSON contient votre <em>clé privée</em>. Conservez-le en lieu sûr
-                (coffre chiffré, clé USB hors ligne) et <u>ne l’ajoutez jamais</u> à Git. Utilisez une
-                <u>passphrase forte</u> et, si possible, faites un <em>test d’import</em> sur un autre navigateur/appareil
-              après l’export.
+              <strong>Important :</strong> le fichier JSON contient votre <em>clé privée</em> chiffrée par passphrase.
+              Conservez-le en lieu sûr (coffre chiffré, clé USB hors ligne) et <u>ne l’ajoutez jamais</u> à Git.
+              L’import sera proposé automatiquement après login si aucune clé locale n’existe, ou quand une entrée devient indéchiffrable.
             </div>
 
             <form onSubmit={onExport} className="form">
@@ -75,16 +73,6 @@ export default function KeyBackup(){
                 <button type="submit" className="btn" disabled={busyExp}>{busyExp ? 'Export…' : 'Exporter'}</button>
               </div>
             </form>
-          </div>
-
-          <div className="box">
-            <div className="box__head">
-              <h3 className="box__title">Importer la clé</h3>
-            </div>
-            <div className="note">
-              <strong>Rappel :</strong> sur tous les autres appareils/navigateurs, utilisez <u>le fichier de clé initial</u> et la <u>même passphrase</u>. Importer une clé différente rendra vos entrées existantes indéchiffrables.
-            </div>
-            <KeyImportForm onImported={() => navigate('/vault')} />
           </div>
         </div>
       </section>

@@ -233,13 +233,14 @@ Le modele courant repose donc sur une hypothese forte : le navigateur executant 
 3. il produit un resume des succes et echecs
 4. en cas d'echec, le meme formulaire local de reimport de cle est propose
 
-### 8.5 Sauvegarde / import de cle
+### 8.5 Sauvegarde et reimport local de cle
 
 1. l'utilisateur exporte sa cle dans un fichier JSON protege par passphrase
-2. il peut reimporter ce fichier sur un autre navigateur
-3. une cle differente rend les anciennes entrees indechiffrables
-4. le fichier de cle n'est pas stocke par l'application apres import ; seule la cle importee est conservee localement dans `IndexedDB`
-5. les noms d'exports de cle courants sont ignores par Git via `.gitignore`, mais l'emplacement recommande reste hors depot
+2. la page `/vault/key-backup` sert uniquement a exporter une sauvegarde de cle
+3. il peut reimporter ce fichier sur un autre navigateur apres login, si aucune cle locale n'existe, ou lorsqu'un dechiffrement echoue
+4. une cle differente rend les anciennes entrees indechiffrables
+5. le fichier de cle n'est pas stocke par l'application apres import ; seule la cle importee est conservee localement dans `IndexedDB`
+6. les noms d'exports de cle courants sont ignores par Git via `.gitignore`, mais l'emplacement recommande reste hors depot
 
 ### 8.6 Bundles de secrets
 

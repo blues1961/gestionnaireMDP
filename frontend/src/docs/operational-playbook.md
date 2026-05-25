@@ -37,7 +37,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 4. Restaurer la DB si vide (voir section **3 - Backups**).
 5. Se connecter à l’admin Django (`/admin/`).
-6. Importer la clé RSA via “Sauvegarde clé” → Importer (JSON + passphrase).
+6. Importer la clé RSA depuis l’invite affichée après login si aucune clé locale n’existe, ou depuis l’invite de réimport en cas d’échec de déchiffrement.
 7. Tester `/key-check` (API) et un parcours utilisateur minimal.
 8. **PROD uniquement :** vérifier que Traefik publie bien le frontend (`https://${APP_HOST}` → 200) et l’API (`/api/health/`).
 
