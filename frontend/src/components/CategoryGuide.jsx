@@ -129,14 +129,14 @@ export default function CategoryGuide(){
   );
   if (err) return (
     <main className="container">
-      <div className="card error" style={{whiteSpace:'pre-wrap'}}>{err}</div>
+      <div className="card error pre-wrap">{err}</div>
     </main>
   );
 
   return (
     <main className="container">
-      <header className="row" style={{justifyContent:'space-between', marginBottom:12}}>
-        <h2 style={{margin:0}}>Guide des catégories</h2>
+      <header className="row row--between mb-3">
+        <h2 className="m-0">Guide des catégories</h2>
         <div className="row">
           <button className="btn" onClick={()=>setAdding(a => !a)}>{adding ? 'Fermer' : 'Ajouter une catégorie'}</button>
           <button className="btn btn--light" onClick={()=>navigate('/vault')}>Retour à la voûte</button>
@@ -144,7 +144,7 @@ export default function CategoryGuide(){
       </header>
 
       {adding && (
-        <form onSubmit={submitAdd} className="item" style={{marginBottom:16}}>
+        <form onSubmit={submitAdd} className="item item--spaced">
           <div className="form-row form-row--noactions">
             <label className="label">Nom</label>
             <input value={name} onChange={(e)=>setName(e.target.value)} className="input" placeholder="Nom de la catégorie" />
@@ -153,7 +153,7 @@ export default function CategoryGuide(){
             <label className="label">Description</label>
             <input value={description} onChange={(e)=>setDescription(e.target.value)} className="input" placeholder="(optionnel)" />
           </div>
-          <div className="row" style={{justifyContent:'flex-end'}}>
+          <div className="row row--end">
             <button type="button" className="btn" onClick={()=>{ resetAdd(); setAdding(false); }}>Annuler</button>
             <button type="submit" className="btn" disabled={saving}>{saving ? 'Création…' : 'Créer'}</button>
           </div>
@@ -163,9 +163,9 @@ export default function CategoryGuide(){
       <ul className="list">
         {cats.map((c)=> (
           <li key={c.id} className="item">
-            <div className="row" style={{justifyContent:'space-between', alignItems:'flex-start'}}>
+            <div className="row row--between row--start">
               <div>
-                <div style={{fontWeight:600}}>{c?.name ?? '(sans nom)'}</div>
+                <div className="text-semibold">{c?.name ?? '(sans nom)'}</div>
                 {c?.description ? <div className="small dim">{c.description}</div> : null}
                 <div className="small dim">Éléments: {usage[String(c?.id ?? '')] || 0}</div>
               </div>
@@ -183,11 +183,11 @@ export default function CategoryGuide(){
         <div className="backdrop" onClick={()=>setConfirm({open:false, cat:null, target:''})}>
           <section className="modal" onClick={(e)=>e.stopPropagation()}>
             <header className="card__header">
-              <div style={{fontWeight:700}}>Supprimer “{confirm.cat?.name ?? '(sans nom)'}”</div>
+              <div className="card__title">Supprimer “{confirm.cat?.name ?? '(sans nom)'}”</div>
               <button className="card__close" onClick={()=>setConfirm({open:false, cat:null, target:''})}>✕</button>
             </header>
 
-            <p className="small" style={{marginTop:0}}>
+            <p className="small mt-0">
               Cette catégorie est associée à <strong>{usage[String(confirm.cat?.id ?? '')] || 0}</strong> entrée(s).
               Choisis une catégorie de remplacement pour ces entrées, ou sélectionne <em>(Aucune)</em> pour les détacher.
             </p>
@@ -197,7 +197,7 @@ export default function CategoryGuide(){
               <CategorySelect value={confirm.target} onChange={(v)=>setConfirm(s => ({...s, target: v}))} />
             </div>
 
-            <div className="row" style={{justifyContent:'flex-end', marginTop:16}}>
+            <div className="row row--end mt-4">
               <button className="btn" onClick={()=>setConfirm({open:false, cat:null, target:''})}>Annuler</button>
               <button className="btn btn--danger" onClick={performDelete} disabled={reassigning}>
                 {reassigning ? 'Suppression…' : 'Supprimer'}
@@ -212,7 +212,7 @@ export default function CategoryGuide(){
         <div className="backdrop" onClick={()=>setEditing({open:false, cat:null})}>
           <section className="modal" onClick={(e)=>e.stopPropagation()}>
             <header className="card__header">
-              <div style={{fontWeight:700}}>Modifier la catégorie</div>
+              <div className="card__title">Modifier la catégorie</div>
               <button className="card__close" onClick={()=>setEditing({open:false, cat:null})}>✕</button>
             </header>
             <form onSubmit={submitEdit} className="form">
@@ -230,7 +230,7 @@ export default function CategoryGuide(){
                   onChange={(e)=>setEditing(s=>({ ...s, cat:{...s.cat, description:e.target.value} }))}
                 />
               </div>
-              <div className="row" style={{justifyContent:'flex-end', marginTop:12}}>
+              <div className="row row--end mt-3">
                 <button type="button" className="btn" onClick={()=>setEditing({open:false, cat:null})}>Annuler</button>
                 <button type="submit" className="btn" disabled={editSaving}>
                   {editSaving ? 'Enregistrement…' : 'Enregistrer'}

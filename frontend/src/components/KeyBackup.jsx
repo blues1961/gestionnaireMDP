@@ -62,7 +62,7 @@ export default function KeyBackup(){
     <main className="container">
       <section className="modal modal--wide" aria-labelledby="kb-title">
         <header className="card__header">
-          <div id="kb-title" style={{fontWeight:700}}>Importer / Exporter la clé</div>
+          <div id="kb-title" className="card__title">Importer / Exporter la clé</div>
           <button onClick={()=>navigate('/vault')} className="card__close" aria-label="Retour">✕</button>
         </header>
 
@@ -88,7 +88,7 @@ export default function KeyBackup(){
                 <label className="label">Confirmer</label>
                 <input type="password" className="input" value={expPass2} onChange={e=>setExpPass2(e.target.value)} />
               </div>
-              <div className="row" style={{justifyContent:'flex-end'}}>
+              <div className="row row--end">
                 <button type="submit" className="btn" disabled={busyExp}>{busyExp ? 'Export…' : 'Exporter'}</button>
               </div>
             </form>
@@ -101,7 +101,7 @@ export default function KeyBackup(){
             <div className="note">
               <strong>Rappel :</strong> sur tous les autres appareils/navigateurs, utilisez <u>le fichier de clé initial</u> et la <u>même passphrase</u>. Importer une clé différente rendra vos entrées existantes indéchiffrables.
             </div>
-            <form onSubmit={onImport} className="form" style={{marginTop:12}}>
+            <form onSubmit={onImport} className="form mt-3">
               <div className="form-row form-row--noactions">
                 <label className="label">Fichier</label>
                 <input type="file" accept=".json,.zkkey,.zkkey.json" onChange={e=>setImpFile(e.target.files?.[0]||null)} className="file" />
@@ -110,7 +110,7 @@ export default function KeyBackup(){
                 <label className="label">Passphrase</label>
                 <input type="password" className="input" value={impPass} onChange={e=>setImpPass(e.target.value)} />
               </div>
-              <div className="row" style={{justifyContent:'flex-end'}}>
+              <div className="row row--end">
                 <button type="submit" className="btn" disabled={busyImp}>{busyImp ? 'Import…' : 'Importer'}</button>
               </div>
             </form>

@@ -200,9 +200,9 @@ export default function PasswordList() {
       : (err?.message || "Erreur inconnue");
     return (
       <main className="container">
-        <div className="card error" style={{ whiteSpace: 'pre-wrap' }}>
+        <div className="card error pre-wrap">
           {msg}
-          <div className="row" style={{ marginTop: 12 }}>
+          <div className="row mt-3">
             <button className="btn" onClick={loadAll}>Réessayer</button>
           </div>
         </div>
@@ -213,15 +213,15 @@ export default function PasswordList() {
   if (!items.length) {
     return (
       <main className="container">
-        <header className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-          <h2 style={{ margin: 0 }}>Voûte</h2>
+        <header className="row row--between mb-3">
+          <h2 className="m-0">Voûte</h2>
           <div className="row">
             <button className="btn" onClick={() => navigate('/vault/new')}>Ajouter une entrée</button>
             <button className="btn btn--light" onClick={loadAll}>Rafraîchir</button>
           </div>
         </header>
         <div className="card">
-          <p className="dim" style={{ margin: 0 }}>Aucune entrée.</p>
+          <p className="dim m-0">Aucune entrée.</p>
         </div>
       </main>
     );
@@ -244,8 +244,8 @@ export default function PasswordList() {
 
   return (
     <main className="container">
-      <header className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-        <h2 style={{ margin: 0 }}>Voûte</h2>
+      <header className="row row--between mb-3">
+        <h2 className="m-0">Voûte</h2>
         <div className="row">
           <button className="btn" onClick={() => navigate('/vault/new')}>Ajouter une entrée</button>
           <button className="btn btn--light" onClick={() => exportVault("json")} disabled={exportBusy}>
@@ -258,12 +258,12 @@ export default function PasswordList() {
         </div>
       </header>
 
-      <div className="small dim" style={{ marginBottom: 12 }}>
+      <div className="small dim mb-3">
         Les exports JSON/CSV contiennent les mots de passe en clair. À stocker hors Git et dans un emplacement sûr.
       </div>
 
-      <section className="card vault-search-card" style={{ marginBottom: 12 }}>
-        <label className="label" style={{ display: 'block', marginBottom: 6 }}>Rechercher (titre, catégorie, notes)</label>
+      <section className="card vault-search-card mb-3">
+        <label className="label block mb-1">Rechercher (titre, catégorie, notes)</label>
         <div className="vault-search-controls">
           <input
             className="input"
@@ -282,7 +282,7 @@ export default function PasswordList() {
           </button>
         </div>
         {decBusy && (
-          <div className="small dim" style={{ marginTop: 6 }}>
+          <div className="small dim mt-1">
             Indexation du contenu chiffré… {decDone}/{items.length}
           </div>
         )}
@@ -291,9 +291,9 @@ export default function PasswordList() {
       <ul className="list">
         {sorted.map((it) => (
           <li key={it.id} className="item">
-            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div className="row row--between row--start">
               <div>
-                <div style={{ fontWeight: 700 }}>{it.title || '(sans titre)'}</div>
+                <div className="text-strong">{it.title || '(sans titre)'}</div>
                 <div className="small dim">{cats[it.category] ?? '(Aucune catégorie)'}</div>
               </div>
               <div className="row">
@@ -324,7 +324,7 @@ export default function PasswordList() {
       </ul>
 
       {!filtered.length && (
-        <div className="dim" style={{ marginTop: 12 }}>Aucun résultat.</div>
+        <div className="dim mt-3">Aucun résultat.</div>
       )}
 
       {active && (

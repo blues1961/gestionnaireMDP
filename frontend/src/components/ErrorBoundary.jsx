@@ -16,9 +16,9 @@ export default class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: 16 }}>
+        <div className="error-boundary">
           <h2>Une erreur est survenue dans l’interface.</h2>
-          <pre style={{ whiteSpace: "pre-wrap" }}>
+          <pre className="pre-wrap">
             {String(this.state.error)}
           </pre>
         </div>

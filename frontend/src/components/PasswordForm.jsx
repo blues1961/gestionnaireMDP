@@ -82,11 +82,11 @@ export default function PasswordForm(){
     <main className="container">
       <section className="modal" aria-labelledby="new-title">
         <header className="card__header">
-          <div id="new-title" style={{fontWeight:700}}>Nouvelle entrée</div>
+          <div id="new-title" className="card__title">Nouvelle entrée</div>
           <button onClick={()=>navigate('/vault')} className="card__close" aria-label="Retour">✕</button>
         </header>
 
-        {error && <p className="error" style={{whiteSpace:'pre-wrap', marginTop:0}}>{error}</p>}
+        {error && <p className="error pre-wrap mt-0">{error}</p>}
 
         <form onSubmit={submit} className="form">
           <div className="form-row">
@@ -127,8 +127,8 @@ export default function PasswordForm(){
             </button>
           </div>
 
-          <div style={{marginTop:12}}>
-            <div className="muted small" style={{marginBottom:6}}>Notes</div>
+          <div className="mt-3">
+            <div className="muted small mb-1">Notes</div>
             <textarea className={`textarea${notesFlash}`} value={notes} onChange={e=>setNotes(e.target.value)} />
             <div className="notes-actions">
               <div className="left">
@@ -144,7 +144,7 @@ export default function PasswordForm(){
           </div>
         </form>
 
-        <div style={{marginTop:20}}>
+        <div className="mt-5">
           <PasswordGenerator onGenerate={setPassword} />
         </div>
       </section>

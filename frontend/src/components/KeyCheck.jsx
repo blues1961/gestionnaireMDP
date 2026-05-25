@@ -47,8 +47,8 @@ export default function KeyCheck() {
 
   return (
     <main className="container">
-      <div className="row" style={{ marginBottom: 12 }}>
-        <h2 style={{ margin: 0, flex: 1 }}>Vérification de la clé de chiffrement</h2>
+      <div className="row mb-3">
+        <h2 className="m-0 flex-1">Vérification de la clé de chiffrement</h2>
         <button className="btn btn--light" onClick={() => navigate('/vault')} title="Revenir à la voûte">← Retour à la voûte</button>
       </div>
 
@@ -67,20 +67,20 @@ export default function KeyCheck() {
 
           {/* Liste détaillée avec indicateur couleur */}
           {results.length > 0 && (
-            <section className="card" style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 600, marginBottom: 8 }}>Détails par entrée</div>
+            <section className="card mt-3">
+              <div className="text-semibold mb-2">Détails par entrée</div>
               <ul className="list">
                 {results.map((r) => (
                   <li key={r.id} className="item">
-                    <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <div className="row row--between row--baseline">
                       <div>
-                        <div style={{ fontWeight: 600 }}>{r.title || '(sans titre)'}</div>
+                        <div className="text-semibold">{r.title || '(sans titre)'}</div>
                         {!r.ok && (
                           <div className="small dim">Échec : {r.reason || '—'}</div>
                         )}
                       </div>
                       <div className={`small ${r.ok ? 'ok' : 'bad'}`}>
-                        <span style={{ marginRight: 6 }}>●</span>
+                        <span className="dot-indicator">●</span>
                         {r.ok ? 'OK' : 'Échec'}
                       </div>
                     </div>
@@ -91,17 +91,17 @@ export default function KeyCheck() {
           )}
 
           {summary?.fail > 0 && (
-            <p className="bad" style={{ marginTop: 10 }}>
+            <p className="bad mt-3">
               Certaines entrées ne sont pas déchiffrables avec la clé actuelle. Vérifie que tu as importé le
               <em> même</em> fichier JSON et la même passphrase que lors de l’export précédent.
             </p>
           )}
 
           {sample && (
-            <section className="card" style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 600 }}>Exemple d’entrée problématique</div>
+            <section className="card mt-3">
+              <div className="text-semibold">Exemple d’entrée problématique</div>
               <div className="small dim">ID: {sample.id} — {sample.title || '(sans titre)'}</div>
-              <details style={{ marginTop: 6 }}>
+              <details className="mt-1">
                 <summary>Voir le ciphertext brut</summary>
                 <pre className="code">{JSON.stringify(sample.ciphertext, null, 2)}</pre>
               </details>

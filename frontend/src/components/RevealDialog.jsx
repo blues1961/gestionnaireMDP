@@ -49,7 +49,7 @@ export default function RevealDialog({ item, onClose }) {
     <div className="backdrop" onClick={onClose}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <header className="card__header">
-          <div style={{fontWeight:700}}>{item.title}</div>
+          <div className="card__title">{item.title}</div>
           <button onClick={onClose} className="card__close" aria-label="Fermer">✕</button>
         </header>
 
@@ -83,8 +83,8 @@ export default function RevealDialog({ item, onClose }) {
           </button>
         </div>
 
-        <div style={{marginTop:12}}>
-          <div className="muted small" style={{marginBottom:6}}>Notes</div>
+        <div className="mt-3">
+          <div className="muted small mb-1">Notes</div>
           <textarea
             readOnly
             aria-readonly="true"
@@ -92,14 +92,14 @@ export default function RevealDialog({ item, onClose }) {
             value={notes}
             className={`textarea${notesFlash}`}
           />
-          <div style={{marginTop:8}}>
+          <div className="mt-2">
             <button className={`btn${notesBtnOK}`} onClick={()=>handleCopy('notes', notes, 'Notes')}>
               {copied==='notes' ? '✅ Copié !' : 'Copier les notes'}
             </button>
           </div>
         </div>
 
-        <div className="row" style={{marginTop:12}}>
+        <div className="row mt-3">
           {item.url ? (
             <>
               <span className="dim small">URL:</span>
@@ -111,7 +111,7 @@ export default function RevealDialog({ item, onClose }) {
           )}
         </div>
 
-        <div className="right" style={{marginTop:16}}>
+        <div className="right mt-4">
           <button className="btn" onClick={onClose}>Fermer</button>
         </div>
       </div>

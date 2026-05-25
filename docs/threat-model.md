@@ -186,7 +186,6 @@ Implications directes :
 
 Ameliorations realistes pour plus tard :
 
-- supprimer les styles inline restants pour pouvoir retirer `style-src 'unsafe-inline'` de la CSP ;
 - minimiser encore les metadonnees laissees en clair ;
 - mieux encadrer les exports clairs ;
 - ajouter davantage de tests e2e sur les flux critiques ;

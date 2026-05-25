@@ -84,7 +84,7 @@ export default function LoginForm({
           Se connecter
         </button>
       </form>
-      {error && <p className="error" style={{ marginTop: 16 }}>{error}</p>}
+      {error && <p className="error mt-4">{error}</p>}
     </main>
   );
 }

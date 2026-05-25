@@ -5,8 +5,7 @@ export default function CategorySelect({
   value = '',                 // id de la catégorie sélectionnée (string|number|'')
   onChange = () => {},        // callback(string|'')
   placeholder = '(Aucune)',
-  disabled = false,
-  style = {}
+  disabled = false
 }) {
   const [cats, setCats] = useState([])
   const [open, setOpen] = useState(false)
@@ -67,7 +66,7 @@ export default function CategorySelect({
   }
 
   return (
-    <div ref={wrapRef} className="category-select" style={style}>
+    <div ref={wrapRef} className="category-select">
       {/* Affichage du champ sélectionné */}
       <button
         type="button"
@@ -76,7 +75,6 @@ export default function CategorySelect({
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
         className="select category-select__trigger"
-        style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
       >
         {label || placeholder}
         <span className="category-select__chevron">▾</span>
