@@ -42,75 +42,83 @@ export default function LoginForm({
   };
 
   return (
-    <main className="login-card">
-      <div className="login-head">
-        <img src={monSiteLogo} alt="mon-site.ca" className="login-logo" />
-        {appName && (
-          <h1 className="login-title">{appName}</h1>
-        )}
-        <p className="login-sub">Connexion</p>
-        <ThemeToggle theme={theme} onChange={onThemeChange} className="login-theme-toggle" />
-      </div>
-      {needsKeyImport ? (
-        <section className="key-import-panel">
-          <p className="note">
-            Session ouverte. Aucune clé de coffre locale n’a été trouvée dans ce navigateur.
-            Importe le fichier de clé JSON et sa passphrase pour lire la voûte.
-          </p>
-          <KeyImportForm
-            submitLabel="Importer et ouvrir la voûte"
-            successMessage="Clé importée"
-            onImported={() => navigate("/vault", { replace: true })}
+    <section className="login-shell">
+      <article className="login-card">
+        <div className="login-head">
+          <img className="login-logo" src={monSiteLogo} alt="mon-site.ca" />
+          <ThemeToggle
+            theme={theme}
+            onChange={onThemeChange}
+            className="login-theme-toggle"
           />
-          <div className="row row--end mt-3">
-            <button type="button" className="btn btn--light" onClick={() => navigate("/vault", { replace: true })}>
-              Continuer sans importer
+        </div>
+        <p className="eyebrow">{appName}</p>
+        <h1>Connexion</h1>
+        <p className="hero-copy">
+          Accès privé à la voûte chiffrée et aux secrets applicatifs.
+        </p>
+        {error ? <div className="status-banner error">{error}</div> : null}
+        {needsKeyImport ? (
+          <section className="key-import-panel">
+            <div className="status-banner">
+              Session ouverte. Aucune clé de coffre locale n’a été trouvée dans ce navigateur.
+              Importe le fichier de clé JSON et sa passphrase pour lire la voûte.
+            </div>
+            <KeyImportForm
+              submitLabel="Importer et ouvrir la voûte"
+              successMessage="Clé importée"
+              onImported={() => navigate("/vault", { replace: true })}
+            />
+            <div className="row row--end mt-3">
+              <button type="button" className="btn btn--light" onClick={() => navigate("/vault", { replace: true })}>
+                Continuer sans importer
+              </button>
+            </div>
+          </section>
+        ) : (
+          <form
+            action="#"
+            method="post"
+            onSubmit={submit}
+            noValidate
+            className="data-form"
+          >
+            <label>
+              Nom d&apos;utilisateur
+              <input
+                className="input"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                autoComplete="username"
+              />
+            </label>
+            <label>
+              Mot de passe
+              <input
+                className="input"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={syncCapsLock}
+                onKeyUp={syncCapsLock}
+                onBlur={() => setCapsLockOn(false)}
+                required
+                autoComplete="current-password"
+              />
+              {capsLockOn && (
+                <span className="login-warning" role="status" aria-live="polite">
+                  Verr. Maj activée
+                </span>
+              )}
+            </label>
+            <button type="submit" className="primary-button">
+              Se connecter
             </button>
-          </div>
-        </section>
-      ) : (
-        <form
-          action="#"
-          method="post"
-          onSubmit={submit}
-          noValidate
-          className="login-form"
-        >
-          <label className="login-label">
-            <span>Utilisateur</span>
-            <input
-              className="input"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              placeholder="Identifiant"
-            />
-          </label>
-          <label className="login-label">
-            <span>Mot de passe</span>
-            <input
-              className="input"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={syncCapsLock}
-              onKeyUp={syncCapsLock}
-              onBlur={() => setCapsLockOn(false)}
-              required
-              placeholder="Mot de passe"
-            />
-            {capsLockOn && (
-              <span className="login-warning" role="status" aria-live="polite">
-                Verr. Maj activée
-              </span>
-            )}
-          </label>
-          <button type="submit" className="btn btn--light">
-            Se connecter
-          </button>
-        </form>
-      )}
-      {error && <p className="error mt-4">{error}</p>}
-    </main>
+          </form>
+        )}
+      </article>
+    </section>
   );
 }

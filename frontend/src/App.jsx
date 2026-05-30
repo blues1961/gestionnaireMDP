@@ -127,9 +127,7 @@ function PasswordEditPage({ theme, onThemeChange }) {
 
 function LoginPage({ theme, onThemeChange }) {
   return (
-    <div className="page login-page">
-      <LoginForm appName={APP_NAME} theme={theme} onThemeChange={onThemeChange} />
-    </div>
+    <LoginForm appName={APP_NAME} theme={theme} onThemeChange={onThemeChange} />
   );
 }
 
