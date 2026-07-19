@@ -64,4 +64,5 @@ frontend/.env.development
 frontend/.env.development.local
 dist/
 .project-assistant/
+.docforge/
 .ops/
