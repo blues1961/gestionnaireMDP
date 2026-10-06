@@ -25,14 +25,11 @@ export default function LoginForm({
     try {
       const { data } = await loginJWT(username, password); // { access, refresh }
       persistJWT(data);
+      setPassword("");
       onLogin?.(data);
-      if (!(await hasKeyPair())) {
-        setNeedsKeyImport(true);
-        return;
-      }
       navigate("/vault", { replace: true });
     } catch (err) {
-      console.error(err);
+
       setError("Échec de connexion");
     }
   };

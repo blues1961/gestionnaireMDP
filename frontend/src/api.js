@@ -1,4 +1,5 @@
 import axios from "axios";
+import { checkActivity, isVaultUnlocked, lockVault, sessionGeneration } from "./utils/vaultSession";
 import { jwtDecode } from "jwt-decode";
 
 function normalizeBase(value) {
@@ -9,11 +10,23 @@ function normalizeBase(value) {
 export const BASE = normalizeBase(import.meta.env?.VITE_API_BASE);
 export const api = axios.create({ baseURL: BASE });
 
+// A form unmounted by locking must never submit a late vault mutation.
+api.interceptors.request.use((config) => {
+  checkActivity();
+  if (config._authGeneration !== undefined && config._authGeneration !== authGeneration) throw new Error('Compte changé');
+  if (config.vaultTicket !== undefined && config.vaultTicket !== sessionGeneration()) throw new Error('Opération interrompue');
+  if (/^passwords\//.test(String(config.url)) && ['post', 'put', 'patch', 'delete'].includes(config.method) && !isVaultUnlocked()) {
+    throw new Error('Voûte verrouillée');
+  }
+  return config;
+});
+
 const JWT_STORAGE_KEY = "mdp.jwt";
 const LEGACY_ACCESS_KEY = "token";
 const EXPIRY_SKEW_SECONDS = 30;
 
 let refreshPromise = null;
+let authGeneration = 0;
 
 function readStoredJWT() {
   try {
@@ -80,6 +93,11 @@ export function hasStoredSession() {
 
 export function persistJWT(tokens) {
   const current = getStoredJWT() || {};
+  if (current.access && tokens?.access) {
+    try {
+      if (jwtDecode(current.access).user_id !== jwtDecode(tokens.access).user_id) { authGeneration += 1; lockVault(); }
+    } catch { lockVault(); }
+  }
   const next = {
     access: tokens?.access ?? current.access ?? null,
     refresh: tokens?.refresh ?? current.refresh ?? null,
@@ -102,12 +120,15 @@ export function persistJWT(tokens) {
 }
 
 export function clearStoredAuth() {
+  authGeneration += 1;
+  lockVault();
   localStorage.removeItem(JWT_STORAGE_KEY);
   localStorage.removeItem(LEGACY_ACCESS_KEY);
   setAccessToken(null);
 }
 
 export function loginJWT(username, password) {
+  clearStoredAuth();
   return api.post("auth/jwt/create/", { username, password });
 }
 
@@ -135,11 +156,12 @@ export async function refreshAccessToken(force = false) {
   refreshPromise = (async () => {
     try {
       const { data } = await axios.post(`${BASE}/auth/jwt/refresh/`, { refresh });
+      if (getStoredRefreshToken() !== refresh) throw new Error('Compte changé pendant le refresh');
       const next = persistJWT({ access: data?.access, refresh });
       if (!next.access) throw new Error("Réponse de refresh invalide");
       return next.access;
     } catch (error) {
-      clearStoredAuth();
+      if (getStoredRefreshToken() === refresh) clearStoredAuth();
       throw error;
     } finally {
       refreshPromise = null;
@@ -171,6 +193,11 @@ export async function initializeAuth() {
 }
 
 api.interceptors.request.use(async (config) => {
+  config._authGeneration ??= authGeneration;
+  if (config._authGeneration !== authGeneration) throw new Error('Compte changé');
+  if (/^passwords\//.test(String(config.url)) && ['post', 'put', 'patch', 'delete'].includes(config.method)) {
+    config.vaultTicket ??= sessionGeneration();
+  }
   if (isJWTAuthPath(config?.url)) return config;
 
   const access = getStoredAccessToken();
@@ -198,6 +225,7 @@ api.interceptors.response.use(
   async (err) => {
     const originalRequest = err?.config || {};
     const status = err?.response?.status;
+    if (originalRequest._authGeneration !== undefined && originalRequest._authGeneration !== authGeneration) return Promise.reject(err);
 
     if (status !== 401) return Promise.reject(err);
     if (isJWTAuthPath(originalRequest.url)) return Promise.reject(err);

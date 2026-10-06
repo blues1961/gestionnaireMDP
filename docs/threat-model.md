@@ -39,9 +39,9 @@ Le navigateur est le lieu de confiance principal pour le chiffrement applicatif.
 
 Le frontend y :
 
-- genere ou recharge la paire de cles
+- déchiffre et vérifie localement la paire existante ; génère une paire uniquement pour une nouvelle voûte explicitement vide
 - chiffre et dechiffre les secrets
-- stocke la cle privee en `IndexedDB`
+- garde la clé privée uniquement en mémoire tant que la voûte est déverrouillée ; récupère une enveloppe chiffrée authentifiée du compte
 - stocke les JWT en `localStorage`
 
 Si ce contexte est compromis, le modele de protection de la voute est largement rompu.
@@ -71,8 +71,8 @@ Protections actuellement plausibles si le navigateur de l'utilisateur n'est pas 
 - une fuite de base ne revele pas directement le contenu dechiffre de `PasswordEntry.ciphertext` ;
 - un refresh token peut etre invalide au logout JWT ;
 - un utilisateur ne peut pas referencer la categorie d'un autre utilisateur dans une entree de mot de passe ;
-- la cle locale n'est plus laissee en clair dans `localStorage`, ce qui reduit l'exposition triviale a certaines lectures opportunistes ;
-- le reimport de cle est propose localement apres login ou lorsqu'un dechiffrement echoue, sans envoyer la cle ni la passphrase au backend ;
+- aucune nouvelle clé déchiffrée n’est persistée ; les anciens stockages restent accessibles jusqu’à une migration explicite validée et sauvegardée ;
+- la récupération automatique de l’enveloppe exige toujours un déverrouillage local, sans envoyer la clé déchiffrée ni la phrase de passe au backend ;
 - les URL utilisateur ouvertes depuis la voute sont limitees aux protocoles `http` et `https` ;
 - la production ajoute une politique CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` et `Permissions-Policy` via Nginx.
 
@@ -88,7 +88,7 @@ Le modele courant ne protege pas correctement contre :
 - une capture d'ecran, un keylogger ou un malware local ;
 - un backend malveillant qui altere silencieusement les donnees ou sert du JavaScript modifie ;
 - l'analyse des metadonnees de la voute cote serveur ;
-- l'usage d'une mauvaise cle importee par l'utilisateur.
+- une perte de clé ou phrase de passe sans sauvegarde compatible ; la vérification locale refuse normalement les clés incompatibles avec les entrées.
 
 En particulier :
 
@@ -206,3 +206,19 @@ Le terme exact pour l'etat courant est donc :
 - chiffrement cote client utile ;
 - zero-knowledge partiel ;
 - threat model centre sur un navigateur de confiance, pas sur un environnement hostile.
+
+## 12. Enveloppe serveur et sessions en mémoire (2026-10-05)
+
+Le serveur et les sauvegardes PostgreSQL contiennent désormais une copie attaquable **hors ligne** de la clé privée chiffrée. Une fuite ne donne pas directement la clé, mais permet de deviner la phrase de passe : forte entropie nécessaire, PBKDF2/SHA-256 à 600 000 itérations pour v2, bornes avant dérivation pour éviter le déni de service par paramètres excessifs. Voir [contrat](api.md#7-enveloppe-de-clé-chiffrée). Les anciens exports v1 gardent leur coût et leur ancien mot de passe ; changer la phrase de passe serveur ne les révoque pas.
+
+L’AAD v2 protège les paramètres et la clé publique contre une modification non authentifiée. Le challenge vérifie la cohérence des deux clés même pour une voûte vide ; la lecture intégrale des entrées refuse une mauvaise clé pour une voûte existante. Cela ne prouve pas l’identité historique d’un compte vide. Les `SecretBundle` ont des formats opaques distincts et ne font pas l’objet d’une vérification de déchiffrement générique par ce parcours ; aucune rotation de paire n’est donc proposée.
+
+La révision et le verrou transactionnel protègent contre les écrasements concurrents ordinaires. Ils ne constituent **pas** une preuve contre un serveur malveillant qui restitue une ancienne enveloppe valide ou substitue ensemble une enveloppe et une voûte entière. Il n’existe pas de compteur monotone externe ou d’ancrage indépendant d’identité ; le rollback hostile reste hors garantie. L’import de secours doit conserver la clé publique serveur existante ; une corruption de cette identité nécessite une restauration opérateur depuis une sauvegarde compatible, pas un bouton de réinitialisation dangereux.
+
+Avant nettoyage de l’ancienne clé, la relecture exige la même révision et les mêmes valeurs d’enveloppe, puis le déchiffrement et la vérification locale de la voûte. L’ordre des propriétés JSON n’est pas un signal d’altération : PostgreSQL peut le changer. La comparaison porte sur tous les champs après validation stricte du format, y compris le contenu chiffré ; elle ne se limite pas à la clé publique.
+
+La clé et les états React déchiffrés sont abandonnés au verrouillage. Le contenu sensible est masqué immédiatement, puis ses composants sont démontés. Le verrouillage s’applique à l’inactivité de cinq minutes, à l’arrière-plan/suspension, à la déconnexion et aux changements de compte ; les résultats asynchrones obsolètes sont refusés. Le JWT est une autorisation d’accès aux blobs et **jamais** une preuve de déverrouillage. Les onglets échangent des signaux de verrouillage seulement.
+
+Abandonner les références JavaScript ne garantit pas l’effacement physique de mémoire, de swap, de captures d’écran ni du presse-papiers utilisateur. Un OS/navigateur hostile, un XSS, une extension ou un frontend altéré peut toujours capter la phrase de passe et les secrets durant la session. HTTPS, CSP et maîtrise des dépendances restent nécessaires. Aucun secret déchiffré nouveau dans IndexedDB, localStorage, sessionStorage, Cache API ni service worker ; aucun cache hors ligne ajouté. Les copies historiques ne sont pas effacées tant que le téléversement, la récupération, la vérification locale et la sauvegarde indépendante n’ont pas été confirmés : cette exposition transitoire doit être traitée explicitement, appareil par appareil.
+
+Les diagnostics frontend concernés n’impriment plus les exceptions Axios complètes. En production, interdire la capture des corps/auth headers dans reverse proxy, APM et traces de debug. Les tests utilisent exclusivement des fixtures ; ils ne prouvent pas la configuration réelle des journaux Linode. Le parcours de migration et les validations restantes sont décrits dans [le guide](gestion-cle-chiffree.md).

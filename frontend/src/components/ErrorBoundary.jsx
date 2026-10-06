@@ -11,7 +11,7 @@ export default class ErrorBoundary extends Component {
   }
   componentDidCatch(error, info) {
     // eslint-disable-next-line no-console
-    console.error("UI error:", error, info);
+    console.warn('Opération interrompue ou indisponible');
   }
   render() {
     if (this.state.hasError) {

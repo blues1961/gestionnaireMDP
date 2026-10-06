@@ -29,7 +29,7 @@ Ils ne doivent pas contredire les fichiers racine ci-dessus.
 - compat session legacy isolee sous `/api/auth/session/*`
 - `VITE_API_BASE=/api`
 - secrets reels uniquement dans `.env.local`
-- paire de cles locale conservee en `IndexedDB`, avec migration legacy depuis `localStorage`
+- enveloppe chiffrée privée associée au compte ; paire déchiffrée uniquement en mémoire, migration explicite des anciennes copies
 
 ## Fichiers annexes utiles
 
@@ -46,3 +46,10 @@ Si un guide annexe diverge du contrat courant :
 - corriger ou marquer explicitement la divergence ;
 - ne pas utiliser l'annexe comme justification pour reintroduire un ancien invariant ;
 - preferer une note courte pointant vers les fichiers racine plutot qu'un second contrat complet.
+
+## Maintenance et continuité
+
+- [Maintenance documentaire](maintenance-documentation.md) : responsabilité de Codex dans le même changement que toute fonctionnalité et répartition avec Obsidian.
+- [Sauvegarde et restauration](sauvegarde-restauration.md) : exigences de validation et conservation de la clé, reprises de la consolidation Obsidian.
+
+- [Gestion de la clé chiffrée, migration et déploiement Linode](gestion-cle-chiffree.md).

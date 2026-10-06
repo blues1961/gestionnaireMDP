@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { encryptPayload, decryptPayload } from '../utils/crypto';
+import { sessionGeneration } from '../utils/vaultSession'
 import { normalizeExternalUrl } from '../utils/url';
 import PasswordGenerator from './PasswordGenerator';
 import { useToast } from './ToastProvider';
@@ -13,10 +14,12 @@ function classFlash(active, base) {
 }
 
 async function copyToClipboard(text) {
+  const ticket = sessionGeneration();
   try {
     await navigator.clipboard.writeText(text || '');
     return true;
   } catch {
+    if (ticket !== sessionGeneration()) return false;
     const ta = document.createElement('textarea');
     ta.value = text || '';
     document.body.appendChild(ta);
@@ -95,7 +98,7 @@ export default function PasswordEdit() {
           setNotes('');
         }
       } catch (e) {
-        console.warn('Déchiffrement impossible:', e);
+        console.warn('Opération interrompue ou indisponible');
         setLogin('');
         setPassword('');
         setNotes('');

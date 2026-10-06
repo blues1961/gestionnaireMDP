@@ -65,7 +65,7 @@ Restent lisibles cote serveur :
 
 La logique actuelle est donc une approche "zero-knowledge partielle" : le serveur ne peut pas lire les secrets stockes dans `ciphertext`, mais il conserve certaines metadonnees en clair.
 
-La paire de cles locale est maintenant conservee en `IndexedDB` dans le navigateur. Une migration legacy depuis `localStorage` est effectuee a la premiere lecture si une ancienne cle y est encore presente, puis la copie legacy est supprimee.
+L’enveloppe chiffrée de la clé est associée au compte dans un stockage PostgreSQL privé et récupérée automatiquement. Le mot de passe de clé, distinct de la connexion, reste local et est demandé à chaque déverrouillage ; la paire déchiffrée reste uniquement en mémoire. Les utilisateurs existants doivent suivre la [migration sauvegardée](docs/gestion-cle-chiffree.md), qui conserve leur paire et leurs entrées. Aucun déploiement ni migration utilisateur automatique.
 
 ## Stack cible
 

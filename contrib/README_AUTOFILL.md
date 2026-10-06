@@ -85,3 +85,7 @@ Cependant, le flux recommandé est désormais l’extension Firefox autonome dé
 ---
 
 Bon autofill !
+
+## Limite avec la nouvelle gestion de clé
+
+Le client web utilise désormais une enveloppe chiffrée de compte v2 et une paire déchiffrée uniquement en mémoire. Les lecteurs historiques de ce dossier restent v1 et ne sont pas intégrés à ce parcours ; ne pas présumer de la compatibilité des nouveaux exports v2 ni de la conformité de leur stockage aux nouvelles règles du client web. Voir [migration et limites](../docs/gestion-cle-chiffree.md). La reprise de l’autofill est un chantier distinct.

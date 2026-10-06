@@ -25,8 +25,8 @@ Ce fichier sert uniquement de rappel compact pour les annexes de `docs/`.
 - compat session legacy isolee sous `/api/auth/session/*`
 - alias historiques `/api/csrf/`, `/api/login/`, `/api/logout/` conserves mais deprecies
 - logout JWT : `POST /api/auth/jwt/logout/`
-- paire de cles locale stockee en `IndexedDB`
-- migration legacy possible depuis `localStorage`, puis purge de la copie legacy
+- enveloppe chiffrée privée associée au compte ; paire déchiffrée uniquement en mémoire
+- anciennes copies IndexedDB/localStorage retirées seulement après migration explicite vérifiée et sauvegardée
 
 ## Ce qu'il ne faut pas reintroduire
 

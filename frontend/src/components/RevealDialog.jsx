@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { decryptPayload } from '../utils/crypto'
+import { sessionGeneration } from '../utils/vaultSession'
 import { normalizeExternalUrl } from '../utils/url'
 import { useToast } from './ToastProvider'
 import KeyImportForm from './KeyImportForm'
 
 async function copyToClipboard(text){
+  const ticket = sessionGeneration()
   try { await navigator.clipboard.writeText(text || ''); return true } catch {
+    if (ticket !== sessionGeneration()) return false
     const ta = document.createElement('textarea'); ta.value = text || ''
     document.body.appendChild(ta); ta.select(); let ok=false
     try { ok = document.execCommand('copy') } catch {}

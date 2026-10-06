@@ -45,6 +45,7 @@ key-backups/*
 !key-backups/.gitkeep
 
 # Fichiers temporaires & .bak
+.ops/
 *.bak
 *.bak*
 *.BAK.*

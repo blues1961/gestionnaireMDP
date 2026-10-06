@@ -50,7 +50,7 @@ En cas de contradiction :
 - le serveur ne doit pas manipuler la cle privee utilisateur ;
 - la cle privee locale ne doit pas etre reintroduite en clair dans `localStorage` ;
 - le modele de menace formalise dans `docs/threat-model.md` doit rester coherent avec le code reel ;
-- les fonctions KeyCheck, export de cle et import de cle sont actuellement locales au frontend ;
+- KeyCheck, déchiffrement et export/import de secours restent locaux ; seule l’enveloppe chiffrée est enregistrée/récupérée par `/api/key-envelope/` ;
 - les bundles `/api/secrets/` stockent des payloads chiffres mais gardent des metadonnees en clair.
 
 ## Architecture a respecter
@@ -68,3 +68,7 @@ En cas de contradiction :
 - documenter les changements importants de comportement ;
 - mettre a jour `docs/specification.md` et `docs/api.md` quand une route, un modele ou une contrainte change ;
 - signaler explicitement tout ecart entre le depot et le template global.
+
+## Documentation dans le même changement
+
+Toute nouvelle fonctionnalité implémentée par Codex doit mettre à jour dans le même changement la documentation technique concernée : au minimum les fichiers pertinents de `docs/` et, si nécessaire, `README.md`, `README_DEV.md`, `CODEX_START.md`, `AGENTS.md` ou `INVARIANTS.md`. Appliquer [la règle de maintenance documentaire](docs/maintenance-documentation.md). Obsidian reste limité au suivi, aux idées, aux décisions et à l’architecture générale ; ne pas y recopier la documentation technique du dépôt.

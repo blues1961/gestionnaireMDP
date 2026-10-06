@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
+
+[[ -L .env && "$(readlink .env)" == '.env.dev' ]] || { echo 'Rapatriement réservé au développement : make dev.' >&2; exit 1; }
 
 set -a
 # shellcheck source=/dev/null
@@ -42,19 +45,15 @@ REMOTE_BACKUPS_DIR="$2"
 SLUG="$3"
 
 cd "$REMOTE_APP_DIR"
-make backup-db
-
-LATEST="$(
-  find "$REMOTE_BACKUPS_DIR" -maxdepth 1 -type f \
-    \( -name "${SLUG}_db-*.sql.gz" -o -name "${SLUG}_db-*.sql" -o -name "${SLUG}_db.*.dump" -o -name "db-*.dump" -o -name "*.dump" \) \
-    -printf '%T@ %p\n' \
-    | sort -nr \
-    | head -n1 \
-    | cut -d' ' -f2-
-)"
-
-test -n "$LATEST"
-printf '__REMOTE_FILE__=%s\n' "$LATEST"
+[[ -L .env && "$(readlink .env)" == '.env.prod' ]] || { echo 'Environnement distant non production.' >&2; exit 1; }
+umask 077
+mkdir -p "$REMOTE_BACKUPS_DIR"
+BACKUP_DIR="$(mktemp -d "$REMOTE_BACKUPS_DIR/pull-XXXXXXXX")"
+BACKUP_FILE="$BACKUP_DIR/${SLUG}_db-$(date +%Y%m%d-%H%M%S).sql.gz"
+make backup-db OUT="$BACKUP_FILE"
+gzip -t "$BACKUP_FILE"
+chmod 600 "$BACKUP_FILE"
+printf '__REMOTE_FILE__=%s\n' "$BACKUP_FILE"
 EOF
 )"
 SSH_RC=$?
@@ -77,6 +76,8 @@ fi
 echo "[*] Remote file: ${REMOTE_FILE}"
 scp "${SSH_TARGET}:${REMOTE_FILE}" "${LOCAL_BACKUPS_DIR}/"
 LOCAL_FILE="${LOCAL_BACKUPS_DIR}/$(basename -- "$REMOTE_FILE")"
+chmod 600 "$LOCAL_FILE"
+gzip -t "$LOCAL_FILE"
 touch "$LOCAL_FILE"
 
 echo "[OK] Backup prod rapatrié -> ${LOCAL_FILE}"

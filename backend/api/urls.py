@@ -8,6 +8,8 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView, TokenRefreshView, TokenVerifyView
 )
 
+from .key_envelope import KeyEnvelopeView
+
 app_name = "api"
 
 router = DefaultRouter()
@@ -17,6 +19,8 @@ router.register(r"passwords",   PasswordViewSet, basename="password")
 urlpatterns = [
     # ⚠️ pas de 'api/' ici : le préfixe est posé par le projet
     path("", include(router.urls)),
+
+    path("key-envelope/", KeyEnvelopeView.as_view(), name="key-envelope"),
 
     # Santé
     path("healthz/", healthz, name="api-healthz"),

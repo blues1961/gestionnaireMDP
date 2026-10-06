@@ -343,15 +343,42 @@ Conclusion :
 - la verification de cle est une fonctionnalite frontend locale ;
 - elle ne doit pas etre documentee comme une API serveur.
 
-## 7. Import / export de cle
+## 7. Enveloppe de clé chiffrée
 
-Il n'existe actuellement aucun endpoint backend d'import ou d'export de cle.
+### `GET /api/key-envelope/`
 
-Les fonctions d'import/export visibles dans l'interface :
+JWT requis ; aucune sélection de propriétaire par ID ou query string. Retourne uniquement l’enveloppe du compte courant : `{ "envelope": <objet v2>, "revision": <entier positif> }`. `404` si absente, `401` sans JWT valide. Toutes les réponses de cette vue portent `Cache-Control: no-store`.
 
-- utilisent `frontend/src/utils/crypto.js`
-- lisent ou ecrivent un fichier JSON local
-- ne transitent pas par le backend
+L’ordre des champs JSON, y compris dans `kdf` et `enc`, n’est pas garanti (stockage PostgreSQL JSONB). Pour valider une relecture après PUT, le client compare la révision et toutes les valeurs de l’enveloppe validée, indépendamment de cet ordre ; aucune valeur supplémentaire ou modifiée n’est tolérée.
+
+### `PUT /api/key-envelope/`
+
+Corps JSON strict : `{ "envelope": <objet v2>, "expected_revision": <entier> }`.
+
+- `expected_revision: 0` pour créer seulement si absente ; révision courante exacte pour remplacer.
+- `201` à la création (révision 1), `200` au remplacement (révision incrémentée), même structure que GET.
+- `409` si révision périmée ou création concurrente, avec `detail` et révision courante. Recharger et refaire une action explicite ; aucun retry d’écrasement automatique.
+- `400` pour format, paramètres, taille, champs supplémentaires ou substitution de clé publique ; erreurs fixes sans recopier les données soumises.
+- `401` sans JWT valide, `415` si type de contenu non JSON, `405` pour POST/PATCH/DELETE.
+- Maximum 32 768 octets lus par le parseur. Verrou transactionnel sur la ligne utilisateur avant vérification/création/remplacement ; aucune course sur une enveloppe absente.
+- Pas de route de suppression ni de rotation de paire. Réinitialiser le mot de passe de connexion ne modifie pas cette enveloppe.
+
+Objet v2 exact (aucun champ supplémentaire) :
+
+| Champ | Contrat |
+| --- | --- |
+| `format` | `zk-keybundle-v2` |
+| `kdf` | exactement `name: PBKDF2`, `hash: SHA-256`, `iterations` entier 600 000 à 1 000 000, `salt` base64 canonique de 16 octets |
+| `enc` | exactement `name: AES-GCM`, `iv` base64 canonique de 12 octets |
+| `pub` | clé publique SPKI RSA-OAEP/SHA-256, base64 canonique de 256 à 1 024 octets |
+| `data` | PKCS8 privé chiffré AES-256-GCM avec tag 128 bits, base64 canonique de 1 024 à 16 384 octets |
+| `createdAt` | date ISO, chaîne de 40 caractères maximum |
+
+AAD AES-GCM = octets UTF-8 de `JSON.stringify([format, kdf.name, kdf.hash, kdf.iterations, kdf.salt, enc.name, enc.iv, pub, createdAt])`. Cet ordre est contractuel ; l’ordre des champs dans l’objet JSON ne l’est pas.
+
+Le serveur ne dérive ni ne déchiffre rien. Il valide l’enveloppe structurelle, sans pouvoir prouver que les octets chiffrés contiennent une clé. Le frontend vérifie aussi l’import RSA (2 048 à 4 096 bits), la correspondance privée/publique par challenge aléatoire et la lecture de toutes les entrées avant activation. Les fichiers v1 restent lisibles **localement** avec paramètres bornés (200 000 à 1 000 000 itérations), puis sont réexportés v2 avant envoi. Le fichier d’export indépendant reste une opération locale ; seul l’enregistrement explicite de l’enveloppe chiffrée utilise cette API.
+
+**Jamais dans le corps, l’URL ou les logs :** phrase de passe de chiffrement, PKCS8 déchiffré, JWK privé ou secrets de voûte déchiffrés. Les champs inconnus sont refusés, y compris `owner` et `password`. Aucun service de récupération de phrase de passe.
 
 ## 8. Bundles de secrets
 
@@ -446,6 +473,7 @@ Auth requise pour :
 - toutes les routes `categories`
 - toutes les routes `passwords`
 - toutes les routes `secrets`
+- toutes les opérations `key-envelope`
 
 Auth non requise pour :
 

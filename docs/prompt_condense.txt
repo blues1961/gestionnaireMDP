@@ -19,7 +19,7 @@ Source de verite :
 - aliases historiques `/api/csrf/`, `/api/login/`, `/api/logout/` deprecies
 - `VITE_API_BASE=/api`
 - frontend sans URL absolue backend
-- cle privee locale stockee en `IndexedDB`, pas en clair dans `localStorage`
+- clé déchiffrée uniquement en mémoire ; enveloppe chiffrée privée en PostgreSQL ; migration explicite et sauvegardée des anciennes copies locales
 
 ## Quand tu proposes un correctif
 

@@ -61,6 +61,22 @@ make migrate
 make createsuperuser
 ```
 
+## Démarrage et reconstruction en développement
+
+Depuis la racine du dépôt, avec Docker démarré et `.env.local` déjà préparé :
+
+```bash
+make dev
+make rebuild
+make migrate
+make up
+make ps
+```
+
+`make rebuild` reconstruit les images sans cache et démarre déjà les services ; `make up` peut ensuite être relancé pour assurer leur démarrage. Pour un démarrage courant sans reconstruction complète, utiliser simplement `make dev`, `make up`, puis `make migrate` si de nouvelles migrations sont présentes. Les migrations restent explicites : la nouvelle gestion de clé nécessite notamment `api/0005_keyenvelope`. Pour une base neuve, créer le compte avec `make createsuperuser` après les migrations.
+
+`make up` et `make rebuild` vérifient la présence de Docker, du plugin `docker compose` et l’accès au daemon. Si Docker est introuvable, installer Docker Engine ou Docker Desktop sur le poste et le rendre accessible au terminal ; s’il est inaccessible, démarrer le daemon et vérifier les droits utilisateur. Un échec de construction arrête `make rebuild` avant sa tentative de démarrage. Ces commandes conservent les volumes ; ne pas utiliser `make clean` pour reconstruire une application avec des données existantes.
+
 ## URLs utiles
 
 Les ports sont derives de `APP_NO`.
@@ -153,3 +169,29 @@ make up
 ```
 
 La production suppose un reverse proxy Traefik externe et un `.env.local` deja present sur la machine cible. Le detail des conventions attendues se trouve dans `INVARIANTS.md`.
+
+## Gestion de clé chiffrée
+
+La migration Django `api/0005_keyenvelope` est additive ; elle ne modifie aucune entrée ni paire existante. Appliquer volontairement `make migrate`. Après connexion, la voûte reste verrouillée et récupère l’enveloppe privée du compte. Voir [migration, tests et déploiement Linode](docs/gestion-cle-chiffree.md). Les tests doivent utiliser une base de test et des fixtures fictives ; ne pas tester sur la voûte réelle.
+
+## Test réel de migration de clé en développement
+
+Avec les services déjà démarrés et les migrations appliquées :
+
+```bash
+make test-key-migration
+```
+
+Cette cible utilise deux comptes fictifs à identifiant UUID, l’API réelle via le proxy Vite et les fonctions WebCrypto réelles du frontend. Elle teste un ancien fichier v1, l’enveloppe v2, la conservation de la paire et des entrées, la récupération après interruption, les mots de passe incorrects, les conflits réellement simultanés, l’isolation et le secours. Seul le mot de passe de connexion fictif atteint l’authentification ; le mot de passe de clé et les secrets de voûte restent locaux. Aucune sauvegarde réelle en clair n’est requise et aucun compte existant n’est réinitialisé.
+
+Le lanceur vérifie les migrations sans les appliquer et nettoie uniquement ses comptes et leurs données. Si le nettoyage échoue ou si le processus est tué sans exécution du trap, reprendre avec l’UUID affiché : `make cleanup-key-migration RUN_ID=<uuid>`. La commande refuse une collision ou un marqueur d’identité différent. Le test HTTP ne pilote pas un navigateur réel et ne certifie pas le sélecteur de fichier, IndexedDB d’un profil réel ou la suspension Android ; les tests de composants complètent ce parcours.
+
+Une recette Chromium isolée teste aussi le sélecteur de fichier v1, la sauvegarde téléchargée, l’interruption de récupération après PUT, la reprise, le nettoyage tardif d’IndexedDB et la réouverture sans fichier. Installer l’outil de test séparément du frontend (Node sur l’hôte requis) :
+
+```bash
+npm install --prefix /tmp/mdp-playwright playwright
+PLAYWRIGHT_BROWSERS_PATH=/tmp/mdp-playwright-browsers /tmp/mdp-playwright/node_modules/.bin/playwright install chromium
+PLAYWRIGHT_MODULE=/tmp/mdp-playwright/node_modules/playwright/index.mjs PLAYWRIGHT_BROWSERS_PATH=/tmp/mdp-playwright-browsers make test-key-migration-browser
+```
+
+Cette cible prépare/nettoie les fixtures via Docker et lance un nouveau contexte navigateur sur le port Vite publié de développement. Elle n’utilise aucun profil personnel ni fichier réel. Les dépendances système de Chromium doivent être disponibles ; la recette automatisée ne remplace pas la validation physique Android/ThinkPad/Lemur/Thelio.

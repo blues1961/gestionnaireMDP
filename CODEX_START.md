@@ -86,7 +86,7 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml config
 - supposer que le depot suit deja strictement `app-template` ;
 - documenter comme "zero-knowledge complet" une implementation qui laisse des metadonnees en clair ;
 - ajouter de nouveaux scripts paralleles alors qu'une cible `make` existe deja ;
-- laisser croire qu'il existe un endpoint backend d'import/export de cle alors que la fonctionnalite est locale au frontend ;
+- confondre l’API d’enveloppe chiffrée `/api/key-envelope/` avec un déchiffrement ou un export serveur de clé privée ;
 - ajouter des migrations automatiques supplementaires au demarrage des conteneurs.
 
 ## Quand tu modifies le chiffrement ou l'auth
@@ -109,5 +109,9 @@ alors mets a jour aussi :
 Point d'attention chiffrement :
 
 - ne pas reintroduire de stockage de cle privee en clair dans `localStorage` ;
-- si tu modifies `frontend/src/utils/crypto.js`, preserve la migration legacy vers `IndexedDB` ou documente explicitement sa suppression ;
+- préserver la migration explicite des anciennes paires, sans nouveau stockage de clé déchiffrée ; voir `docs/gestion-cle-chiffree.md` ;
 - ne pas presenter un durcissement de stockage local comme une protection contre un XSS deja present dans la page.
+
+## Documentation dans le même changement
+
+Toute nouvelle fonctionnalité implémentée par Codex doit mettre à jour dans le même changement la documentation technique concernée : au minimum les fichiers pertinents de `docs/` et, si nécessaire, `README.md`, `README_DEV.md`, `CODEX_START.md`, `AGENTS.md` ou `INVARIANTS.md`. Appliquer [la règle de maintenance documentaire](docs/maintenance-documentation.md). Obsidian reste limité au suivi, aux idées, aux décisions et à l’architecture générale ; ne pas y recopier la documentation technique du dépôt.

@@ -13,9 +13,9 @@ APP_ENV := $(shell if [ -f ./.env ]; then . ./.env; echo $$APP_ENV; else echo de
 COMPOSE := docker compose --env-file .env.$(APP_ENV) -f docker-compose.$(APP_ENV).yml
 TREE_IGNORE := .git|node_modules|dist|__pycache__|.mypy_cache|.pytest_cache|.venv|backup|project-tree-*.txt|*.py[co]|*.sqlite3|*.log|*.cache|*.cookies|*.sql|*.sql.gz|*.dump|*.bak
 
-.PHONY: help init create-env generate-env dev prod check update backup restore env-check env-check-base env-check-local init-dev require-dev-env backup-dir \
+.PHONY: help docker-check init create-env generate-env dev prod check update backup restore env-check env-check-base env-check-local init-dev require-dev-env backup-dir \
  tree \
- up down stop start restart ps logs sh migrate createsuperuser whoami token-test test test-backend test-frontend \
+ up down stop start restart ps logs sh migrate createsuperuser whoami token-test test test-backend test-frontend test-key-migration test-key-migration-browser cleanup-key-migration \
  backup-db restore-db pull-prod-backup push-secret push-secret-all-remote push-secret-single pull-secret pull-secret-all-remote pull-secret-single init-secret init-root-secret backup-env restore-env reset-dev-db seed-dev psql \
  up-backend up-db up-frontend up-vite stop-backend stop-db stop-frontend stop-vite restart-backend restart-db restart-frontend restart-vite \
  logs-backend logs-db logs-frontend logs-vite exec-backend exec-db exec-frontend exec-vite clean reseed rebuild
@@ -103,7 +103,12 @@ init-dev: ## Prépare l'env de dev (.env -> .env.dev + .env.local depuis linode)
 require-dev-env: ## Garde-fou: autorise la commande uniquement si APP_ENV=dev
 	test "$$(. ./.env; echo $$APP_ENV)" = "dev" || { echo "Commande autorisée uniquement depuis dev (.env -> .env.dev)."; exit 1; }
 
-up: env-check ## Démarre la stack (db, backend, frontend)
+docker-check: ## Vérifie Docker, le plugin Compose et l'accès au daemon
+	@command -v docker >/dev/null 2>&1 || { echo "Docker est introuvable. Installez Docker Engine ou Docker Desktop et rendez la commande docker accessible." >&2; exit 1; }
+	docker compose version >/dev/null 2>&1 || { echo "Le plugin Docker Compose est indisponible (docker compose)." >&2; exit 1; }
+	docker info >/dev/null 2>&1 || { echo "Le daemon Docker est inaccessible. Démarrez Docker et vérifiez les permissions de votre utilisateur." >&2; exit 1; }
+
+up: env-check docker-check ## Démarre la stack (db, backend, frontend)
 	$(COMPOSE) up -d --build
 
 start: up ## Alias de up
@@ -161,12 +166,23 @@ test-backend: env-check ## Lance les tests backend Django
 test-frontend: env-check ## Lance les tests frontend Vitest
 	$(COMPOSE) run --rm frontend npm run test
 
+test-key-migration: env-check docker-check require-dev-env ## Teste la migration de clé via HTTP sur deux comptes de développement temporaires
+	bash scripts/test-key-migration.sh
+
+test-key-migration-browser: env-check docker-check require-dev-env ## Teste le parcours UI dans Chromium isolé (Playwright externe requis)
+	KEY_MIGRATION_BROWSER=1 bash scripts/test-key-migration.sh
+
+cleanup-key-migration: env-check docker-check require-dev-env ## Retire uniquement les fixtures d'un test interrompu (RUN_ID=<uuid>)
+	test -n "$(RUN_ID)" || { echo "RUN_ID requis" >&2; exit 1; }
+	$(COMPOSE) exec -T backend python manage.py key_migration_fixture cleanup --run-id "$(RUN_ID)"
+
 # Sauvegarde / restauration DB
 backup-dir:
 	mkdir -p backup
 
 backup-db: env-check backup-dir ## Sauvegarder la DB de l'env courant -> backup/<app_slug>_db-<ts>.sql.gz
 	set -euo pipefail ; \
+	umask 077 ; \
 	set -a ; . ./.env.$(APP_ENV) ; [ -f ./.env.local ] && . ./.env.local || true ; set +a ; \
 	SLUG=$${APP_SLUG:-mdp} ; TS=$$(date +%Y%m%d-%H%M%S) ; OUT=$${OUT:-backup/$${SLUG}_db-$$TS.sql.gz} ; DB_CONT=$${SLUG}_db_$(APP_ENV) ; \
 	docker ps --format '{{.Names}}' | grep -qx "$$DB_CONT" || { echo "Conteneur DB introuvable ou arrêté: $$DB_CONT"; exit 1; } ; \
@@ -179,13 +195,20 @@ restore-db: env-check ## Restaurer la DB depuis BACKUP=<fichier.{sql.gz,dump}> (
 	SLUG=$${APP_SLUG:-mdp} ; DB_CONT=$${SLUG}_db_$(APP_ENV) ; PATTERN_DESC="backup/$${SLUG}_db-<timestamp>.sql.gz" ; \
 	FILE=$${BACKUP:-$$( (ls -1t backup/$${SLUG}_db-*.sql.gz backup/$${SLUG}_db-*.sql backup/$${SLUG}_db.*.dump backup/db-*.dump backup/*.dump 2>/dev/null || true) | head -n1 )} ; \
 	test -n "$$FILE" -a -f "$$FILE" || { echo "Aucun backup trouvé ($$PATTERN_DESC) ou BACKUP invalide"; exit 1; } ; \
+	test -s "$$FILE" || { echo "Backup vide" >&2; exit 1; } ; \
+	case "$$FILE" in \
+	  *.sql.gz) gzip -t "$$FILE" ;; \
+	  *.sql) ;; \
+	  *.dump) docker exec -i "$$DB_CONT" pg_restore --list < "$$FILE" >/dev/null ;; \
+	  *) echo "Format de backup non supporté: $$FILE" >&2; exit 1 ;; \
+	esac ; \
 	docker ps --format '{{.Names}}' | grep -qx "$$DB_CONT" || { echo "Conteneur DB introuvable ou arrêté: $$DB_CONT"; exit 1; } ; \
 	echo "Restore <- $$FILE" ; \
-	docker exec -i -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' ; \
+	docker exec -i -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" psql -X -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' ; \
 	case "$$FILE" in \
-	  *.sql.gz) gunzip -c "$$FILE" | docker exec -i -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" ;; \
-	  *.sql)    docker exec -i -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" < "$$FILE" ;; \
-	  *.dump)   docker exec -i -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" pg_restore -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" --no-owner --no-privileges < "$$FILE" ;; \
+	  *.sql.gz) gunzip -c "$$FILE" | docker exec -i -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" psql -X -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" ;; \
+	  *.sql)    docker exec -i -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" psql -X -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" < "$$FILE" ;; \
+	  *.dump)   docker exec -i -e PGPASSWORD="$$POSTGRES_PASSWORD" "$$DB_CONT" pg_restore --exit-on-error -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" --no-owner --no-privileges < "$$FILE" ;; \
 	  *)        echo "Format de backup non supporté: $$FILE"; exit 1 ;; \
 	esac
 
@@ -232,7 +255,8 @@ reseed: env-check ## (db) Réinitialise puis ré-injecte les données de dev
 	$(MAKE) reset-dev-db
 	$(MAKE) seed-dev
 
-rebuild: env-check ## (compose) Rebuild images (no-cache) puis relance en détaché
+rebuild: env-check docker-check ## (compose) Rebuild images (no-cache) puis relance en détaché
+	set -e
 	$(COMPOSE) build --no-cache
 	$(COMPOSE) up -d --build
 

@@ -37,3 +37,10 @@ class SecretBundle(models.Model):
 
     def __str__(self):
         return f"{self.owner_id}:{self.app}:{self.environment}"
+
+
+class KeyEnvelope(models.Model):
+    owner = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="key_envelope")
+    envelope = models.JSONField()
+    revision = models.PositiveBigIntegerField(default=1)
+    updated_at = models.DateTimeField(auto_now=True)

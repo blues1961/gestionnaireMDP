@@ -172,3 +172,89 @@ Toujours vérifier :
 ## Règle finale
 
 Le projet doit s’adapter aux invariants. Les invariants ne doivent jamais être adaptés automatiquement pour justifier le projet.
+
+## Contrats spécifiques au gestionnaire de mots de passe
+
+## 8. Interface de commande
+
+Quand le `Makefile` expose une commande, il doit etre prefere.
+
+Commandes actuelles de reference :
+
+```bash
+make init
+make generate-env
+make dev
+make prod
+make check
+make up
+make down
+make restart
+make rebuild
+make ps
+make logs
+make migrate
+make update
+make backup
+make restore
+make createsuperuser
+make backup-db
+make restore-db
+```
+
+Etat actuel du depot :
+
+- l'interface principale existe et expose désormais les noms standards du template ;
+- `generate-env.sh`, `generate-secrets.sh`, `init.sh`, `check-invariants.sh`, `update.sh`, `rebuild.sh` et les autres scripts standards existent sous les noms attendus ;
+- le depot conserve aussi quelques scripts supplementaires propres a son exploitation.
+
+## 9. Regles de securite specifiques au gestionnaire de mots de passe
+
+Regles non negociables :
+
+- le backend ne doit jamais recevoir de mot de passe maitre ;
+- le backend ne doit jamais dechiffrer `PasswordEntry.ciphertext` ;
+- les champs sensibles d'une entree de voute doivent rester chiffres cote serveur ;
+- aucune journalisation ne doit inclure des secrets en clair ;
+- aucune exportation claire ne doit etre automatique ;
+- toute fonctionnalite d'export clair doit etre explicite, locale et accompagnee d'un avertissement.
+- les URL utilisateur ouvertes dans un nouvel onglet doivent etre limitees a `http` et `https`.
+
+Pour le depot actuel :
+
+- `login`, `password` et `notes` sont chiffres cote client ;
+- le titre, l'URL, la categorie et certaines metadonnees restent en clair ;
+- la clé déchiffrée est utilisée uniquement en mémoire ; l’enveloppe chiffrée est privée, associée au compte en PostgreSQL et exportable indépendamment ;
+- les anciennes paires IndexedDB/localStorage ne sont lues que pour une migration explicite ; les retirer seulement après sauvegarde confirmée, téléversement, récupération et vérification locale de la même paire et de la voûte ;
+- le fichier d'export de cle est lui-meme sensible et ne doit jamais etre committe ni place dans un stockage non maitrise.
+- le frontend prod sert des en-tetes de securite via Nginx, dont une CSP restrictive.
+- le detail du modele de menace courant est formalise dans `docs/threat-model.md`.
+
+## 10. Zero-knowledge
+
+Le terme "zero-knowledge" doit etre utilise avec precision.
+
+Dans ce depot, la garantie actuelle est partielle :
+
+- le serveur stocke des blobs chiffres pour les secrets ;
+- le serveur stocke seulement une enveloppe de clé privée chiffrée, jamais la clé déchiffrée ni son mot de passe ;
+- le serveur peut toutefois lire certaines metadonnees non chiffrees.
+
+Ne pas presenter l'application comme "zero-knowledge complet" tant que :
+
+- les metadonnees restent visibles ;
+- la gestion de cle reste accessible au contexte JavaScript du navigateur, meme si elle n'est plus laissee en clair dans `localStorage` ;
+- le threat model formalise decrit encore un navigateur local de confiance comme hypothese forte.
+
+## 11. Ecarts connus a ne pas aggraver
+
+Les ecarts suivants existent deja et doivent etre traites comme temporaires :
+
+- presence de scripts d'exploitation hors nomenclature standard du template ;
+- certains guides annexes du depot n'ont pas encore tous ete re-alignes sur les invariants courants ;
+
+Tant qu'ils ne sont pas corriges :
+
+- ne pas etendre ces ecarts a de nouveaux fichiers ;
+- ne pas dupliquer de nouvelles conventions paralleles ;
+- documenter tout changement qui touche l'exploitation, l'auth ou le chiffrement.

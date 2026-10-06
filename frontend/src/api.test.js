@@ -95,4 +95,27 @@ describe("frontend auth helpers", () => {
 
     expect(apiInstance.post).toHaveBeenCalledWith("auth/jwt/logout/", { refresh: "refresh-token" });
   });
+  it("does not resurrect a previous account from a late refresh", async () => {
+    const mod = await loadApiModule();
+    mod.persistJWT({access: makeToken(-300),refresh:'old-account-refresh'});
+    let resolve;
+    axiosPost.mockImplementationOnce(()=>new Promise(r=>{resolve=r;}));
+    const result=mod.refreshAccessToken(true);
+    mod.clearStoredAuth();
+    mod.persistJWT({access:makeToken(300),refresh:'new-account-refresh'});
+    resolve({data:{access:makeToken(300)}});
+    await expect(result).rejects.toThrow('Compte changé');
+    expect(mod.getStoredRefreshToken()).toBe('new-account-refresh');
+  });
+  it("blocks vault writes while locked and after the captured session changes", async () => {
+    const mod=await loadApiModule();
+    const instance=createdApis.at(-1);
+    const validate=instance.interceptors.request.use.mock.calls[0][0];
+    expect(()=>validate({url:'passwords/',method:'post'})).toThrow('verrouillée');
+    const session=await import('./utils/vaultSession');
+    const oldTicket=session.sessionGeneration();
+    session.lockVault(false);
+    expect(()=>validate({url:'key-envelope/',method:'put',vaultTicket:oldTicket})).toThrow('interrompue');
+  });
+
 });

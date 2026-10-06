@@ -13,6 +13,8 @@ Ce guide standardise le processus pour mettre à jour l’application de gestion
 
 ---
 
+> Pour la livraison de la gestion de clé chiffrée, suivre en priorité [la procédure Linode, migration et retour arrière](gestion-cle-chiffree.md). Ne pas revenir à l’ancien client qui persistait la clé déchiffrée. Certaines commandes historiques ci-dessous restent des exemples annexes ; les cibles Make sont la référence.
+
 ## 0) Pré-vol (à faire **une fois** ou à vérifier avant chaque mise à jour)
 
 * Vérifier la présence de `.env.prod` à la racine du projet.

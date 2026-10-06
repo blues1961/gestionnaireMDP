@@ -11,6 +11,7 @@ export default defineConfig({
   },
   server: {
     host: true,
+    allowedHosts: ['frontend'],
     port: 5173,                  // mappé vers 5174 côté hôte (N=1)
     proxy: {
       '/api': {

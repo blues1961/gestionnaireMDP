@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
+import { sessionGeneration } from "../utils/vaultSession";
 import RevealDialog from "./RevealDialog";
 import { useToast } from "./ToastProvider";
 import { decryptPayload, hasKeyPair } from "../utils/crypto";
@@ -69,7 +70,7 @@ export default function PasswordList() {
         setCats(map);
       } catch (e) {
         // on ignore si l’endpoint n’existe pas
-        console.warn("categories/ indisponible:", e?.response?.status || e);
+        console.warn('Opération interrompue ou indisponible');
       }
     } catch (e) {
       setErr(e);
@@ -82,10 +83,11 @@ export default function PasswordList() {
     loadAll();
   }, []);
 
-  async function buildDecryptedExportRows() {
+  async function buildDecryptedExportRows(ticket) {
     const rows = [];
     let skipped = 0;
     for (const it of items) {
+      if (ticket !== sessionGeneration()) throw new Error("Export interrompu par verrouillage");
       try {
         const secret = it?.ciphertext ? await decryptPayload(it.ciphertext) : {};
         rows.push({
@@ -100,6 +102,7 @@ export default function PasswordList() {
           updated_at: it.updated_at || "",
         });
       } catch (_) {
+        if (ticket !== sessionGeneration()) throw new Error("Export interrompu par verrouillage");
         skipped += 1;
       }
     }
@@ -108,6 +111,7 @@ export default function PasswordList() {
 
   async function exportVault(format) {
     if (exportBusy) return;
+    const ticket = sessionGeneration();
     const hasKey = await hasKeyPair().catch(() => false);
     if (!hasKey) {
       toast.error("Clé privée introuvable dans ce navigateur");
@@ -120,7 +124,8 @@ export default function PasswordList() {
 
     setExportBusy(true);
     try {
-      const { rows, skipped } = await buildDecryptedExportRows();
+      const { rows, skipped } = await buildDecryptedExportRows(ticket);
+      if (ticket !== sessionGeneration()) throw new Error("Export interrompu par verrouillage");
       if (!rows.length) {
         toast.error("Aucune entrée exportable avec la clé actuelle");
         return;
@@ -152,7 +157,7 @@ export default function PasswordList() {
         toast.success("Export terminé");
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Opération interrompue ou indisponible');
       toast.error("Échec de l’export");
     } finally {
       setExportBusy(false);
@@ -332,7 +337,7 @@ export default function PasswordList() {
                       toast.success('Entrée supprimée');
                       loadAll();
                     } catch (e) {
-                      console.error(e);
+                      console.warn('Opération interrompue ou indisponible');
                       toast.error("Échec de la suppression");
                     }
                   }}

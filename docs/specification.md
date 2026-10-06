@@ -27,6 +27,7 @@ Fonctionnalites implementees dans le code :
 - export local de la voute en JSON ou CSV en clair ;
 - export local de la cle privee protege par passphrase ;
 - import local de la cle privee depuis un fichier d'export ;
+- enveloppe de clé chiffrée privée associée au compte, récupération automatique et déverrouillage local ;
 - stockage de `SecretBundle` par utilisateur, `app` et `environment` ;
 - route de sante backend.
 
@@ -149,7 +150,7 @@ Il n'existe pas d'inscription publique.
 ### 6.3 Surface sensible
 
 - les mots de passe en clair n'atteignent pas le backend dans le flux nominal ;
-- la cle privee reste locale au navigateur et est conservee en `IndexedDB` ;
+- la clé privée déchiffrée reste uniquement en mémoire pendant le déverrouillage ;
 - les URL utilisateur ouvertes par le frontend sont normalisees et limitees a `http` / `https` ;
 - le frontend de production sert une politique CSP restrictive depuis Nginx ;
 - le backend peut toutefois lire certaines metadonnees non chiffrees.
@@ -162,24 +163,23 @@ Le modele de menace detaille est documente dans `docs/threat-model.md`.
 
 Flux actuel :
 
-1. le frontend genere ou recharge une paire RSA-OAEP ;
-2. la paire active est conservee localement en `IndexedDB` ;
-3. une ancienne paire stockee en `localStorage` est migree puis purgee si elle existe encore ;
-4. les champs sensibles sont serialises localement ;
-5. une cle AES-GCM aleatoire chiffre le payload ;
-6. la cle AES est elle-meme chiffree avec la cle publique RSA ;
-7. le bundle chiffre est stocke dans `PasswordEntry.ciphertext`.
+1. après authentification, le frontend récupère l’enveloppe du compte via `/api/key-envelope/` ;
+2. à chaque nouveau chargement et déverrouillage, la phrase de passe de clé est saisie localement, distincte de la connexion ;
+3. le client valide le format, déchiffre la clé, vérifie la paire par challenge RSA et déchiffre toutes les `PasswordEntry` avant d’autoriser les écritures ;
+4. la paire est installée en mémoire seulement après ces contrôles ; ni JWT ni ancienne paire persistée ne suffisent ;
+5. les champs sensibles sont chiffrés par AES-GCM avec une clé aléatoire enveloppée par RSA-OAEP/SHA-256 ; les bundles existants ne changent pas.
 
-Pour l'export de cle :
+La création RSA 4096 est uniquement une action explicite pour une nouvelle voûte sans entrées, sans enveloppe ni `SecretBundle`. Les voûtes existantes ne génèrent jamais automatiquement de clé. Une rotation de paire n’est pas prise en charge.
 
-1. la cle privee est exportee ;
-2. une cle AES est derivee d'une passphrase via PBKDF2 ;
-3. l'export est protege par AES-GCM.
+Le format serveur et les nouveaux exports sont `zk-keybundle-v2` : PKCS8 privé chiffré AES-256-GCM, PBKDF2/SHA-256 à 600 000 itérations, sel 16 octets et IV 12 octets. Les métadonnées et la clé publique SPKI sont authentifiées comme AAD. Les lecteurs locaux acceptent aussi les exports v1 (minimum 200 000 itérations) et vérifient la cohérence privée/publique ; les nouvelles écritures serveur sont exclusivement v2. Bornes, encodage et AAD : [API](api.md#7-enveloppe-de-clé-chiffrée).
 
-Limite importante :
+Le seuil de 600 000 suit la recommandation PBKDF2-HMAC-SHA256 de [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html) ; il ne constitue pas une mesure de performances Android. Le mécanisme AAD suit [Web Crypto AES-GCM](https://www.w3.org/TR/webcrypto/#aes-gcm). Mesurer le temps de dérivation sur les quatre appareils avant déploiement. Une phrase forte d’au moins 16 caractères est exigée pour les nouveaux exports/enregistrements ; la longueur seule ne garantit pas l’entropie.
 
-- l'implementation actuelle releve d'un zero-knowledge partiel, pas complet, car `title`, `url`, `category`, `app` et `environment` restent lisibles cote serveur.
-- le durcissement `IndexedDB` reduit l'exposition triviale de la cle privee, mais elle reste accessible au contexte JavaScript local du navigateur.
+Aucun cache persistant de clé n’est ajouté, même chiffré. Le mode hors ligne n’est pas implémenté. Les anciens emplacements IndexedDB `active` et localStorage `zk_keypair_v1` ne sont lus que sur action de migration, jamais pour ouvrir automatiquement la voûte. Leur purge est subordonnée à une sauvegarde confirmée, au téléversement, à la relecture serveur et aux vérifications locales. Voir [migration et déploiement](gestion-cle-chiffree.md).
+
+La validation de relecture compare la révision, le contenu chiffré et chaque métadonnée validée. Elle accepte le réordonnancement des champs JSON par PostgreSQL, sans accepter un changement de valeur. Cette règle vaut aussi pour le remplacement de phrase de passe depuis l’export de clé.
+
+La garantie reste un zero-knowledge partiel : les métadonnées de voûte restent lisibles, et le JavaScript d’un navigateur compromis peut accéder aux secrets déverrouillés.
 
 ### 7.1 Resume du threat model
 
@@ -202,13 +202,13 @@ Le modele courant repose donc sur une hypothese forte : le navigateur executant 
 1. l'utilisateur ouvre `/login`
 2. il soumet username et mot de passe
 3. le frontend stocke `access` et `refresh` en local
-4. si aucune cle de coffre locale n'est disponible dans `IndexedDB`, le frontend propose immediatement l'import local du fichier de cle protege par passphrase
+4. le frontend récupère automatiquement l’enveloppe du compte et exige le mot de passe de clé ; une enveloppe absente ouvre la migration initiale
 5. au redemarrage, le frontend tente de restaurer une session valide via `refresh` si `access` a expire
 6. il est redirige vers `/vault`
 
 ### 8.1.b Deconnexion
 
-1. le frontend appelle `POST /api/auth/jwt/logout/` avec le `refresh` courant si disponible
+1. le frontend verrouille immédiatement la voûte puis appelle `POST /api/auth/jwt/logout/` avec le `refresh` courant si disponible
 2. le backend blacklist le refresh token
 3. le frontend purge ensuite la session locale et redirige vers `/login`
 
@@ -224,23 +224,24 @@ Le modele courant repose donc sur une hypothese forte : le navigateur executant 
 1. le frontend liste les entrees depuis `/api/passwords/`
 2. les metadonnees s'affichent
 3. au moment de la revelation, le frontend dechiffre localement `ciphertext`
-4. si le dechiffrement echoue, l'utilisateur peut reimporter le fichier de cle directement depuis l'ecran concerne
+4. si le déchiffrement échoue, l’utilisateur peut verrouiller et ouvrir le parcours d’import de secours
 
 ### 8.4 Verification de cle
 
 1. l'utilisateur ouvre `/vault/key-check`
 2. le frontend tente de dechiffrer chaque entree
 3. il produit un resume des succes et echecs
-4. en cas d'echec, le meme formulaire local de reimport de cle est propose
+4. en cas d’échec, l’interface permet de verrouiller puis restaurer une clé compatible
 
-### 8.5 Sauvegarde et reimport local de cle
+### 8.5 Clé, migration, sauvegarde et verrouillage
 
-1. l'utilisateur exporte sa cle dans un fichier JSON protege par passphrase
-2. la page `/vault/key-backup` sert uniquement a exporter une sauvegarde de cle
-3. il peut reimporter ce fichier sur un autre navigateur apres login, si aucune cle locale n'existe, ou lorsqu'un dechiffrement echoue
-4. une cle differente rend les anciennes entrees indechiffrables
-5. le fichier de cle n'est pas stocke par l'application apres import ; seule la cle importee est conservee localement dans `IndexedDB`
-6. les noms d'exports de cle courants sont ignores par Git via `.gitignore`, mais l'emplacement recommande reste hors depot
+- La page `/vault/key-backup` produit un export indépendant chiffré de la même paire. Après téléchargement et confirmation de sauvegarde, l’utilisateur peut remplacer l’enveloppe serveur avec ce nouveau mot de passe de clé ; le numéro de révision lu à l’ouverture protège des conflits.
+- L’import de secours se fait depuis la porte de déverrouillage. Il vérifie la paire et toutes les entrées avant toute écriture. Une enveloppe déjà associée impose la même clé publique ; il ne s’agit pas d’une rotation.
+- Une voûte vide est vérifiée par un challenge RSA indépendant des entrées et une confirmation explicite de provenance. Cela ne prouve pas l’appartenance historique d’un ancien fichier à un compte vide. Une ancienne paire globale seule ne peut pas être attribuée à une voûte vide sans enveloppe : utiliser une sauvegarde identifiée.
+- Verrouillage explicite, déconnexion, changement de compte, cinq minutes sans interaction et passage en arrière-plan (`visibilitychange`, `pagehide`, `freeze`/`resume`, retour BFCache) abandonnent clé et composants contenant les secrets. Les contrôles à `focus`, `pageshow`, aux interactions et avant les écritures vérifient aussi le temps écoulé. La reprise exige le mot de passe de clé, y compris après suspension Android.
+- BroadcastChannel et un signal localStorage non sensible coordonnent les verrouillages entre onglets. Un changement de stockage JWT verrouille puis recharge les autres onglets ; aucune clé ne circule entre eux.
+- Les opérations asynchrones portent une génération de session : un résultat tardif ne réactive pas une session verrouillée. Les requêtes d’écriture de voûte sont refusées lorsqu’elle est verrouillée.
+- Le fichier de sauvegarde reste hors Git. Voir [procédure complète et limites](gestion-cle-chiffree.md).
 
 ### 8.6 Bundles de secrets
 
@@ -253,7 +254,7 @@ Le modele courant repose donc sur une hypothese forte : le navigateur executant 
 - pas d'API d'administration des utilisateurs ;
 - pas d'inscription publique ;
 - presence d'endpoints session legacy encore exposes pour compatibilite ;
-- stockage local de la paire de cle toujours accessible au contexte JavaScript du navigateur ;
+- clé déverrouillée accessible au contexte JavaScript ; anciens stockages locaux conservés tant que leur migration n’est pas validée ;
 - export JSON/CSV de la voute en clair, donc operationnellement risqué ;
 - metadonnees de la voute non chiffrees ;
 - couverture automatisee encore partielle, meme si des tests backend Django et frontend Vitest existent maintenant sur l'auth et la gestion locale de cle.
@@ -264,3 +265,7 @@ Le modele courant repose donc sur une hypothese forte : le navigateur executant 
 2. Etendre encore les tests automatises aux composants React critiques et aux flux utilisateur principaux de la voute.
 3. Decider a terme si les endpoints de session Django legacy doivent etre conserves ou supprimes.
 4. Revoir la terminologie "zero-knowledge" dans tout le projet pour rester exacte.
+
+## 11. KeyEnvelope
+
+Un `KeyEnvelope` par utilisateur : `owner` OneToOne, `envelope` JSON chiffré, `revision` positive, `updated_at`. Aucun fichier public, aucune clé déchiffrée. Le compte authentifié est l’unique source de propriétaire. Un verrou PostgreSQL sur le compte sérialise création et remplacement, y compris lorsque l’enveloppe n’existe pas encore. L’API refuse la substitution de clé publique et ne fournit pas de suppression.

@@ -7,6 +7,8 @@ import {
   Navigate,
   useNavigate,
 } from "react-router-dom";
+import VaultGate from "./components/VaultGate";
+import { lockVault } from "./utils/vaultSession";
 import LoginForm from "./components/LoginForm";
 import PasswordList from "./components/PasswordList";
 import PasswordForm from "./components/PasswordForm";
@@ -31,12 +33,13 @@ function getInitialTheme() {
 
 function RequireAuth({ children }) {
   if (!hasStoredSession()) return <Navigate to="/login" replace />;
-  return children;
+  return <VaultGate>{children}</VaultGate>;
 }
 
 function NavBar({ theme, onThemeChange }) {
   const navigate = useNavigate();
   const onLogout = async () => {
+    lockVault();
     try {
       await logoutJWT();
     } catch {
@@ -63,6 +66,7 @@ function NavBar({ theme, onThemeChange }) {
           <Link to="/vault/key-backup" className="link">Sauvegarde clé</Link>
         </nav>
         <div className="topbar__right row">
+          <button onClick={() => lockVault()} className="btn">Verrouiller</button>
           <ThemeToggle theme={theme} onChange={onThemeChange} />
           <button onClick={onLogout} className="btn btn--light">Se déconnecter</button>
         </div>
