@@ -109,6 +109,17 @@ class JWTLogoutTests(APITestCase):
 
         self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_resume_verification_detects_blacklisted_refresh_but_access_remains_valid(self):
+        refresh = RefreshToken.for_user(self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
+        before = self.client.post("/api/auth/jwt/verify/", {"token": str(refresh)}, format="json")
+        self.assertEqual(before.status_code, status.HTTP_200_OK)
+        self.client.post("/api/auth/jwt/logout/", {"refresh": str(refresh)}, format="json")
+        after = self.client.post("/api/auth/jwt/verify/", {"token": str(refresh)}, format="json")
+        self.assertEqual(after.status_code, status.HTTP_400_BAD_REQUEST)
+        # Document the real revocation boundary: access JWTs are not retroactively blacklisted.
+        self.assertEqual(self.client.get("/api/whoami/").status_code, status.HTTP_200_OK)
+
     def test_logout_requires_refresh_token(self):
         refresh = RefreshToken.for_user(self.user)
         access = str(refresh.access_token)

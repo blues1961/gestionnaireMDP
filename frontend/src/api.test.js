@@ -33,7 +33,7 @@ function b64url(payload) {
 }
 
 function makeToken(expOffsetSeconds) {
-  return `header.${b64url({ exp: Math.floor(Date.now() / 1000) + expOffsetSeconds })}.signature`;
+  return `header.${b64url({ exp: Math.floor(Date.now() / 1000) + expOffsetSeconds, user_id: 1 })}.signature`;
 }
 
 async function loadApiModule() {
@@ -93,7 +93,7 @@ describe("frontend auth helpers", () => {
 
     await mod.logoutJWT();
 
-    expect(apiInstance.post).toHaveBeenCalledWith("auth/jwt/logout/", { refresh: "refresh-token" });
+    expect(apiInstance.post).toHaveBeenCalledWith("auth/jwt/logout/", { refresh: "refresh-token" }, {headers: {Authorization: `Bearer ${mod.getStoredAccessToken()}`}});
   });
   it("does not resurrect a previous account from a late refresh", async () => {
     const mod = await loadApiModule();
@@ -116,6 +116,27 @@ describe("frontend auth helpers", () => {
     const oldTicket=session.sessionGeneration();
     session.lockVault(false);
     expect(()=>validate({url:'key-envelope/',method:'put',vaultTicket:oldTicket})).toThrow('interrompue');
+  });
+
+  it("retains unlock for same-account refresh and locks on account change", async () => {
+    const mod=await loadApiModule();const session=await import('./utils/vaultSession');
+    const first=makeToken(3600);mod.persistJWT({access:first,refresh:makeToken(7200)});
+    session.activateVault({privateKey:{},publicKey:{}},session.sessionGeneration());
+    const updated=makeToken(5400);mod.persistJWT({access:updated});
+    window.dispatchEvent(new StorageEvent('storage',{key:'mdp.jwt',oldValue:JSON.stringify({access:first}),newValue:JSON.stringify({access:updated})}));
+    expect(session.isVaultUnlocked()).toBe(true);
+    const second=`header.${b64url({user_id:2,exp:Math.floor(Date.now()/1000)+3600})}.signature`;
+    mod.persistJWT({access:second,refresh:second});
+    expect(session.isVaultUnlocked()).toBe(false);mod.clearStoredAuth();
+  });
+  it("purges a revoked refresh before exposing the vault at resume", async () => {
+    const mod=await loadApiModule();const session=await import('./utils/vaultSession');
+    mod.persistJWT({access:makeToken(3600),refresh:makeToken(7200)});
+    session.activateVault({privateKey:{},publicKey:{}},session.sessionGeneration());
+    createdApis.at(-1).post.mockRejectedValueOnce({response:{status:400}});
+    await session.resumeVault();
+    expect(session.isVaultUnlocked()).toBe(false);expect(mod.hasStoredSession()).toBe(false);
+    expect(createdApis.at(-1).get).not.toHaveBeenCalled();
   });
 
 });

@@ -1025,3 +1025,5 @@ body {
 
 /* Hide immediately before React unmounts secrets, including pagehide/BFCache. */
 html[data-vault-locked="true"] .vault-content { display: none !important; }
+
+html[data-vault-suspended="true"] .vault-content { visibility: hidden !important; pointer-events: none !important; }

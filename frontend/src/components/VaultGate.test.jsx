@@ -42,7 +42,7 @@ async function storeLegacy() {
   await db.table('keyring').put({id:'active',...pair});db.close();
 }
 beforeAll(async()=>{
-  pair=await c.generateExportablePair();c.setKeyPair(pair.privateKey,pair.publicKey);
+  pair=await c.generateExportablePair();c.setKeyPair(pair.privateKey,pair.publicKey,false);
   ciphertext=await c.encryptPayload({login:'fixture login',password:'fixture vault secret',notes:'fixture'});
   envelope=await c.exportKeyBundle(pass);
   const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
@@ -176,6 +176,17 @@ describe('account envelope UI acceptance',()=>{
     await act(async()=>[...host.querySelectorAll('button')].find(b=>b.textContent==='Exporter JSON').click());
     await waitFor(()=>calls>=3);for(let i=0;i<5;i++) await settle();
     expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();expect(session.isVaultUnlocked()).toBe(false);
+  });
+
+  it('preserves memory unlock across a gate remount and removes secrets on manual lock',async()=>{
+    await mount();await password();await submit();await waitFor(()=>host.querySelector('[data-secret]'));
+    await act(async()=>root.render(<div>Fixture internal view</div>));
+    expect(session.isVaultUnlocked()).toBe(true);
+    await act(async()=>root.render(<VaultGate><div data-secret>fixture plaintext visible</div></VaultGate>));
+    expect(host.querySelector('[data-secret]')).not.toBeNull();
+    await act(async()=>session.lockVault(false));
+    expect(host.querySelector('[data-secret]')).toBeNull();
+    expect(document.documentElement.dataset.vaultLocked).toBe('true');
   });
 
 });

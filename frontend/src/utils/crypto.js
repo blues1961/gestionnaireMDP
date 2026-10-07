@@ -11,6 +11,14 @@ const b64d = (b) => {
 };
 
 let keyEpoch = 0;
+let accessGuard = null;
+let guardedPair = false;
+export function setKeyAccessGuard(guard) { accessGuard = guard; }
+function checkKeyAccess() {
+  // Application pairs require the registered session policy; isolated crypto
+  // fixtures may explicitly bypass it without activating an application vault.
+  if (guardedPair) accessGuard?.();
+}
 let __pair = { privateKey: null, publicKey: null };
 const LEGACY_STORAGE = "zk_keypair_v1";
 const DB_NAME = "gestionnaire-mdp-crypto";
@@ -22,7 +30,8 @@ db.version(1).stores({
   [KEYRING_TABLE]: "&id",
 });
 
-export function setKeyPair(privateKey, publicKey) {
+export function setKeyPair(privateKey, publicKey, guarded = true) {
+  guardedPair = guarded;
   keyEpoch += 1;
   __pair = { privateKey, publicKey };
 }
@@ -73,6 +82,7 @@ export async function purgeLegacyPair(verifiedPair) {
 }
 
 export async function getKeyPair() {
+  checkKeyAccess();
   if (!__pair.privateKey || !__pair.publicKey) throw new Error("Voûte verrouillée");
   return __pair;
 }
@@ -123,6 +133,7 @@ export async function encryptPayload(payload) {
   const encKey = new Uint8Array(
     await crypto.subtle.encrypt({ name: "RSA-OAEP" }, publicKey, rawSym)
   );
+  checkKeyAccess();
   if (epoch !== keyEpoch) throw new Error("Voûte verrouillée pendant le chiffrement");
   return { iv: b64e(iv), salt: b64e(salt), data: b64e(ciphertext), key: b64e(encKey) };
 }
@@ -142,6 +153,7 @@ export async function decryptPayload(bundle) {
     ["decrypt"]
   );
   const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, sym, data);
+  checkKeyAccess();
   if (epoch !== keyEpoch) throw new Error("Voûte verrouillée pendant le déchiffrement");
   return JSON.parse(td.decode(new Uint8Array(plain)));
 }

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { encryptPayload, decryptPayload } from '../utils/crypto';
-import { sessionGeneration } from '../utils/vaultSession'
+import { assertVaultAccess, sessionGeneration } from '../utils/vaultSession'
 import { normalizeExternalUrl } from '../utils/url';
 import PasswordGenerator from './PasswordGenerator';
 import { useToast } from './ToastProvider';
@@ -15,11 +15,13 @@ function classFlash(active, base) {
 
 async function copyToClipboard(text) {
   const ticket = sessionGeneration();
+  try { assertVaultAccess(); } catch { return false; }
   try {
     await navigator.clipboard.writeText(text || '');
     return true;
   } catch {
     if (ticket !== sessionGeneration()) return false;
+    try { assertVaultAccess(); } catch { return false; }
     const ta = document.createElement('textarea');
     ta.value = text || '';
     document.body.appendChild(ta);

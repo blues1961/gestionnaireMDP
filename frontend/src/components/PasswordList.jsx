@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
-import { sessionGeneration } from "../utils/vaultSession";
+import { assertVaultAccess, sessionGeneration } from "../utils/vaultSession";
 import RevealDialog from "./RevealDialog";
 import { useToast } from "./ToastProvider";
 import { decryptPayload, hasKeyPair } from "../utils/crypto";
@@ -126,6 +126,7 @@ export default function PasswordList() {
     try {
       const { rows, skipped } = await buildDecryptedExportRows(ticket);
       if (ticket !== sessionGeneration()) throw new Error("Export interrompu par verrouillage");
+      assertVaultAccess();
       if (!rows.length) {
         toast.error("Aucune entrée exportable avec la clé actuelle");
         return;

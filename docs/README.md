@@ -53,3 +53,5 @@ Si un guide annexe diverge du contrat courant :
 - [Sauvegarde et restauration](sauvegarde-restauration.md) : exigences de validation et conservation de la clé, reprises de la consolidation Obsidian.
 
 - [Gestion de la clé chiffrée, migration et déploiement Linode](gestion-cle-chiffree.md).
+
+- [Déverrouillage temporaire](deverrouillage-temporaire.md) : contrat mémoire lié à la page/session, multi-onglets, reprise et recette avant production.

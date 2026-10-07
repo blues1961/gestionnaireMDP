@@ -1,5 +1,5 @@
 import axios from "axios";
-import { checkActivity, isVaultUnlocked, lockVault, sessionGeneration } from "./utils/vaultSession";
+import { configureVaultAuth, checkActivity, isVaultUnlocked, lockVault, sessionGeneration } from "./utils/vaultSession";
 import { jwtDecode } from "jwt-decode";
 
 function normalizeBase(value) {
@@ -95,7 +95,7 @@ export function persistJWT(tokens) {
   const current = getStoredJWT() || {};
   if (current.access && tokens?.access) {
     try {
-      if (jwtDecode(current.access).user_id !== jwtDecode(tokens.access).user_id) { authGeneration += 1; lockVault(); }
+      if (jwtDecode(current.access).user_id !== jwtDecode(tokens.access).user_id) { authGeneration += 1; vaultAccount = null; lockVault(); }
     } catch { lockVault(); }
   }
   const next = {
@@ -121,6 +121,7 @@ export function persistJWT(tokens) {
 
 export function clearStoredAuth() {
   authGeneration += 1;
+  vaultAccount = null;
   lockVault();
   localStorage.removeItem(JWT_STORAGE_KEY);
   localStorage.removeItem(LEGACY_ACCESS_KEY);
@@ -132,10 +133,9 @@ export function loginJWT(username, password) {
   return api.post("auth/jwt/create/", { username, password });
 }
 
-export async function logoutJWT() {
-  const refresh = getStoredRefreshToken();
+export async function logoutJWT(refresh = getStoredRefreshToken(), access = getStoredAccessToken()) {
   if (!refresh) return;
-  await api.post("auth/jwt/logout/", { refresh });
+  await api.post("auth/jwt/logout/", { refresh }, access ? {headers: {Authorization: `Bearer ${access}`}} : undefined);
 }
 
 export async function refreshAccessToken(force = false) {
@@ -230,6 +230,7 @@ api.interceptors.response.use(
     if (status !== 401) return Promise.reject(err);
     if (isJWTAuthPath(originalRequest.url)) return Promise.reject(err);
 
+    lockVault(); // A rejected protected session cannot retain plaintext access during refresh.
     if (!originalRequest._retry && getStoredRefreshToken()) {
       originalRequest._retry = true;
       try {
@@ -315,3 +316,43 @@ api.categories = {
     return { count: affected.length };
   },
 };
+
+// No secret participates in this policy: only account identity and JWT validity.
+function accountOf(token) {
+  try { return jwtDecode(token)?.user_id ?? null; } catch { return null; }
+}
+let vaultAccount = null;
+configureVaultAuth({
+  valid() {
+    const token = getStoredAccessToken();
+    const id = accountOf(token);
+    const refresh = getStoredRefreshToken();
+    if (!id || (isExpired(token) && (isExpired(refresh) || accountOf(refresh) !== id))) return false;
+    if (vaultAccount === null) vaultAccount = id;
+    return vaultAccount === id;
+  },
+  needsVerification() { return isExpired(getStoredAccessToken()); },
+  async verify() {
+    const expected = vaultAccount;
+    const refresh = getStoredRefreshToken();
+    if (refresh) {
+      try { await api.post('auth/jwt/verify/', {token: refresh}); }
+      catch (error) {
+        if ([400, 401].includes(error.response?.status) && getStoredRefreshToken() === refresh && vaultAccount === expected) clearStoredAuth();
+        throw error;
+      }
+    }
+    const {data} = await api.get('whoami/');
+    if (!expected || data.id !== expected || accountOf(getStoredAccessToken()) !== expected) throw new Error('Session invalide');
+  },
+  sameAccount(e) {
+    try {
+      const access = value => e.key === 'mdp.jwt' ? JSON.parse(value)?.access : value;
+      const oldId = accountOf(access(e.oldValue));
+      const newToken = access(e.newValue);
+      const same = oldId !== null && oldId === accountOf(newToken) && !isExpired(newToken);
+      if (same) setAccessToken(getStoredAccessToken());
+      return same;
+    } catch { return false; }
+  },
+});

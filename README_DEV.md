@@ -195,3 +195,13 @@ PLAYWRIGHT_MODULE=/tmp/mdp-playwright/node_modules/playwright/index.mjs PLAYWRIG
 ```
 
 Cette cible prépare/nettoie les fixtures via Docker et lance un nouveau contexte navigateur sur le port Vite publié de développement. Elle n’utilise aucun profil personnel ni fichier réel. Les dépendances système de Chromium doivent être disponibles ; la recette automatisée ne remplace pas la validation physique Android/ThinkPad/Lemur/Thelio.
+
+## Recette du déverrouillage temporaire
+
+`make test-frontend` couvre la conservation en mémoire, les verrouillages et les résultats tardifs. La recette Chromium `frontend/tests/vault-session-browser.mjs` utilise un contexte neuf et intercepte **toutes** les API avec des fixtures ; aucune préparation de compte ni accès à la voûte réelle. Frontend de développement requis sur 5174, Playwright installé séparément comme ci-dessus :
+
+```bash
+PLAYWRIGHT_MODULE=/tmp/mdp-playwright/node_modules/playwright/index.mjs PLAYWRIGHT_BROWSERS_PATH=/tmp/mdp-playwright-browsers node frontend/tests/vault-session-browser.mjs
+```
+
+La recette accélère une longue période d’inactivité pour vérifier qu’elle ne verrouille pas à elle seule. Elle ne simule pas physiquement une suspension OS ni une éviction Android. Voir [contrat, résultats et recette manuelle](docs/deverrouillage-temporaire.md). La validation des restaurations/enveloppes de clé reste séparée ; aucun déploiement implicite.

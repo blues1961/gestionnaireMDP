@@ -99,7 +99,8 @@ Entree :
 Reponse :
 
 - `200` si le token est valide
-- `401` si le token est invalide
+- `401` si le token est invalide ou expiré
+- `400` si le token est blacklisté (configuration actuelle de SimpleJWT)
 
 ### `GET /api/whoami/`
 ### `GET /api/auth/whoami/`
@@ -530,3 +531,9 @@ curl -X POST http://localhost:8002/api/secrets/ \
     }
   }'
 ```
+
+## 11. Vérification de session au retour de la voûte
+
+Aucune route ni modèle nouveau pour la conservation temporaire du déverrouillage. Le frontend ne déclenche aucune requête à cause d’un changement d’onglet ou d’un événement de cycle de vie. La validité locale des JWT reste contrôlée et un access expiré peut être renouvelé via le refresh lors du prochain échange API. Un `401` protégé verrouille immédiatement, même si un refresh permet ensuite de poursuivre la connexion. JWT et déverrouillage restent distincts ; aucune clé ou phrase de passe ne participe à ces échanges. Une révocation distante sans échange réseau n’est donc pas détectée instantanément. Voir [politique client et limites de révocation](deverrouillage-temporaire.md).
+
+La déconnexion purge/verrouille localement avant d’attendre le réseau et utilise uniquement les JWT capturés pour la requête de blacklist ; les autres onglets perdent immédiatement leur accès local.

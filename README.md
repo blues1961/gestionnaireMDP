@@ -91,3 +91,5 @@ Le projet vise les invariants communs des applications auto-hebergees de cet eco
 `make create-env` reste disponible comme aide interactive pour bootstrapper `.env.template`, puis lancer `make generate-env`.
 
 Ce depot presente encore plusieurs ecarts de structure par rapport a `app-template`, documentes dans `INVARIANTS.md`. La documentation a ete re-ecrite pour rendre ces ecarts explicites et ne pas les propager.
+
+La voûte reste déverrouillée uniquement en mémoire tant que la page chargée et la session de connexion restent valides. Le changement d’onglet, l’arrière-plan, la suspension et l’inactivité ne déclenchent aucune action de verrouillage. Rechargement, fermeture, destruction/éviction de la page, déconnexion et verrouillage manuel exigent à nouveau le mot de passe de clé ; une page conservée en BFCache garde son état mémoire. Aucun nouveau stockage persistant de secrets. Voir [politique et recette de développement](docs/deverrouillage-temporaire.md). Fonctionnalité locale, sans déploiement.
